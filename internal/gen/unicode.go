@@ -24,7 +24,7 @@ type UnicodeData struct {
 }
 
 // CharProperties represents the properties of a character as bit flags
-type CharProperties uint16
+type CharProperties uint8
 
 const (
 	// East Asian Width properties

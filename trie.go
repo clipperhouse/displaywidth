@@ -5,7 +5,7 @@ package stringwidth
 import "github.com/clipperhouse/stringwidth/internal/stringish"
 
 // property represents the properties of a character as bit flags
-type property uint16
+type property uint8
 
 const (
 	// East Asian Width properties

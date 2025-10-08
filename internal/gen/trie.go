@@ -102,7 +102,7 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 // writeCharProperties writes the character properties definitions
 func writeCharProperties(w io.Writer) {
 	fmt.Fprintf(w, "// property represents the properties of a character as bit flags\n")
-	fmt.Fprintf(w, "type property uint16\n\n")
+	fmt.Fprintf(w, "type property uint8\n\n")
 	fmt.Fprintf(w, "const (\n")
 	fmt.Fprintf(w, "\t// East Asian Width properties\n")
 	fmt.Fprintf(w, "\tEAW_Fullwidth property = 1 << iota // F\n")
