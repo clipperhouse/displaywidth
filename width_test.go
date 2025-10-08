@@ -2,6 +2,8 @@ package stringwidth
 
 import (
 	"testing"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func TestStringWidth(t *testing.T) {
@@ -38,7 +40,7 @@ func TestStringWidth(t *testing.T) {
 
 		// Emoji
 		{"emoji", "😀", false, false, 2},       // Default emoji width
-		{"emoji strict", "😀", false, true, 1}, // Strict emoji neutral
+		{"emoji strict", "😀", false, true, 2}, // Strict emoji neutral - only ambiguous emoji get width 1
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", "\xff", false, false, 1},
@@ -90,7 +92,7 @@ func TestStringWidthBytes(t *testing.T) {
 
 		// Emoji
 		{"emoji", []byte("😀"), false, false, 2},       // Default emoji width
-		{"emoji strict", []byte("😀"), false, true, 1}, // Strict emoji neutral
+		{"emoji strict", []byte("😀"), false, true, 2}, // Strict emoji neutral - only ambiguous emoji get width 1
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", []byte{0xff}, false, false, 1},
@@ -135,7 +137,7 @@ func TestCalculateWidth(t *testing.T) {
 
 		// Emoji
 		{"emoji default", IsEmoji, false, false, 2},
-		{"emoji strict", IsEmoji, false, true, 1},
+		{"emoji strict", IsEmoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
 
 		// Default (no properties set)
 		{"default", 0, false, false, 1},
@@ -147,6 +149,112 @@ func TestCalculateWidth(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("calculateWidth(%d, %v, %v) = %d, want %d",
 					tt.props, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestComparisonWithGoRunewidth(t *testing.T) {
+	testCases := []struct {
+		name               string
+		input              string
+		eastAsianWidth     bool
+		strictEmojiNeutral bool
+	}{
+		// Basic ASCII
+		{"empty string", "", false, false},
+		{"single ASCII", "a", false, false},
+		{"multiple ASCII", "hello", false, false},
+		{"ASCII with spaces", "hello world", false, false},
+		{"numbers", "1234567890", false, false},
+		{"symbols", "!@#$%^&*()", false, false},
+
+		// Control characters
+		{"newline", "\n", false, false},
+		{"tab", "\t", false, false},
+		{"carriage return", "\r", false, false},
+		{"backspace", "\b", false, false},
+		{"null", "\x00", false, false},
+		{"del", "\x7f", false, false},
+
+		// Latin characters with diacritics
+		{"cafe", "café", false, false},
+		{"naive", "naïve", false, false},
+		{"resume", "résumé", false, false},
+		{"zurich", "Zürich", false, false},
+		{"sao paulo", "São Paulo", false, false},
+
+		// East Asian characters
+		{"chinese", "中文", false, false},
+		{"japanese", "こんにちは", false, false},
+		{"korean", "안녕하세요", false, false},
+		{"mixed", "Hello 世界", false, false},
+
+		// Fullwidth characters
+		{"fullwidth A", "Ａ", false, false},
+		{"fullwidth 1", "１", false, false},
+		{"fullwidth !", "！", false, false},
+
+		// Ambiguous characters
+		{"star", "★", false, false},
+		{"star EAW", "★", true, false},
+		{"degree", "°", false, false},
+		{"degree EAW", "°", true, false},
+		{"plus minus", "±", false, false},
+		{"plus minus EAW", "±", true, false},
+
+		// Emoji
+		{"grinning face", "😀", false, false},
+		{"grinning face strict", "😀", false, true},
+		{"rocket", "🚀", false, false},
+		{"rocket strict", "🚀", false, true},
+		{"party popper", "🎉", false, false},
+		{"party popper strict", "🎉", false, true},
+
+		// Complex emoji sequences
+		{"family", "👨‍👩‍👧‍👦", false, false},
+		{"family strict", "👨‍👩‍👧‍👦", false, true},
+		{"technologist", "👨‍💻", false, false},
+		{"technologist strict", "👨‍💻", false, true},
+
+		// Mixed content
+		{"hello world emoji", "Hello 世界! 😀", false, false},
+		{"price", "Price: $100.00 €85.50", false, false},
+		{"math", "Math: ∑(x²) = ∞", false, false},
+		{"emoji sequence", "👨‍💻 working on 🚀", false, false},
+
+		// Edge cases
+		{"single space", " ", false, false},
+		{"multiple spaces", "     ", false, false},
+		{"tab and newline", "\t\n", false, false},
+		{"mixed whitespace", " \t \n ", false, false},
+
+		// Long string
+		{"long string", "This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols.", false, false},
+
+		// Many emoji
+		{"many emoji", "😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾", false, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Test our implementation
+			ourResult := StringWidth(tc.input, tc.eastAsianWidth, tc.strictEmojiNeutral)
+
+			// Test go-runewidth using Condition
+			condition := runewidth.NewCondition()
+			condition.EastAsianWidth = tc.eastAsianWidth
+			condition.StrictEmojiNeutral = tc.strictEmojiNeutral
+			goRunewidthResult := condition.StringWidth(tc.input)
+
+			// Compare results
+			if ourResult != goRunewidthResult {
+				t.Errorf("StringWidth mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
+					"  Our result: %d\n"+
+					"  go-runewidth result: %d\n"+
+					"  Difference: %d",
+					tc.input, tc.eastAsianWidth, tc.strictEmojiNeutral,
+					ourResult, goRunewidthResult, ourResult-goRunewidthResult)
 			}
 		})
 	}

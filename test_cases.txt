@@ -1,0 +1,83 @@
+# Comprehensive Test Cases for String Width Comparison
+# This file contains various character types to test both our implementation and go-runewidth
+
+# Basic ASCII
+hello
+Hello World
+1234567890
+!@#$%^&*()
+
+# Control Characters
+newline:
+tab:
+carriage return:
+backspace:
+null:
+del:
+
+# Latin Characters
+café
+naïve
+résumé
+Zürich
+São Paulo
+
+# East Asian Characters
+Chinese: 中文
+Japanese: こんにちは
+Korean: 안녕하세요
+Mixed: Hello 世界
+
+# Fullwidth Characters
+Fullwidth A: Ａ
+Fullwidth 1: １
+Fullwidth !: ！
+
+# Ambiguous Characters
+★ ☆ ♠ ♣ ♥ ♦
+° ± × ÷
+← → ↑ ↓
+« » ‹ ›
+
+# Emoji
+😀 😁 😂 🤣 😃 😄 😅 😆 😉 😊
+🚀 🎉 🎊 🎈 🎁 🎂 🎃 🎄 🎆 🎇
+👨‍👩‍👧‍👦 👨‍💻 👩‍🔬 👨‍🎨 👩‍🚀
+🇺🇸 🇬🇧 🇫🇷 🇩🇪 🇯🇵 🇰🇷 🇨🇳
+
+# Combining Marks
+e + combining acute: é
+a + combining grave: à
+o + combining tilde: õ
+n + combining tilde: ñ
+
+# Zero Width Characters
+Zero Width Space:
+Zero Width Joiner:
+Zero Width Non-Joiner:
+
+# Special Symbols
+Currency: $ € £ ¥ ₹ ₽
+Math: ∑ ∏ ∫ ∞ ≤ ≥ ≠ ≈
+Arrows: ← → ↑ ↓ ↔ ↕ ⇐ ⇒ ⇑ ⇓
+Punctuation: … — – " " ' '
+
+# Mixed Complex Cases
+Hello 世界! 😀
+Price: $100.00 €85.50
+Math: ∑(x²) = ∞
+Emoji sequence: 👨‍💻 working on 🚀
+Mixed script: Hello 世界 안녕하세요 こんにちは
+
+# Edge Cases
+Empty string:
+Single space:
+Multiple spaces:
+Tab and newline:
+Mixed whitespace:
+
+# Long strings for performance testing
+This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols. The purpose is to see how both packages handle longer strings and whether there are any performance differences or edge cases that emerge with more complex input.
+
+# Stress test with many emoji
+😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾

@@ -1,5 +1,9 @@
 package stringwidth
 
+import (
+	"github.com/clipperhouse/uax29/v2/graphemes"
+)
+
 // Global trie instance
 var trie = &stringWidthTrie{}
 
@@ -86,9 +90,10 @@ func calculateWidth(props property, eastAsianWidth bool, strictEmojiNeutral bool
 		return 1
 	}
 
-	// Handle emoji
+	// Handle emoji - only ambiguous emoji get width 1 in strict mode
 	if props.IsEmoji() {
-		if strictEmojiNeutral {
+		// In strict mode, only ambiguous emoji get width 1
+		if strictEmojiNeutral && props.IsEastAsianAmbiguous() {
 			return 1
 		}
 		return 2
@@ -111,74 +116,49 @@ func getDefaultWidth() int {
 	return 1
 }
 
-// processStringWidth calculates the total width of a string
+// processStringWidth calculates the total width of a string using grapheme clusters
 func processStringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	if len(s) == 0 {
 		return 0
 	}
 
 	totalWidth := 0
-	pos := 0
+	g := graphemes.FromString(s)
 
-	for pos < len(s) {
-		// Look up character properties from trie
-		props, trieSize := LookupCharPropertiesString(s[pos:])
+	for g.Next() {
+		var chWidth int
+		// For each grapheme cluster, find the width of the first non-zero-width rune
+		for _, r := range g.Value() {
+			// Look up character properties from trie
+			props, _ := LookupCharPropertiesString(string(r))
 
-		// If trie lookup failed (size 0), invalid UTF-8 sequence
-		if trieSize == 0 {
-			return -1
+			// Calculate width based on properties
+			if props == 0 {
+				// Character not in trie, use default behavior
+				chWidth = getDefaultWidth()
+			} else {
+				// Use trie properties to calculate width
+				chWidth = calculateWidth(props, eastAsianWidth, strictEmojiNeutral)
+			}
+
+			if chWidth > 0 {
+				break // Use the width of the first non-zero-width rune
+			}
 		}
-
-		// Calculate width based on properties
-		var width int
-		if props == 0 {
-			// Character not in trie, use default behavior
-			width = getDefaultWidth()
-		} else {
-			// Use trie properties to calculate width
-			width = calculateWidth(props, eastAsianWidth, strictEmojiNeutral)
-		}
-
-		totalWidth += width
-		pos += trieSize
+		totalWidth += chWidth
 	}
 
 	return totalWidth
 }
 
-// processBytesWidth calculates the total width of a byte slice
+// processBytesWidth calculates the total width of a byte slice using grapheme clusters
 func processBytesWidth(b []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	if len(b) == 0 {
 		return 0
 	}
 
-	totalWidth := 0
-	offset := 0
-
-	for offset < len(b) {
-		// Look up character properties from trie
-		props, trieSize := LookupCharPropertiesBytes(b[offset:])
-
-		// If trie lookup failed (size 0), invalid UTF-8 sequence
-		if trieSize == 0 {
-			return -1
-		}
-
-		// Calculate width based on properties
-		var width int
-		if props == 0 {
-			// Character not in trie, use default behavior
-			width = getDefaultWidth()
-		} else {
-			// Use trie properties to calculate width
-			width = calculateWidth(props, eastAsianWidth, strictEmojiNeutral)
-		}
-
-		totalWidth += width
-		offset += trieSize
-	}
-
-	return totalWidth
+	// Convert to string and use the string processing function
+	return processStringWidth(string(b), eastAsianWidth, strictEmojiNeutral)
 }
 
 // StringWidth calculates the display width of a string
