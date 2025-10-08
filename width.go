@@ -9,8 +9,28 @@ import (
 // eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
 // strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
 func StringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
-	return stringWidth(s, eastAsianWidth, strictEmojiNeutral)
+	return BytesWidth([]byte(s), eastAsianWidth, strictEmojiNeutral)
 }
+
+// BytesWidth calculates the display width of a []byte
+// eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
+// strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
+func BytesWidth(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
+	if len(s) == 0 {
+		return 0
+	}
+
+	total := 0
+	g := graphemes.FromBytes(s)
+	for g.Next() {
+		// Look up character properties from trie for the first character in the grapheme cluster
+		props, _ := lookupProperties(g.Value())
+		total += props.width(eastAsianWidth, strictEmojiNeutral)
+	}
+	return total
+}
+
+const defaultWidth = 1
 
 // is returns true if the property flag is set
 func (p property) is(flag property) bool {
@@ -85,22 +105,4 @@ func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
 
 	// Default width for all other characters
 	return defaultWidth
-}
-
-const defaultWidth = 1
-
-// stringWidth calculates the total width of a string using grapheme clusters
-func stringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
-	if len(s) == 0 {
-		return 0
-	}
-
-	total := 0
-	g := graphemes.FromString(s)
-	for g.Next() {
-		// Look up character properties from trie for the first character in the grapheme cluster
-		props, _ := lookupProperties(g.Value())
-		total += props.width(eastAsianWidth, strictEmojiNeutral)
-	}
-	return total
 }

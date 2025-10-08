@@ -101,7 +101,7 @@ func BenchmarkStringWidth_OurPackage(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range testCases {
 			// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
-			_ = stringWidth(tc.Input, false, false)
+			_ = StringWidth(tc.Input, false, false)
 		}
 	}
 
@@ -152,7 +152,7 @@ func BenchmarkStringWidth_OurPackage_EAW(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range testCases {
 			// Test with East Asian Width enabled
-			_ = stringWidth(tc.Input, true, false)
+			_ = StringWidth(tc.Input, true, false)
 		}
 	}
 
@@ -203,7 +203,7 @@ func BenchmarkStringWidth_OurPackage_StrictEmoji(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range testCases {
 			// Test with strict emoji neutral enabled
-			_ = stringWidth(tc.Input, false, true)
+			_ = StringWidth(tc.Input, false, true)
 		}
 	}
 
@@ -256,7 +256,7 @@ func BenchmarkStringWidth_ASCII(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range asciiStrings {
-				_ = stringWidth(s, false, false)
+				_ = StringWidth(s, false, false)
 			}
 		}
 
@@ -308,7 +308,7 @@ func BenchmarkStringWidth_Unicode(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
-				_ = stringWidth(s, false, false)
+				_ = StringWidth(s, false, false)
 			}
 		}
 
@@ -355,7 +355,7 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
-				_ = stringWidth(s, false, false)
+				_ = StringWidth(s, false, false)
 			}
 		}
 
@@ -401,7 +401,7 @@ func BenchmarkStringWidth_Mixed(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
-				_ = stringWidth(s, false, false)
+				_ = StringWidth(s, false, false)
 			}
 		}
 
@@ -450,7 +450,7 @@ func BenchmarkStringWidth_ControlChars(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
-				_ = stringWidth(s, false, false)
+				_ = StringWidth(s, false, false)
 			}
 		}
 
