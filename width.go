@@ -1,6 +1,7 @@
 package stringwidth
 
 import (
+	"github.com/clipperhouse/stringwidth/internal/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
@@ -39,25 +40,14 @@ func (p property) IsEmoji() bool {
 	return p.Has(IsEmoji)
 }
 
-// LookupCharPropertiesBytes returns the properties for the first character in a byte slice
-func LookupCharPropertiesBytes(s []byte) (property, int) {
-	if len(s) == 0 {
-		return 0, 0
-	}
-
-	// Use the generated trie for lookup
-	props, size := lookup([]byte(s))
-	return props, size
-}
-
 // LookupCharPropertiesString returns the properties for the first character in a string
-func LookupCharPropertiesString(s string) (property, int) {
+func LookupCharProperties[T stringish.Interface](s T) (property, int) {
 	if len(s) == 0 {
 		return 0, 0
 	}
 
 	// Use the generated trie for lookup
-	props, size := lookup([]byte(s))
+	props, size := lookup(s)
 	return props, size
 }
 
@@ -124,11 +114,8 @@ func processStringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) 
 	g := graphemes.FromString(s)
 
 	for g.Next() {
-		// Get the grapheme cluster as a string
-		graphemeStr := g.Value()
-
 		// Look up character properties from trie for the first character in the grapheme cluster
-		props, _ := LookupCharPropertiesString(graphemeStr)
+		props, _ := LookupCharProperties(g.Value())
 
 		// Calculate width based on properties
 		var chWidth int

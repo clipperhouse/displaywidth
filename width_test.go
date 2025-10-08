@@ -267,7 +267,7 @@ func TestSpecificEmojiCharacters(t *testing.T) {
 
 	for _, char := range chars {
 		t.Run(fmt.Sprintf("char_%04X", char), func(t *testing.T) {
-			props, _ := LookupCharPropertiesString(string(char))
+			props, _ := LookupCharProperties(string(char))
 			ourWidth := StringWidth(string(char), false, false)
 
 			// Test with go-runewidth for comparison
