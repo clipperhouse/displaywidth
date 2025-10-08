@@ -66,18 +66,18 @@ func TestLookupCharProperties(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := LookupCharProperties(tt.r)
+			result, _ := LookupCharPropertiesString(string(tt.r))
 
 			// For zero expected value, check that no special properties are set
 			if tt.expected == 0 {
 				if result != 0 {
-					t.Errorf("LookupCharProperties(%q) = %v, want 0 (%s)",
+					t.Errorf("LookupCharPropertiesString(%q) = %v, want 0 (%s)",
 						string(tt.r), result, tt.desc)
 				}
 			} else {
 				// For non-zero expected value, check that the specific property is set
 				if !result.Has(tt.expected) {
-					t.Errorf("LookupCharProperties(%q) = %v, want property %v (%s)",
+					t.Errorf("LookupCharPropertiesString(%q) = %v, want property %v (%s)",
 						string(tt.r), result, tt.expected, tt.desc)
 				}
 			}
@@ -161,7 +161,7 @@ func TestSpecificCharacters(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		props := LookupCharProperties(tc.char)
+		props, _ := LookupCharPropertiesString(string(tc.char))
 		for _, expectedProp := range tc.hasProps {
 			if !props.Has(expectedProp) {
 				t.Errorf("Character %q (%U) should have property %v (%s)",
