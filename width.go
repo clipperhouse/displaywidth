@@ -32,21 +32,15 @@ func LookupCharProperties[T stringish.Interface](s T) (property, int) {
 	}
 
 	// Fast path for ASCII characters (single byte)
-	// Based on go-runewidth logic: r < 0x20, (r >= 0x7F && r <= 0x9F) || r == 0xAD, r < 0x300
 	b := s[0]
 	if b < 0x80 { // Single-byte ASCII
-		if b < 0x20 {
-			// Control characters (0x00-0x1F) - width 0
+		if b < 0x20 || b == 0x7F {
+			// Control characters (0x00-0x1F) and DEL (0x7F) - width 0
 			return IsControlChar, 1
-		} else if (b >= 0x7F && b <= 0x9F) || b == 0xAD {
-			// Non-printable characters (0x7F-0x9F, 0xAD) - width 0
-			return IsControlChar, 1
-		} else if b >= 0x20 && b <= 0x7E {
-			// ASCII printable characters (0x20-0x7E) - width 1
-			// Return 0 properties, width calculation will default to 1
-			return 0, 1
 		}
-		// b == 0x7E is already handled above, so this shouldn't be reached
+		// ASCII printable characters (0x20-0x7E) - width 1
+		// Return 0 properties, width calculation will default to 1
+		return 0, 1
 	}
 
 	// Use the generated trie for lookup

@@ -237,10 +237,8 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 // extractStdlibData extracts character properties from Go's unicode package
 func extractStdlibData(data *UnicodeData) {
 	// Extract control characters
-	for r := rune(0); r <= 0x1F; r++ {
-		data.ControlChars[r] = true
-	}
-	data.ControlChars[0x7F] = true // DEL
+	// Skip 0x00-0x1F and 0x7F as they're handled by the fast path in width.go
+	// Only add C1 controls (0x80-0x9F) which are multi-byte in UTF-8
 	for r := rune(0x80); r <= 0x9F; r++ {
 		data.ControlChars[r] = true // C1 controls
 	}
