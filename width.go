@@ -5,39 +5,24 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// Has returns true if the property flag is set
-func (p property) Has(flag property) bool {
+// is returns true if the property flag is set
+func (p property) is(flag property) bool {
 	return p&flag != 0
 }
 
 // IsEastAsianWide returns true if the character is East Asian Wide
 func (p property) IsEastAsianWide() bool {
-	return p.Has(EAW_Fullwidth) || p.Has(EAW_Wide)
+	return p.is(EAW_Fullwidth) || p.is(EAW_Wide)
 }
 
 // IsEastAsianAmbiguous returns true if the character is East Asian Ambiguous
 func (p property) IsEastAsianAmbiguous() bool {
-	return p.Has(EAW_Ambiguous)
-}
-
-// IsCombining returns true if the character is a combining mark
-func (p property) IsCombining() bool {
-	return p.Has(IsCombiningMark)
-}
-
-// IsControl returns true if the character is a control character
-func (p property) IsControl() bool {
-	return p.Has(IsControlChar)
-}
-
-// IsZeroWidth returns true if the character has zero width
-func (p property) IsZeroWidth() bool {
-	return p.Has(IsZeroWidth)
+	return p.is(EAW_Ambiguous)
 }
 
 // IsEmoji returns true if the character is an emoji
 func (p property) IsEmoji() bool {
-	return p.Has(IsEmoji)
+	return p.is(IsEmoji)
 }
 
 // LookupCharPropertiesString returns the properties for the first character in a string
@@ -46,26 +31,35 @@ func LookupCharProperties[T stringish.Interface](s T) (property, int) {
 		return 0, 0
 	}
 
+	// Fast path for ASCII characters (single byte)
+	// Based on go-runewidth logic: r < 0x20, (r >= 0x7F && r <= 0x9F) || r == 0xAD, r < 0x300
+	b := s[0]
+	if b < 0x80 { // Single-byte ASCII
+		if b < 0x20 {
+			// Control characters (0x00-0x1F) - width 0
+			return IsControlChar, 1
+		} else if (b >= 0x7F && b <= 0x9F) || b == 0xAD {
+			// Non-printable characters (0x7F-0x9F, 0xAD) - width 0
+			return IsControlChar, 1
+		} else if b >= 0x20 && b <= 0x7E {
+			// ASCII printable characters (0x20-0x7E) - width 1
+			return EAW_Narrow, 1
+		}
+		// b == 0x7E is already handled above, so this shouldn't be reached
+	}
+
 	// Use the generated trie for lookup
 	props, size := lookup(s)
 	return props, size
 }
 
+const controlCombiningZero = IsControlChar | IsCombiningMark | IsZeroWidth
+
 // calculateWidth determines the display width of a character based on its properties
 // and configuration options
 func calculateWidth(props property, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	// Handle control characters (width 0)
-	if props.IsControl() {
-		return 0
-	}
-
-	// Handle combining marks (width 0)
-	if props.IsCombining() {
-		return 0
-	}
-
-	// Handle zero-width characters (width 0)
-	if props.IsZeroWidth() {
+	if props.is(controlCombiningZero) {
 		return 0
 	}
 

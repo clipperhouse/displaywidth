@@ -76,7 +76,7 @@ func TestLookupCharProperties(t *testing.T) {
 				}
 			} else {
 				// For non-zero expected value, check that the specific property is set
-				if !result.Has(tt.expected) {
+				if !result.is(tt.expected) {
 					t.Errorf("LookupCharPropertiesString(%q) = %v, want property %v (%s)",
 						string(tt.r), result, tt.expected, tt.desc)
 				}
@@ -103,24 +103,6 @@ func TestCharPropertiesMethods(t *testing.T) {
 		t.Error("IsEastAsianAmbiguous() should return true for ambiguous characters")
 	}
 
-	// Test IsCombining
-	combiningProps := IsCombiningMark
-	if !combiningProps.IsCombining() {
-		t.Error("IsCombining() should return true for combining marks")
-	}
-
-	// Test IsControl
-	controlProps := IsControlChar
-	if !controlProps.IsControl() {
-		t.Error("IsControl() should return true for control characters")
-	}
-
-	// Test IsZeroWidth
-	zeroWidthProps := IsZeroWidth
-	if !zeroWidthProps.IsZeroWidth() {
-		t.Error("IsZeroWidth() should return true for zero-width characters")
-	}
-
 	// Test IsEmoji
 	emojiProps := IsEmoji
 	if !emojiProps.IsEmoji() {
@@ -131,16 +113,16 @@ func TestCharPropertiesMethods(t *testing.T) {
 func TestCharPropertiesHas(t *testing.T) {
 	props := EAW_Wide | IsControlChar | IsEmoji
 
-	if !props.Has(EAW_Wide) {
+	if !props.is(EAW_Wide) {
 		t.Error("Has(EAW_Wide) should return true")
 	}
-	if !props.Has(IsControlChar) {
+	if !props.is(IsControlChar) {
 		t.Error("Has(IsControlChar) should return true")
 	}
-	if !props.Has(IsEmoji) {
+	if !props.is(IsEmoji) {
 		t.Error("Has(IsEmoji) should return true")
 	}
-	if props.Has(EAW_Ambiguous) {
+	if props.is(EAW_Ambiguous) {
 		t.Error("Has(EAW_Ambiguous) should return false")
 	}
 }
@@ -163,7 +145,7 @@ func TestSpecificCharacters(t *testing.T) {
 	for _, tc := range testCases {
 		props, _ := LookupCharProperties(string(tc.char))
 		for _, expectedProp := range tc.hasProps {
-			if !props.Has(expectedProp) {
+			if !props.is(expectedProp) {
 				t.Errorf("Character %q (%U) should have property %v (%s)",
 					string(tc.char), tc.char, expectedProp, tc.desc)
 			}
