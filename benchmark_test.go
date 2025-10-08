@@ -1,4 +1,4 @@
-package stringwidth
+package displaywidth
 
 import (
 	"bufio"
@@ -89,161 +89,164 @@ func loadTestCases() ([]TestCase, error) {
 	return testCases, scanner.Err()
 }
 
-// BenchmarkStringWidth_OurPackage benchmarks our stringwidth package
-func BenchmarkStringWidth_OurPackage(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
-			_ = StringWidth(tc.Input, false, false)
+// BenchmarkString benchmarks our displaywidth package
+func BenchmarkString(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
 		}
-	}
 
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
+				_ = String(tc.Input, false, false)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
+		}
+
+		condition := runewidth.NewCondition()
+		condition.EastAsianWidth = false
+		condition.StrictEmojiNeutral = false
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				_ = condition.StringWidth(tc.Input)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
 }
 
-// BenchmarkStringWidth_GoRunewidth benchmarks go-runewidth package
-func BenchmarkStringWidth_GoRunewidth(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	condition := runewidth.NewCondition()
-	condition.EastAsianWidth = false
-	condition.StrictEmojiNeutral = false
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			_ = condition.StringWidth(tc.Input)
+// BenchmarkString_EAW benchmarks our package with East Asian Width enabled
+func BenchmarkString_EAW(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
 		}
-	}
 
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				// Test with East Asian Width enabled
+				_ = String(tc.Input, true, false)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
+		}
+
+		condition := runewidth.NewCondition()
+		condition.EastAsianWidth = true
+		condition.StrictEmojiNeutral = false
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				_ = condition.StringWidth(tc.Input)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
 }
 
-// BenchmarkStringWidth_OurPackage_EAW benchmarks our package with East Asian Width enabled
-func BenchmarkStringWidth_OurPackage_EAW(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			// Test with East Asian Width enabled
-			_ = StringWidth(tc.Input, true, false)
+// BenchmarkString_StrictEmoji benchmarks our package with strict emoji neutral
+func BenchmarkString_StrictEmoji(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
 		}
-	}
 
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				// Test with strict emoji neutral enabled
+				_ = String(tc.Input, false, true)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		testCases, err := loadTestCases()
+		if err != nil {
+			b.Fatalf("Failed to load test cases: %v", err)
+		}
+
+		condition := runewidth.NewCondition()
+		condition.EastAsianWidth = false
+		condition.StrictEmojiNeutral = true
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, tc := range testCases {
+				_ = condition.StringWidth(tc.Input)
+			}
+		}
+
+		// Set bytes for throughput calculation
+		totalBytes := 0
+		for _, tc := range testCases {
+			totalBytes += len(tc.Input)
+		}
+		b.SetBytes(int64(totalBytes))
+	})
 }
 
-// BenchmarkStringWidth_GoRunewidth_EAW benchmarks go-runewidth with East Asian Width enabled
-func BenchmarkStringWidth_GoRunewidth_EAW(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	condition := runewidth.NewCondition()
-	condition.EastAsianWidth = true
-	condition.StrictEmojiNeutral = false
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			_ = condition.StringWidth(tc.Input)
-		}
-	}
-
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
-}
-
-// BenchmarkStringWidth_OurPackage_StrictEmoji benchmarks our package with strict emoji neutral
-func BenchmarkStringWidth_OurPackage_StrictEmoji(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			// Test with strict emoji neutral enabled
-			_ = StringWidth(tc.Input, false, true)
-		}
-	}
-
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
-}
-
-// BenchmarkStringWidth_GoRunewidth_StrictEmoji benchmarks go-runewidth with strict emoji neutral
-func BenchmarkStringWidth_GoRunewidth_StrictEmoji(b *testing.B) {
-	testCases, err := loadTestCases()
-	if err != nil {
-		b.Fatalf("Failed to load test cases: %v", err)
-	}
-
-	condition := runewidth.NewCondition()
-	condition.EastAsianWidth = false
-	condition.StrictEmojiNeutral = true
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for _, tc := range testCases {
-			_ = condition.StringWidth(tc.Input)
-		}
-	}
-
-	// Set bytes for throughput calculation
-	totalBytes := 0
-	for _, tc := range testCases {
-		totalBytes += len(tc.Input)
-	}
-	b.SetBytes(int64(totalBytes))
-}
-
-// BenchmarkStringWidth_ASCII benchmarks ASCII-only strings
-func BenchmarkStringWidth_ASCII(b *testing.B) {
+// BenchmarkString_ASCII benchmarks ASCII-only strings
+func BenchmarkString_ASCII(b *testing.B) {
 	asciiStrings := []string{
 		"hello",
 		"Hello World",
@@ -252,11 +255,11 @@ func BenchmarkStringWidth_ASCII(b *testing.B) {
 		"This is a very long string with many characters to test performance of both implementations.",
 	}
 
-	b.Run("OurPackage", func(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range asciiStrings {
-				_ = StringWidth(s, false, false)
+				_ = String(s, false, false)
 			}
 		}
 
@@ -267,7 +270,7 @@ func BenchmarkStringWidth_ASCII(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 
-	b.Run("GoRunewidth", func(b *testing.B) {
+	b.Run("go-runewidth", func(b *testing.B) {
 		condition := runewidth.NewCondition()
 		condition.EastAsianWidth = false
 		condition.StrictEmojiNeutral = false
@@ -287,8 +290,8 @@ func BenchmarkStringWidth_ASCII(b *testing.B) {
 	})
 }
 
-// BenchmarkStringWidth_Unicode benchmarks Unicode strings
-func BenchmarkStringWidth_Unicode(b *testing.B) {
+// BenchmarkString_Unicode benchmarks Unicode strings
+func BenchmarkString_Unicode(b *testing.B) {
 	unicodeStrings := []string{
 		"café",
 		"naïve",
@@ -304,11 +307,11 @@ func BenchmarkStringWidth_Unicode(b *testing.B) {
 		"← → ↑ ↓",
 	}
 
-	b.Run("OurPackage", func(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
-				_ = StringWidth(s, false, false)
+				_ = String(s, false, false)
 			}
 		}
 
@@ -319,7 +322,7 @@ func BenchmarkStringWidth_Unicode(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 
-	b.Run("GoRunewidth", func(b *testing.B) {
+	b.Run("go-runewidth", func(b *testing.B) {
 		condition := runewidth.NewCondition()
 		condition.EastAsianWidth = false
 		condition.StrictEmojiNeutral = false
@@ -351,11 +354,11 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		"😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾",
 	}
 
-	b.Run("OurPackage", func(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
-				_ = StringWidth(s, false, false)
+				_ = String(s, false, false)
 			}
 		}
 
@@ -366,7 +369,7 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 
-	b.Run("GoRunewidth", func(b *testing.B) {
+	b.Run("go-runewidth", func(b *testing.B) {
 		condition := runewidth.NewCondition()
 		condition.EastAsianWidth = false
 		condition.StrictEmojiNeutral = false
@@ -386,8 +389,8 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 	})
 }
 
-// BenchmarkStringWidth_Mixed benchmarks mixed content strings
-func BenchmarkStringWidth_Mixed(b *testing.B) {
+// BenchmarkString_Mixed benchmarks mixed content strings
+func BenchmarkString_Mixed(b *testing.B) {
 	mixedStrings := []string{
 		"Hello 世界! 😀",
 		"Price: $100.00 €85.50",
@@ -397,11 +400,11 @@ func BenchmarkStringWidth_Mixed(b *testing.B) {
 		"This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols. The purpose is to see how both packages handle longer strings and whether there are any performance differences or edge cases that emerge with more complex input.",
 	}
 
-	b.Run("OurPackage", func(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
-				_ = StringWidth(s, false, false)
+				_ = String(s, false, false)
 			}
 		}
 
@@ -412,7 +415,7 @@ func BenchmarkStringWidth_Mixed(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 
-	b.Run("GoRunewidth", func(b *testing.B) {
+	b.Run("go-runewidth", func(b *testing.B) {
 		condition := runewidth.NewCondition()
 		condition.EastAsianWidth = false
 		condition.StrictEmojiNeutral = false
@@ -432,8 +435,8 @@ func BenchmarkStringWidth_Mixed(b *testing.B) {
 	})
 }
 
-// BenchmarkStringWidth_ControlChars benchmarks control characters
-func BenchmarkStringWidth_ControlChars(b *testing.B) {
+// BenchmarkString_ControlChars benchmarks control characters
+func BenchmarkString_ControlChars(b *testing.B) {
 	controlStrings := []string{
 		"\n",
 		"\t",
@@ -446,11 +449,11 @@ func BenchmarkStringWidth_ControlChars(b *testing.B) {
 		" \t \n ",
 	}
 
-	b.Run("OurPackage", func(b *testing.B) {
+	b.Run("displaywidth", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
-				_ = StringWidth(s, false, false)
+				_ = String(s, false, false)
 			}
 		}
 
@@ -461,7 +464,7 @@ func BenchmarkStringWidth_ControlChars(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 
-	b.Run("GoRunewidth", func(b *testing.B) {
+	b.Run("go-runewidth", func(b *testing.B) {
 		condition := runewidth.NewCondition()
 		condition.EastAsianWidth = false
 		condition.StrictEmojiNeutral = false

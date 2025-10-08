@@ -1,14 +1,14 @@
-package stringwidth
+package displaywidth
 
 import (
-	"github.com/clipperhouse/stringwidth/internal/stringish"
+	"github.com/clipperhouse/displaywidth/internal/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// StringWidth calculates the display width of a string
+// String calculates the display width of a string
 // eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
 // strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
-func StringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
+func String(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -23,10 +23,10 @@ func StringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	return total
 }
 
-// BytesWidth calculates the display width of a []byte
+// Bytes calculates the display width of a []byte
 // eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
 // strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
-func BytesWidth(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
+func Bytes(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	if len(s) == 0 {
 		return 0
 	}

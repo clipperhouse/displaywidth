@@ -1,4 +1,4 @@
-package stringwidth
+package displaywidth
 
 import (
 	"fmt"
@@ -50,14 +50,14 @@ func TestStringWidth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := StringWidth(tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral)
+			result := String(tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral)
 			if result != tt.expected {
 				t.Errorf("StringWidth(%q, %v, %v) = %d, want %d",
 					tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
 			}
 
 			b := []byte(tt.input)
-			result = BytesWidth(b, tt.eastAsianWidth, tt.strictEmojiNeutral)
+			result = Bytes(b, tt.eastAsianWidth, tt.strictEmojiNeutral)
 			if result != tt.expected {
 				t.Errorf("BytesWidth(%q, %v, %v) = %d, want %d",
 					b, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
@@ -195,7 +195,7 @@ func TestComparisonWithGoRunewidth(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Test our implementation
-			ourResult := StringWidth(tc.input, tc.eastAsianWidth, tc.strictEmojiNeutral)
+			ourResult := String(tc.input, tc.eastAsianWidth, tc.strictEmojiNeutral)
 
 			// Test go-runewidth using Condition
 			condition := runewidth.NewCondition()
@@ -223,7 +223,7 @@ func TestSpecificEmojiCharacters(t *testing.T) {
 	for _, char := range chars {
 		t.Run(fmt.Sprintf("char_%04X", char), func(t *testing.T) {
 			props, _ := lookupProperties(string(char))
-			ourWidth := StringWidth(string(char), false, false)
+			ourWidth := String(string(char), false, false)
 
 			// Test with go-runewidth for comparison
 			condition := runewidth.NewCondition()

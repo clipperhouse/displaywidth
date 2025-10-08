@@ -1,4 +1,4 @@
-module github.com/clipperhouse/stringwidth
+module github.com/clipperhouse/displaywidth
 
 go 1.18
 

@@ -1,4 +1,4 @@
-package stringwidth
+package displaywidth
 
 import (
 	"testing"
