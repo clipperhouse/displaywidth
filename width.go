@@ -133,26 +133,9 @@ func processStringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) 
 	return totalWidth
 }
 
-// processBytesWidth calculates the total width of a byte slice using grapheme clusters
-func processBytesWidth(b []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
-	if len(b) == 0 {
-		return 0
-	}
-
-	// Convert to string and use the string processing function
-	return processStringWidth(string(b), eastAsianWidth, strictEmojiNeutral)
-}
-
 // StringWidth calculates the display width of a string
 // eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
 // strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
 func StringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	return processStringWidth(s, eastAsianWidth, strictEmojiNeutral)
-}
-
-// StringWidthBytes calculates the display width of a byte slice
-// eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
-// strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
-func StringWidthBytes(b []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
-	return processBytesWidth(b, eastAsianWidth, strictEmojiNeutral)
 }

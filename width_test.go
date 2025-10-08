@@ -59,58 +59,6 @@ func TestStringWidth(t *testing.T) {
 	}
 }
 
-func TestStringWidthBytes(t *testing.T) {
-	tests := []struct {
-		name               string
-		input              []byte
-		eastAsianWidth     bool
-		strictEmojiNeutral bool
-		expected           int
-	}{
-		// Basic ASCII characters
-		{"empty bytes", []byte{}, false, false, 0},
-		{"single ASCII", []byte("a"), false, false, 1},
-		{"multiple ASCII", []byte("hello"), false, false, 5},
-		{"ASCII with spaces", []byte("hello world"), false, false, 11},
-
-		// Control characters (width 0)
-		{"newline", []byte("\n"), false, false, 0},
-		{"tab", []byte("\t"), false, false, 0},
-		{"carriage return", []byte("\r"), false, false, 0},
-		{"backspace", []byte("\b"), false, false, 0},
-
-		// Mixed content
-		{"ASCII with newline", []byte("hello\nworld"), false, false, 10},
-		{"ASCII with tab", []byte("hello\tworld"), false, false, 10},
-
-		// East Asian characters (should be in trie)
-		{"CJK ideograph", []byte("中"), false, false, 2},
-		{"CJK with ASCII", []byte("hello中"), false, false, 7},
-
-		// Ambiguous characters
-		{"ambiguous character", []byte("★"), false, false, 1},    // Default narrow
-		{"ambiguous character EAW", []byte("★"), true, false, 2}, // East Asian wide
-
-		// Emoji
-		{"emoji", []byte("😀"), false, false, 2},       // Default emoji width
-		{"emoji strict", []byte("😀"), false, true, 2}, // Strict emoji neutral - only ambiguous emoji get width 1
-
-		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
-		{"invalid UTF-8", []byte{0xff}, false, false, 1},
-		{"partial UTF-8", []byte{0xc2}, false, false, 1},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := StringWidthBytes(tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral)
-			if result != tt.expected {
-				t.Errorf("StringWidthBytes(%v, %v, %v) = %d, want %d",
-					tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestCalculateWidth(t *testing.T) {
 	tests := []struct {
 		name               string
