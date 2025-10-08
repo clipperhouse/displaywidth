@@ -55,6 +55,13 @@ func TestStringWidth(t *testing.T) {
 				t.Errorf("StringWidth(%q, %v, %v) = %d, want %d",
 					tt.input, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
 			}
+
+			b := []byte(tt.input)
+			result = BytesWidth(b, tt.eastAsianWidth, tt.strictEmojiNeutral)
+			if result != tt.expected {
+				t.Errorf("BytesWidth(%q, %v, %v) = %d, want %d",
+					b, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
+			}
 		})
 	}
 }

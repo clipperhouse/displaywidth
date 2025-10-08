@@ -9,7 +9,18 @@ import (
 // eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
 // strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
 func StringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
-	return BytesWidth([]byte(s), eastAsianWidth, strictEmojiNeutral)
+	if len(s) == 0 {
+		return 0
+	}
+
+	total := 0
+	g := graphemes.FromString(s)
+	for g.Next() {
+		// Look up character properties from trie for the first character in the grapheme cluster
+		props, _ := lookupProperties(g.Value())
+		total += props.width(eastAsianWidth, strictEmojiNeutral)
+	}
+	return total
 }
 
 // BytesWidth calculates the display width of a []byte
