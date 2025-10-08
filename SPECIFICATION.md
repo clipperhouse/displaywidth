@@ -134,21 +134,30 @@ Following the uax29 stringish approach, the implementation should:
 
 ## Data Sources
 
-### Unicode Character Database Files
+### Data Sources
 
-1. **EastAsianWidth.txt**: Primary source for East Asian Width property
-2. **UnicodeData.txt**: General category and combining mark information
-3. **emoji-data.txt**: Emoji properties and sequences
-4. **DerivedGeneralCategory.txt**: Derived character categories
+#### Go Standard Library Range Tables
+- **Existing Categories**: Use built-in range tables from Go's `unicode` package as data sources
+- **Control Characters**: Extract from existing control character range tables
+- **Combining Marks**: Extract from existing mark category range tables
+- **Symbols and Punctuation**: Extract from existing symbol/punctuation range tables
+
+#### External Unicode Data Files
+1. **EastAsianWidth.txt**: Primary source for East Asian Width property (not in Go stdlib)
+2. **emoji-data.txt**: Emoji properties and sequences (not in Go stdlib)
+3. **UnicodeData.txt**: Additional properties not covered by Go stdlib
+
+**Note**: We'll evaluate during implementation whether to use Go's existing range tables as data sources for trie generation, or download external Unicode data files. The goal is to save work by leveraging existing range table data where helpful.
 
 ### Trie-Based Table Generation
 
-Following the uax29 approach, the implementation will generate a compressed trie containing only non-default codepoints:
+Following the uax29 approach using [golang.org/x/text/internal/triegen](https://pkg.go.dev/golang.org/x/text/internal/triegen), the implementation will generate a compressed trie containing only non-default codepoints:
 
 1. **Trie Structure**: Compressed trie with bitmap/enum values for character properties
 2. **Sparse Data**: Only include codepoints that differ from default behavior
 3. **Bitmap Properties**: Use bit flags for multiple properties per codepoint
 4. **Efficient Lookup**: Fast trie traversal for character property lookup
+5. **Triegen Foundation**: Use golang.org/x/text/internal/triegen for trie generation
 
 #### Trie Property Bitmap
 
@@ -252,10 +261,11 @@ func StringWidthBytes(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) in
 
 ### Performance Considerations
 
-1. **Trie Structure**: Use compressed trie for efficient lookups
-2. **Range Tables**: Use binary search for large ranges
-3. **Cache**: Cache frequently accessed width values
-4. **SIMD**: Consider SIMD optimizations for bulk processing
+1. **Trie-Only Lookups**: Use compressed trie for all character property lookups
+2. **No Range Tables**: No binary search or range table lookups at runtime
+3. **No Caching**: No cache for frequently accessed width values
+4. **No SIMD**: No vectorized operations for bulk processing
+5. **Simple Approach**: Focus on clean, simple trie-based implementation
 
 ### Error Handling
 
