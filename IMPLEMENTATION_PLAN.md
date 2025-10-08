@@ -13,8 +13,8 @@ This document outlines the implementation plan for the stringwidth package, foll
   - ✅ Basic trie test suite
 
 - ⏳ **Phase 2: Width Calculation Engine** - PENDING
-  - ⏳ Stringish processing utilities
-  - ⏳ Width calculation logic
+  - ⏳ Width calculation logic, variations for eastAsianWidth and strictEmojiNeutral
+  - ⏳ Create test suite with many examples
 
 - ⏳ **Phase 3: Public API** - PENDING
   - ⏳ Main package API
@@ -24,6 +24,8 @@ This document outlines the implementation plan for the stringwidth package, foll
   - ✅ Basic trie functionality tests
   - ⏳ Comprehensive test coverage
   - ⏳ Performance benchmarks
+
+- ⏳ **Phase 5: Make generic with stringish** - PENDING
 
 ## Architecture
 
