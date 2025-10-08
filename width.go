@@ -127,25 +127,22 @@ func processStringWidth(s string, eastAsianWidth bool, strictEmojiNeutral bool) 
 	g := graphemes.FromString(s)
 
 	for g.Next() {
+		// Get the grapheme cluster as a string
+		graphemeStr := g.Value()
+
+		// Look up character properties from trie for the first character in the grapheme cluster
+		props, _ := LookupCharPropertiesString(graphemeStr)
+
+		// Calculate width based on properties
 		var chWidth int
-		// For each grapheme cluster, find the width of the first non-zero-width rune
-		for _, r := range g.Value() {
-			// Look up character properties from trie
-			props, _ := LookupCharPropertiesString(string(r))
-
-			// Calculate width based on properties
-			if props == 0 {
-				// Character not in trie, use default behavior
-				chWidth = getDefaultWidth()
-			} else {
-				// Use trie properties to calculate width
-				chWidth = calculateWidth(props, eastAsianWidth, strictEmojiNeutral)
-			}
-
-			if chWidth > 0 {
-				break // Use the width of the first non-zero-width rune
-			}
+		if props == 0 {
+			// Character not in trie, use default behavior
+			chWidth = getDefaultWidth()
+		} else {
+			// Use trie properties to calculate width
+			chWidth = calculateWidth(props, eastAsianWidth, strictEmojiNeutral)
 		}
+
 		totalWidth += chWidth
 	}
 

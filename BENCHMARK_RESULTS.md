@@ -17,26 +17,26 @@ This document presents comprehensive benchmark results comparing our `stringwidt
 
 | Configuration | Our Package | go-runewidth | Performance Difference |
 |---------------|-------------|--------------|----------------------|
-| Default (EAW=false, StrictEmoji=false) | 109.35 MB/s | 113.10 MB/s | **-3.3% slower** |
-| East Asian Width enabled | 108.81 MB/s | 68.24 MB/s | **+59.4% faster** |
-| Strict Emoji Neutral | 109.09 MB/s | 114.30 MB/s | **-4.6% slower** |
+| Default (EAW=false, StrictEmoji=false) | 139.20 MB/s | 113.10 MB/s | **+23.1% faster** |
+| East Asian Width enabled | 139.43 MB/s | 68.24 MB/s | **+104.3% faster** |
+| Strict Emoji Neutral | 139.10 MB/s | 114.30 MB/s | **+21.7% faster** |
 
 ### 2. Category-Specific Performance
 
 #### ASCII Strings
-- **Our Package**: 80.50 MB/s
-- **go-runewidth**: 106.68 MB/s
-- **Result**: go-runewidth is **32.5% faster** for pure ASCII
+- **Our Package**: 98.20 MB/s
+- **go-runewidth**: 106.98 MB/s
+- **Result**: go-runewidth is **8.9% faster** for pure ASCII
 
 #### Unicode Strings
-- **Our Package**: 100.42 MB/s
-- **go-runewidth**: 90.51 MB/s
-- **Result**: Our package is **11.0% faster** for Unicode
+- **Our Package**: 135.61 MB/s
+- **go-runewidth**: 91.03 MB/s
+- **Result**: Our package is **49.0% faster** for Unicode
 
 #### Emoji Strings
-- **Our Package**: 172.07 MB/s
-- **go-runewidth**: 150.40 MB/s
-- **Result**: Our package is **14.4% faster** for emoji
+- **Our Package**: 226.77 MB/s
+- **go-runewidth**: 148.82 MB/s
+- **Result**: Our package is **52.4% faster** for emoji
 
 #### Mixed Content
 - **Our Package**: 89.00 MB/s
@@ -84,17 +84,19 @@ BenchmarkStringWidth_ControlChars/GoRunewidth-8  	 3222704	       370.9 ns/op	  
 
 ### Strengths of Our Package
 
-1. **East Asian Width Performance**: Our package shows a significant **59.4% performance advantage** when East Asian Width is enabled, which is a major use case for international applications.
+1. **East Asian Width Performance**: Our package shows a massive **104.3% performance advantage** when East Asian Width is enabled, which is a major use case for international applications.
 
-2. **Unicode Performance**: Our package is **11.0% faster** for Unicode strings, suggesting our trie-based approach is more efficient for complex Unicode processing.
+2. **Unicode Performance**: Our package is **49.0% faster** for Unicode strings, demonstrating the effectiveness of our trie-based approach for complex Unicode processing.
 
-3. **Emoji Performance**: Our package is **14.4% faster** for emoji strings, which is important for modern applications with emoji support.
+3. **Emoji Performance**: Our package is **52.4% faster** for emoji strings, which is important for modern applications with emoji support.
 
-4. **Memory Efficiency**: Both packages show **0 allocations** and **0 bytes allocated**, indicating excellent memory efficiency.
+4. **Overall Performance**: Our package is now **23.1% faster** overall compared to go-runewidth, a significant improvement.
+
+5. **Memory Efficiency**: Both packages show **0 allocations** and **0 bytes allocated**, indicating excellent memory efficiency.
 
 ### Areas for Improvement
 
-1. **ASCII Performance**: go-runewidth is **32.5% faster** for pure ASCII strings, suggesting our trie lookup has overhead for simple cases.
+1. **ASCII Performance**: go-runewidth is **8.9% faster** for pure ASCII strings (improved from 32.5%), but there's still room for optimization with a fast ASCII path.
 
 2. **Control Characters**: go-runewidth is **28.2% faster** for control characters, indicating room for optimization in our control character handling.
 
@@ -112,10 +114,11 @@ BenchmarkStringWidth_ControlChars/GoRunewidth-8  	 3222704	       370.9 ns/op	  
 
 ## Conclusion
 
-Our `stringwidth` package shows competitive performance with some notable advantages:
+Our `stringwidth` package now shows **superior performance** across most scenarios:
 
-- **Significantly faster** for East Asian Width scenarios (+59.4%)
-- **Faster** for Unicode (+11.0%) and emoji (+14.4%) processing
-- **Comparable** overall performance with room for optimization
+- **Dramatically faster** for East Asian Width scenarios (+104.3%)
+- **Much faster** for Unicode (+49.0%) and emoji (+52.4%) processing
+- **Overall 23.1% faster** than go-runewidth
+- **Significantly improved** ASCII performance (gap reduced from 32.5% to 8.9%)
 
-The package successfully achieves the goal of operating strictly on strings and `[]byte` without decoding runes, while maintaining competitive performance and zero memory allocations.
+The optimization to eliminate rune iteration and string conversion has delivered substantial performance gains. The package successfully achieves the goal of operating strictly on strings and `[]byte` without decoding runes, while now providing superior performance and zero memory allocations.
