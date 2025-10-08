@@ -4,9 +4,6 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// Global trie instance
-var trie = &stringWidthTrie{}
-
 // Has returns true if the property flag is set
 func (p property) Has(flag property) bool {
 	return p&flag != 0
@@ -49,7 +46,7 @@ func LookupCharPropertiesBytes(s []byte) (property, int) {
 	}
 
 	// Use the generated trie for lookup
-	props, size := trie.lookup([]byte(s))
+	props, size := lookup([]byte(s))
 	return props, size
 }
 
@@ -60,7 +57,7 @@ func LookupCharPropertiesString(s string) (property, int) {
 	}
 
 	// Use the generated trie for lookup
-	props, size := trie.lookup([]byte(s))
+	props, size := lookup([]byte(s))
 	return props, size
 }
 

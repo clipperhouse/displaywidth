@@ -2,6 +2,8 @@
 
 package stringwidth
 
+import "github.com/clipperhouse/stringwidth/internal/stringish"
+
 // property represents the properties of a character as bit flags
 type property uint16
 
@@ -26,7 +28,7 @@ const (
 // lookup returns the trie value for the first UTF-8 encoding in s and
 // the width in bytes of this encoding. The size will be 0 if s does not
 // hold enough bytes to complete the encoding. len(s) must be greater than 0.
-func (t *stringWidthTrie) lookup(s []byte) (v property, sz int) {
+func lookup[T stringish.Interface](s T) (v property, sz int) {
 	c0 := s[0]
 	switch {
 	case c0 < 0x80: // is ASCII
@@ -42,7 +44,7 @@ func (t *stringWidthTrie) lookup(s []byte) (v property, sz int) {
 		if c1 < 0x80 || 0xC0 <= c1 {
 			return 0, 1 // Illegal UTF-8: not a continuation byte.
 		}
-		return t.lookupValue(uint32(i), c1), 2
+		return lookupValue(uint32(i), c1), 2
 	case c0 < 0xF0: // 3-byte UTF-8
 		if len(s) < 3 {
 			return 0, 0
@@ -58,7 +60,7 @@ func (t *stringWidthTrie) lookup(s []byte) (v property, sz int) {
 		if c2 < 0x80 || 0xC0 <= c2 {
 			return 0, 2 // Illegal UTF-8: not a continuation byte.
 		}
-		return t.lookupValue(uint32(i), c2), 3
+		return lookupValue(uint32(i), c2), 3
 	case c0 < 0xF8: // 4-byte UTF-8
 		if len(s) < 4 {
 			return 0, 0
@@ -80,21 +82,21 @@ func (t *stringWidthTrie) lookup(s []byte) (v property, sz int) {
 		if c3 < 0x80 || 0xC0 <= c3 {
 			return 0, 3 // Illegal UTF-8: not a continuation byte.
 		}
-		return t.lookupValue(uint32(i), c3), 4
+		return lookupValue(uint32(i), c3), 4
 	}
 	// Illegal rune
 	return 0, 1
 }
 
 // stringWidthTrie. Total size: 54912 bytes (53.62 KiB). Checksum: 57119dea76d1a7fe.
-type stringWidthTrie struct{}
+// type stringWidthTrie struct { }
 
 // func newStringWidthTrie(i int) *stringWidthTrie {
 // 	return &stringWidthTrie{}
 // }
 
 // lookupValue determines the type of block n and looks up the value for b.
-func (t *stringWidthTrie) lookupValue(n uint32, b byte) property {
+func lookupValue(n uint32, b byte) property {
 	switch {
 	default:
 		return property(stringWidthValues[n<<6+uint32(b)])
