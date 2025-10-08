@@ -68,11 +68,6 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 		return fmt.Errorf("failed to generate trie: %v", err)
 	}
 
-	// Add the constructor function
-	fmt.Fprintf(file, "\nfunc newStringWidthTrie(i int) *stringWidthTrie {\n")
-	fmt.Fprintf(file, "\treturn &stringWidthTrie{}\n")
-	fmt.Fprintf(file, "}\n")
-
 	fmt.Printf("Generated trie with size %d bytes\n", size)
 	return nil
 }

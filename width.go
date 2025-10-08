@@ -2,6 +2,9 @@ package stringwidth
 
 import "unicode"
 
+// Global trie instance
+var trie = &stringWidthTrie{}
+
 // Has returns true if the property flag is set
 func (p property) Has(flag property) bool {
 	return p&flag != 0
@@ -37,9 +40,6 @@ func (p property) IsEmoji() bool {
 	return p.Has(IsEmoji)
 }
 
-// Global trie instance
-var stringWidthTrieInstance = newStringWidthTrie(0)
-
 // LookupCharPropertiesBytes returns the properties for the first character in a byte slice
 func LookupCharPropertiesBytes(s []byte) (property, int) {
 	if len(s) == 0 {
@@ -47,7 +47,7 @@ func LookupCharPropertiesBytes(s []byte) (property, int) {
 	}
 
 	// Use the generated trie for lookup
-	props, size := stringWidthTrieInstance.lookup([]byte(s))
+	props, size := trie.lookup([]byte(s))
 	return props, size
 }
 
@@ -58,7 +58,7 @@ func LookupCharPropertiesString(s string) (property, int) {
 	}
 
 	// Use the generated trie for lookup
-	props, size := stringWidthTrieInstance.lookup([]byte(s))
+	props, size := trie.lookup([]byte(s))
 	return props, size
 }
 
