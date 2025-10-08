@@ -9,15 +9,15 @@ type property uint8
 
 const (
 	// East Asian Width properties
-	EAW_Fullwidth property = 1 << iota // F
-	EAW_Wide                           // W
-	EAW_Ambiguous                      // A
+	_EAW_Fullwidth property = 1 << iota // F
+	_EAW_Wide                           // W
+	_EAW_Ambiguous                      // A
 
 	// General categories
-	IsCombiningMark // Mn, Mc, Me
-	IsControlChar   // C0, C1, DEL
-	IsZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
-	IsEmoji         // Emoji base characters
+	_CombiningMark // Mn, Mc, Me
+	_ControlChar   // C0, C1, DEL
+	_ZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
+	_Emoji         // Emoji base characters
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and

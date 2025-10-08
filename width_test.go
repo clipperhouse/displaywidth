@@ -68,25 +68,25 @@ func TestCalculateWidth(t *testing.T) {
 		expected           int
 	}{
 		// Control characters
-		{"control char", IsControlChar, false, false, 0},
+		{"control char", _ControlChar, false, false, 0},
 
 		// Combining marks
-		{"combining mark", IsCombiningMark, false, false, 0},
+		{"combining mark", _CombiningMark, false, false, 0},
 
 		// Zero width
-		{"zero width", IsZeroWidth, false, false, 0},
+		{"zero width", _ZeroWidth, false, false, 0},
 
 		// East Asian Wide
-		{"EAW fullwidth", EAW_Fullwidth, false, false, 2},
-		{"EAW wide", EAW_Wide, false, false, 2},
+		{"EAW fullwidth", _EAW_Fullwidth, false, false, 2},
+		{"EAW wide", _EAW_Wide, false, false, 2},
 
 		// East Asian Ambiguous
-		{"EAW ambiguous default", EAW_Ambiguous, false, false, 1},
-		{"EAW ambiguous EAW", EAW_Ambiguous, true, false, 2},
+		{"EAW ambiguous default", _EAW_Ambiguous, false, false, 1},
+		{"EAW ambiguous EAW", _EAW_Ambiguous, true, false, 2},
 
 		// Emoji
-		{"emoji default", IsEmoji, false, false, 2},
-		{"emoji strict", IsEmoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
+		{"emoji default", _Emoji, false, false, 2},
+		{"emoji strict", _Emoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
 
 		// Default (no properties set)
 		{"default", 0, false, false, 1},
@@ -94,7 +94,7 @@ func TestCalculateWidth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := calculateWidth(tt.props, tt.eastAsianWidth, tt.strictEmojiNeutral)
+			result := tt.props.width(tt.eastAsianWidth, tt.strictEmojiNeutral)
 			if result != tt.expected {
 				t.Errorf("calculateWidth(%d, %v, %v) = %d, want %d",
 					tt.props, tt.eastAsianWidth, tt.strictEmojiNeutral, result, tt.expected)
@@ -215,7 +215,7 @@ func TestSpecificEmojiCharacters(t *testing.T) {
 
 	for _, char := range chars {
 		t.Run(fmt.Sprintf("char_%04X", char), func(t *testing.T) {
-			props, _ := LookupCharProperties(string(char))
+			props, _ := lookupProperties(string(char))
 			ourWidth := StringWidth(string(char), false, false)
 
 			// Test with go-runewidth for comparison
