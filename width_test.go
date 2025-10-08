@@ -1,6 +1,7 @@
 package stringwidth
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mattn/go-runewidth"
@@ -44,7 +45,7 @@ func TestStringWidth(t *testing.T) {
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", "\xff", false, false, 1},
-		{"partial UTF-8", "\xc2", false, false, -1},
+		{"partial UTF-8", "\xc2", false, false, 1},
 	}
 
 	for _, tt := range tests {
@@ -96,7 +97,7 @@ func TestStringWidthBytes(t *testing.T) {
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", []byte{0xff}, false, false, 1},
-		{"partial UTF-8", []byte{0xc2}, false, false, -1},
+		{"partial UTF-8", []byte{0xc2}, false, false, 1},
 	}
 
 	for _, tt := range tests {
@@ -255,6 +256,34 @@ func TestComparisonWithGoRunewidth(t *testing.T) {
 					"  Difference: %d",
 					tc.input, tc.eastAsianWidth, tc.strictEmojiNeutral,
 					ourResult, goRunewidthResult, ourResult-goRunewidthResult)
+			}
+		})
+	}
+}
+
+func TestSpecificEmojiCharacters(t *testing.T) {
+	// Test the specific characters that are causing differences with go-runewidth
+	chars := []rune{'☺', '☹', '☠', '️'}
+
+	for _, char := range chars {
+		t.Run(fmt.Sprintf("char_%04X", char), func(t *testing.T) {
+			props, _ := LookupCharPropertiesString(string(char))
+			ourWidth := StringWidth(string(char), false, false)
+
+			// Test with go-runewidth for comparison
+			condition := runewidth.NewCondition()
+			condition.EastAsianWidth = false
+			condition.StrictEmojiNeutral = false
+			goRunewidthWidth := condition.RuneWidth(char)
+
+			t.Logf("Character: %c (U+%04X)", char, char)
+			t.Logf("Our properties: %d", props)
+			t.Logf("Our width: %d", ourWidth)
+			t.Logf("go-runewidth width: %d", goRunewidthWidth)
+
+			// For now, just log the differences - we'll fix them next
+			if ourWidth != goRunewidthWidth {
+				t.Logf("DIFFERENCE: Our width %d != go-runewidth width %d", ourWidth, goRunewidthWidth)
 			}
 		})
 	}

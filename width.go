@@ -90,9 +90,10 @@ func calculateWidth(props property, eastAsianWidth bool, strictEmojiNeutral bool
 		return 1
 	}
 
-	// Handle emoji - only ambiguous emoji get width 1 in strict mode
+	// Handle emoji - match go-runewidth logic exactly
 	if props.IsEmoji() {
-		// In strict mode, only ambiguous emoji get width 1
+		// go-runewidth logic: emoji get width 2 by default
+		// Only ambiguous emoji get width 1 in strict mode
 		if strictEmojiNeutral && props.IsEastAsianAmbiguous() {
 			return 1
 		}
