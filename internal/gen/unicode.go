@@ -68,8 +68,17 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		return nil, fmt.Errorf("failed to parse EastAsianWidth.txt: %v", err)
 	}
 
-	// Skip emoji data for now - we'll add basic emoji detection from Go stdlib
-	// TODO: Add proper emoji data parsing when we find the correct URL
+	// Download and parse emoji-data.txt
+	emojiFile := filepath.Join(dataDir, "emoji-data.txt")
+	if err := downloadFile("https://unicode.org/Public/UCD/latest/ucd/emoji-data.txt", emojiFile); err != nil {
+		fmt.Printf("Warning: failed to download emoji-data.txt: %v\n", err)
+		fmt.Println("Continuing with basic emoji detection from Go stdlib...")
+	} else {
+		if err := parseEmojiData(emojiFile, data); err != nil {
+			fmt.Printf("Warning: failed to parse emoji-data.txt: %v\n", err)
+			fmt.Println("Continuing with basic emoji detection from Go stdlib...")
+		}
+	}
 
 	// Extract data from Go stdlib
 	extractStdlibData(data)

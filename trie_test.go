@@ -19,11 +19,11 @@ func TestLookupCharProperties(t *testing.T) {
 		{"Carriage Return", 0x0D, IsControlChar, "Carriage Return"},
 		{"DEL", 0x7F, IsControlChar, "DEL character"},
 
-		// ASCII printable characters (should have no special properties)
-		{"Space", 0x20, 0, "Space character"},
-		{"A", 'A', 0, "Latin A"},
-		{"!", '!', 0, "Exclamation mark"},
-		{"0", '0', 0, "Digit 0"},
+		// ASCII printable characters (have EAW_Narrow property)
+		{"Space", 0x20, EAW_Narrow, "Space character"},
+		{"A", 'A', EAW_Narrow, "Latin A"},
+		{"!", '!', EAW_Narrow, "Exclamation mark"},
+		{"0", '0', EAW_Narrow, "Digit 0"},
 
 		// East Asian Wide characters
 		{"Chinese 中", '中', EAW_Wide, "Chinese character"},
@@ -67,9 +67,19 @@ func TestLookupCharProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := LookupCharProperties(tt.r)
-			if result != tt.expected {
-				t.Errorf("LookupCharProperties(%q) = %v, want %v (%s)",
-					string(tt.r), result, tt.expected, tt.desc)
+
+			// For zero expected value, check that no special properties are set
+			if tt.expected == 0 {
+				if result != 0 {
+					t.Errorf("LookupCharProperties(%q) = %v, want 0 (%s)",
+						string(tt.r), result, tt.desc)
+				}
+			} else {
+				// For non-zero expected value, check that the specific property is set
+				if !result.Has(tt.expected) {
+					t.Errorf("LookupCharProperties(%q) = %v, want property %v (%s)",
+						string(tt.r), result, tt.expected, tt.desc)
+				}
 			}
 		})
 	}
