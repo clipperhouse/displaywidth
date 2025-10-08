@@ -48,11 +48,6 @@ func (p property) is(flag property) bool {
 	return p&flag != 0
 }
 
-// IsEastAsianWide returns true if the character is East Asian Wide
-func (p property) IsEastAsianWide() bool {
-	return p.is(_EAW_Fullwidth) || p.is(_EAW_Wide)
-}
-
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) (property, int) {
 	if len(s) == 0 {
