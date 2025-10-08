@@ -17,36 +17,36 @@ This document presents comprehensive benchmark results comparing our `stringwidt
 
 | Configuration | Our Package | go-runewidth | Performance Difference |
 |---------------|-------------|--------------|----------------------|
-| Default (EAW=false, StrictEmoji=false) | 139.20 MB/s | 113.10 MB/s | **+23.1% faster** |
-| East Asian Width enabled | 139.43 MB/s | 68.24 MB/s | **+104.3% faster** |
-| Strict Emoji Neutral | 139.10 MB/s | 114.30 MB/s | **+21.7% faster** |
+| Default (EAW=false, StrictEmoji=false) | 134.68 MB/s | 113.10 MB/s | **+19.1% faster** |
+| East Asian Width enabled | 134.98 MB/s | 68.24 MB/s | **+97.8% faster** |
+| Strict Emoji Neutral | 135.46 MB/s | 114.30 MB/s | **+18.5% faster** |
 
 ### 2. Category-Specific Performance
 
 #### ASCII Strings
-- **Our Package**: 98.20 MB/s
-- **go-runewidth**: 106.98 MB/s
-- **Result**: go-runewidth is **8.9% faster** for pure ASCII
+- **Our Package**: 96.02 MB/s
+- **go-runewidth**: 108.26 MB/s
+- **Result**: go-runewidth is **12.8% faster** for pure ASCII
 
 #### Unicode Strings
-- **Our Package**: 135.61 MB/s
-- **go-runewidth**: 91.03 MB/s
-- **Result**: Our package is **49.0% faster** for Unicode
+- **Our Package**: 130.90 MB/s
+- **go-runewidth**: 87.89 MB/s
+- **Result**: Our package is **48.9% faster** for Unicode
 
 #### Emoji Strings
-- **Our Package**: 226.77 MB/s
-- **go-runewidth**: 148.82 MB/s
-- **Result**: Our package is **52.4% faster** for emoji
+- **Our Package**: 214.33 MB/s
+- **go-runewidth**: 148.83 MB/s
+- **Result**: Our package is **44.0% faster** for emoji
 
 #### Mixed Content
-- **Our Package**: 89.00 MB/s
-- **go-runewidth**: 108.51 MB/s
-- **Result**: go-runewidth is **21.9% faster** for mixed content
+- **Our Package**: 105.17 MB/s
+- **go-runewidth**: 106.13 MB/s
+- **Result**: go-runewidth is **0.9% faster** for mixed content
 
 #### Control Characters
-- **Our Package**: 69.38 MB/s
-- **go-runewidth**: 88.96 MB/s
-- **Result**: go-runewidth is **28.2% faster** for control characters
+- **Our Package**: 82.44 MB/s
+- **go-runewidth**: 88.14 MB/s
+- **Result**: go-runewidth is **6.9% faster** for control characters
 
 ## Detailed Benchmark Results
 
@@ -84,23 +84,23 @@ BenchmarkStringWidth_ControlChars/GoRunewidth-8  	 3222704	       370.9 ns/op	  
 
 ### Strengths of Our Package
 
-1. **East Asian Width Performance**: Our package shows a massive **104.3% performance advantage** when East Asian Width is enabled, which is a major use case for international applications.
+1. **East Asian Width Performance**: Our package shows a massive **97.8% performance advantage** when East Asian Width is enabled, which is a major use case for international applications.
 
-2. **Unicode Performance**: Our package is **49.0% faster** for Unicode strings, demonstrating the effectiveness of our trie-based approach for complex Unicode processing.
+2. **Unicode Performance**: Our package is **48.9% faster** for Unicode strings, demonstrating the effectiveness of our trie-based approach for complex Unicode processing.
 
-3. **Emoji Performance**: Our package is **52.4% faster** for emoji strings, which is important for modern applications with emoji support.
+3. **Emoji Performance**: Our package is **44.0% faster** for emoji strings, which is important for modern applications with emoji support.
 
-4. **Overall Performance**: Our package is now **23.1% faster** overall compared to go-runewidth, a significant improvement.
+4. **Overall Performance**: Our package is now **19.1% faster** overall compared to go-runewidth, a significant improvement.
 
-5. **Memory Efficiency**: Both packages show **0 allocations** and **0 bytes allocated**, indicating excellent memory efficiency.
+5. **Mixed Content**: Our package is now nearly equivalent to go-runewidth for mixed content (only 0.9% slower), a major improvement.
+
+6. **Memory Efficiency**: Both packages show **0 allocations** and **0 bytes allocated**, indicating excellent memory efficiency.
 
 ### Areas for Improvement
 
-1. **ASCII Performance**: go-runewidth is **8.9% faster** for pure ASCII strings (improved from 32.5%), but there's still room for optimization with a fast ASCII path.
+1. **ASCII Performance**: go-runewidth is **12.8% faster** for pure ASCII strings, but there's still room for optimization with a fast ASCII path.
 
-2. **Control Characters**: go-runewidth is **28.2% faster** for control characters, indicating room for optimization in our control character handling.
-
-3. **Mixed Content**: go-runewidth is **21.9% faster** for mixed content, which may be due to more optimized grapheme cluster processing.
+2. **Control Characters**: go-runewidth is **6.9% faster** for control characters (improved from 28.2%), indicating significant progress in our control character handling.
 
 ## Recommendations
 
@@ -116,9 +116,10 @@ BenchmarkStringWidth_ControlChars/GoRunewidth-8  	 3222704	       370.9 ns/op	  
 
 Our `stringwidth` package now shows **superior performance** across most scenarios:
 
-- **Dramatically faster** for East Asian Width scenarios (+104.3%)
-- **Much faster** for Unicode (+49.0%) and emoji (+52.4%) processing
-- **Overall 23.1% faster** than go-runewidth
-- **Significantly improved** ASCII performance (gap reduced from 32.5% to 8.9%)
+- **Dramatically faster** for East Asian Width scenarios (+97.8%)
+- **Much faster** for Unicode (+48.9%) and emoji (+44.0%) processing
+- **Overall 19.1% faster** than go-runewidth
+- **Nearly equivalent** for mixed content (only 0.9% slower)
+- **Significantly improved** control character performance (gap reduced from 28.2% to 6.9%)
 
-The optimization to eliminate rune iteration and string conversion has delivered substantial performance gains. The package successfully achieves the goal of operating strictly on strings and `[]byte` without decoding runes, while now providing superior performance and zero memory allocations.
+The optimizations to eliminate rune iteration, string conversions, and use generic functions have delivered substantial performance gains. The package successfully achieves the goal of operating strictly on strings and `[]byte` without decoding runes, while now providing superior performance and zero memory allocations.
