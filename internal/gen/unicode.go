@@ -30,18 +30,13 @@ const (
 	// East Asian Width properties
 	EAW_Fullwidth CharProperties = 1 << iota // F
 	EAW_Wide                                 // W
-	EAW_Halfwidth                            // H
-	EAW_Narrow                               // Na
-	EAW_Neutral                              // N
 	EAW_Ambiguous                            // A
 
 	// General categories
-	IsCombiningMark          // Mn, Mc, Me
-	IsControlChar            // C0, C1, DEL
-	IsZeroWidth              // ZWSP, ZWJ, ZWNJ, etc.
-	IsEmoji                  // Emoji base characters
-	IsEmojiModifier          // Emoji modifiers
-	IsEmojiVariationSelector // Emoji variation selectors
+	IsCombiningMark // Mn, Mc, Me
+	IsControlChar   // C0, C1, DEL
+	IsZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
+	IsEmoji         // Emoji base characters
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -194,7 +189,7 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 	// Skip until we find the Extended_Pictographic=No line (same as go-runewidth)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Index(line, "Extended_Pictographic=No") != -1 {
+		if strings.Contains(line, "Extended_Pictographic=No") {
 			break
 		}
 	}
@@ -301,22 +296,18 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) CharProperties {
 	var props CharProperties
 
 	// East Asian Width
+	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F":
 			props |= EAW_Fullwidth
 		case "W":
 			props |= EAW_Wide
-		case "H":
-			props |= EAW_Halfwidth
-		case "Na":
-			props |= EAW_Narrow
-		case "N":
-			props |= EAW_Neutral
 		case "A":
 			props |= EAW_Ambiguous
+			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
+			// as they all result in width 1 (default behavior)
 		}
-
 	}
 
 	// Handle ambiguous characters FIRST (like variation selectors)

@@ -43,7 +43,8 @@ func LookupCharProperties[T stringish.Interface](s T) (property, int) {
 			return IsControlChar, 1
 		} else if b >= 0x20 && b <= 0x7E {
 			// ASCII printable characters (0x20-0x7E) - width 1
-			return EAW_Narrow, 1
+			// Return 0 properties, width calculation will default to 1
+			return 0, 1
 		}
 		// b == 0x7E is already handled above, so this shouldn't be reached
 	}

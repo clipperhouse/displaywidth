@@ -19,11 +19,11 @@ func TestLookupCharProperties(t *testing.T) {
 		{"Carriage Return", 0x0D, IsControlChar, "Carriage Return"},
 		{"DEL", 0x7F, IsControlChar, "DEL character"},
 
-		// ASCII printable characters (have EAW_Narrow property)
-		{"Space", 0x20, EAW_Narrow, "Space character"},
-		{"A", 'A', EAW_Narrow, "Latin A"},
-		{"!", '!', EAW_Narrow, "Exclamation mark"},
-		{"0", '0', EAW_Narrow, "Digit 0"},
+		// ASCII printable characters (no properties, default to width 1)
+		{"Space", 0x20, 0, "Space character"},
+		{"A", 'A', 0, "Latin A"},
+		{"!", '!', 0, "Exclamation mark"},
+		{"0", '0', 0, "Digit 0"},
 
 		// East Asian Wide characters
 		{"Chinese 中", '中', EAW_Wide, "Chinese character"},
@@ -90,11 +90,6 @@ func TestCharPropertiesMethods(t *testing.T) {
 	wideProps := EAW_Wide | EAW_Fullwidth
 	if !wideProps.IsEastAsianWide() {
 		t.Error("IsEastAsianWide() should return true for wide characters")
-	}
-
-	neutralProps := EAW_Neutral
-	if neutralProps.IsEastAsianWide() {
-		t.Error("IsEastAsianWide() should return false for neutral characters")
 	}
 
 	// Test IsEastAsianAmbiguous
