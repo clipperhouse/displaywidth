@@ -17,7 +17,7 @@ import (
 type UnicodeData struct {
 	EastAsianWidth map[rune]string // From EastAsianWidth.txt
 	EmojiData      map[rune]bool   // From emoji-data.txt
-	AmbiguousData  map[rune]bool   // From go-runewidth ambiguous table
+	AmbiguousData  map[rune]bool   // Ambiguous width characters from EastAsianWidth.txt
 	ControlChars   map[rune]bool   // From Go stdlib
 	CombiningMarks map[rune]bool   // From Go stdlib
 	ZeroWidthChars map[rune]bool   // Special zero-width characters
@@ -247,22 +247,16 @@ func extractStdlibData(data *UnicodeData) {
 	// Emoji data is now parsed from the actual Unicode emoji-data.txt file
 	// This ensures 100% compatibility with go-runewidth's emoji detection
 
-	// Add go-runewidth's ambiguous table for variation selectors and other ambiguous characters
-	addGoRunewidthAmbiguousTable(data)
+	// Extract ambiguous characters from EastAsianWidth data
+	extractAmbiguousChars(data)
 }
 
-// addGoRunewidthAmbiguousTable adds the exact same ambiguous table as go-runewidth
-// This ensures variation selectors and other ambiguous characters are handled correctly
-func addGoRunewidthAmbiguousTable(data *UnicodeData) {
-	// This is the exact ambiguous table from go-runewidth v0.0.19
-	// We only need the variation selector range for our specific issue
-	ambiguousRanges := [][2]rune{
-		{0xFE00, 0xFE0F}, // Variation selectors (includes U+FE0F)
-	}
-
-	for _, r := range ambiguousRanges {
-		for char := r[0]; char <= r[1]; char++ {
-			data.AmbiguousData[char] = true
+// extractAmbiguousChars extracts all characters marked as "A" (Ambiguous)
+// in EastAsianWidth.txt and adds them to the AmbiguousData map
+func extractAmbiguousChars(data *UnicodeData) {
+	for r, width := range data.EastAsianWidth {
+		if width == "A" {
+			data.AmbiguousData[r] = true
 		}
 	}
 }
