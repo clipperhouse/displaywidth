@@ -1,6 +1,6 @@
 # displaywidth
 
-A high-performance Go package for measuring the display width of strings in monospace terminals.
+A high-performance Go package for measuring the monospace display width of strings, UTF-8 bytes, and runes.
 
 [![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
 ![Go](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)
@@ -52,7 +52,6 @@ fmt.Println(width)
 This package implements the Unicode East Asian Width standard (UAX #11) and is
 intended to be compatible with `go-runewidth`. It operates on bytes without
 decoding runes for better performance.
-
 
 ## Prior Art
 
