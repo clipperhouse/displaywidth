@@ -17,3 +17,5 @@ We consider them technical debt. One example is isExceptionalCombiningMark.
 Ideally, we would not have these exceptional cases. Our current theory in the
 case of isExceptionalCombiningMark is that go-runewidth is incorrect, but we
 don't know for sure.
+
+For PRs, you can use the gh CLI tool to retrieve or post comments.
