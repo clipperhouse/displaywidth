@@ -467,3 +467,145 @@ func BenchmarkString_ControlChars(b *testing.B) {
 		b.SetBytes(int64(totalBytes))
 	})
 }
+
+// BenchmarkRuneWidth benchmarks rune width calculation
+func BenchmarkRuneWidth(b *testing.B) {
+	testRunes := []rune{
+		// Control characters
+		'\x00', '\t', '\n', '\r', '\x7F',
+		// ASCII printable
+		' ', 'a', 'Z', '0', '9', '!', '@', '~',
+		// Latin extended
+		'é', 'ñ', 'ö',
+		// East Asian Wide
+		'中', '文', 'あ', 'ア', '가', '한',
+		// Fullwidth
+		'Ａ', 'Ｚ', '０', '９', '！', '　',
+		// Ambiguous
+		'★', '°', '±', '§', '©', '®',
+		// Emoji
+		'😀', '😁', '😍', '🤔', '🚀', '🎉', '🔥', '👍',
+		// Mathematical symbols
+		'∞', '∑', '∫', '√',
+		// Currency
+		'$', '€', '£', '¥',
+		// Box drawing
+		'─', '│', '┌',
+		// Special Unicode
+		'•', '…', '—',
+	}
+
+	b.Run("displaywidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range testRunes {
+				_ = Rune(r)
+			}
+		}
+
+		// Each rune is at least 1 byte, but can be up to 4 bytes in UTF-8
+		totalBytes := 0
+		for _, r := range testRunes {
+			totalBytes += len(string(r))
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range testRunes {
+				_ = runewidth.RuneWidth(r)
+			}
+		}
+
+		totalBytes := 0
+		for _, r := range testRunes {
+			totalBytes += len(string(r))
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+}
+
+// BenchmarkRuneWidth_EAW benchmarks rune width with East Asian Width option
+func BenchmarkRuneWidth_EAW(b *testing.B) {
+	options := Options{
+		EastAsianWidth:     true,
+		StrictEmojiNeutral: false,
+	}
+
+	condition := &runewidth.Condition{
+		EastAsianWidth:     options.EastAsianWidth,
+		StrictEmojiNeutral: options.StrictEmojiNeutral,
+	}
+
+	// Focus on ambiguous characters that are affected by EastAsianWidth
+	testRunes := []rune{
+		'★', '°', '±', '§', '©', '®',
+		'中', '文', 'あ', 'ア', '가', '한',
+		'Ａ', 'Ｚ', '０', '９',
+		'😀', '🚀', '🎉',
+	}
+
+	b.Run("displaywidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range testRunes {
+				_ = options.Rune(r)
+			}
+		}
+
+		totalBytes := 0
+		for _, r := range testRunes {
+			totalBytes += len(string(r))
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range testRunes {
+				_ = condition.RuneWidth(r)
+			}
+		}
+
+		totalBytes := 0
+		for _, r := range testRunes {
+			totalBytes += len(string(r))
+		}
+		b.SetBytes(int64(totalBytes))
+	})
+}
+
+// BenchmarkRuneWidth_ASCII benchmarks ASCII rune width calculation
+func BenchmarkRuneWidth_ASCII(b *testing.B) {
+	asciiRunes := []rune{
+		' ', 'a', 'b', 'c', 'x', 'y', 'z',
+		'A', 'B', 'C', 'X', 'Y', 'Z',
+		'0', '1', '2', '3', '8', '9',
+		'!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+	}
+
+	b.Run("displaywidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range asciiRunes {
+				_ = Rune(r)
+			}
+		}
+
+		b.SetBytes(int64(len(asciiRunes)))
+	})
+
+	b.Run("go-runewidth", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range asciiRunes {
+				_ = runewidth.RuneWidth(r)
+			}
+		}
+
+		b.SetBytes(int64(len(asciiRunes)))
+	})
+}

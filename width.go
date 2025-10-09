@@ -1,6 +1,8 @@
 package displaywidth
 
 import (
+	"unicode/utf8"
+
 	"github.com/clipperhouse/displaywidth/internal/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
@@ -15,6 +17,10 @@ func String(s string) int {
 // using the [DefaultOptions]
 func Bytes(s []byte) int {
 	return DefaultOptions.Bytes(s)
+}
+
+func Rune(r rune) int {
+	return DefaultOptions.Rune(r)
 }
 
 type Options struct {
@@ -61,6 +67,29 @@ func (options Options) Bytes(s []byte) int {
 	return total
 }
 
+func (options Options) Rune(r rune) int {
+	// Fast path for ASCII
+	if r < utf8.RuneSelf {
+		if isASCIIControl(byte(r)) {
+			// Control (0x00-0x1F) and DEL (0x7F)
+			return 0
+		}
+		// ASCII printable (0x20-0x7E)
+		return 1
+	}
+
+	// Stack-allocated to avoid heap allocation
+	var buf [4]byte // UTF-8 is at most 4 bytes
+	n := utf8.EncodeRune(buf[:], r)
+	// Skip the grapheme iterator and directly lookup properties
+	props, _ := lookupProperties(buf[:n])
+	return props.width(options)
+}
+
+func isASCIIControl(b byte) bool {
+	return b < 0x20 || b == 0x7F
+}
+
 const defaultWidth = 1
 
 // is returns true if the property flag is set
@@ -76,8 +105,8 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 
 	// Fast path for ASCII characters (single byte)
 	b := s[0]
-	if b < 0x80 { // Single-byte ASCII
-		if b < 0x20 || b == 0x7F {
+	if b < utf8.RuneSelf { // Single-byte ASCII
+		if isASCIIControl(b) {
 			// Control characters (0x00-0x1F) and DEL (0x7F) - width 0
 			return _ControlChar, 1
 		}
