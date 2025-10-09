@@ -222,11 +222,6 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 
 		// Add the range to emoji data, but exclude characters that go-runewidth doesn't treat as emoji
 		for r := r1; r <= r2; r++ {
-			// Exclude characters that go-runewidth doesn't treat as emoji
-			// These are characters that are in Unicode emoji data but go-runewidth gives width 1
-			if r == 0x263A || r == 0x2639 || r == 0x2620 {
-				continue
-			}
 			data.EmojiData[r] = true
 		}
 	}

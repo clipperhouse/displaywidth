@@ -81,26 +81,22 @@ func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
 		return defaultWidth
 	}
 
-	// Handle control characters (width 0)
 	if p.is(controlCombiningZero) {
 		return 0
 	}
 
 	// Handle East Asian Ambiguous characters (before emoji check)
-	if p.is(_EAW_Ambiguous) {
-		if eastAsianWidth {
-			return 2
-		}
-		return 1
+	if eastAsianWidth && p.is(_EAW_Ambiguous) {
+		return 2
 	}
 
-	// Handle emoji - match go-runewidth logic exactly
-	if p.is(_Emoji) {
-		// go-runewidth logic: emoji get width 2 by default
-		// Only ambiguous emoji get width 1 in strict mode
-		if strictEmojiNeutral && p.is(_EAW_Ambiguous) {
-			return 1
-		}
+	if eastAsianWidth && p.is(_Emoji) &&
+		!strictEmojiNeutral && p.is(_EAW_Ambiguous) {
+		return 2
+	}
+
+	// Handle East Asian Width properties
+	if p.is(_EAW_Fullwidth) || p.is(_EAW_Wide) {
 		return 2
 	}
 

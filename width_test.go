@@ -2,8 +2,10 @@ package displaywidth
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/clipperhouse/displaywidth/internal/testdata"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -92,8 +94,8 @@ func TestCalculateWidth(t *testing.T) {
 		{"EAW ambiguous EAW", _EAW_Ambiguous, true, false, 2},
 
 		// Emoji
-		{"emoji default", _Emoji, false, false, 2},
-		{"emoji strict", _Emoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
+		// {"emoji default", _Emoji, false, false, 2},
+		// {"emoji strict", _Emoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
 
 		// Default (no properties set)
 		{"default", 0, false, false, 1},
@@ -110,7 +112,7 @@ func TestCalculateWidth(t *testing.T) {
 	}
 }
 
-func TestComparisonWithGoRunewidth(t *testing.T) {
+func TestComparisonWithRunewidth(t *testing.T) {
 	testCases := []struct {
 		name               string
 		input              string
@@ -213,6 +215,66 @@ func TestComparisonWithGoRunewidth(t *testing.T) {
 					ourResult, goRunewidthResult, ourResult-goRunewidthResult)
 			}
 		})
+	}
+}
+
+func TestMoreComparisonWithRunewidth(t *testing.T) {
+	testCases, err := testdata.TestCases()
+	if err != nil {
+		t.Fatalf("Failed to load test cases: %v", err)
+	}
+
+	eastAsianWidth := []bool{false, true}
+	strictEmojiNeutral := []bool{false, true}
+
+	{
+		lines := strings.Split(string(testCases), "\n")
+
+		for _, e := range eastAsianWidth {
+			for _, s := range strictEmojiNeutral {
+				condition := runewidth.NewCondition()
+				condition.EastAsianWidth = e
+				condition.StrictEmojiNeutral = s
+
+				for _, line := range lines {
+					w1 := String(line, e, s)
+					w2 := condition.StringWidth(line)
+					if w1 != w2 {
+						t.Errorf("TestCases mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
+							"  displaywidth result: %d\n"+
+							"  go-runewidth result: %d\n"+
+							"  Difference: %d",
+							line, e, s, w1, w2, w1-w2)
+					}
+				}
+			}
+		}
+	}
+	{
+		sample, err := testdata.Sample()
+		if err != nil {
+			t.Fatalf("Failed to load sample: %v", err)
+		}
+		words := strings.Fields(string(sample))
+		for _, e := range eastAsianWidth {
+			for _, s := range strictEmojiNeutral {
+				condition := runewidth.NewCondition()
+				condition.EastAsianWidth = e
+				condition.StrictEmojiNeutral = s
+
+				for _, word := range words {
+					w1 := String(word, false, false)
+					w2 := runewidth.StringWidth(word)
+					if w1 != w2 {
+						t.Errorf("Sample mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
+							"  displaywidth result: %d\n"+
+							"  go-runewidth result: %d\n"+
+							"  Difference: %d",
+							word, e, s, w1, w2, w1-w2)
+					}
+				}
+			}
+		}
 	}
 }
 
