@@ -77,10 +77,8 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		}
 	}
 
-	// Extract data from Go stdlib
 	extractStdlibData(data)
-
-	// Add special zero-width characters
+	extractAmbiguousChars(data)
 	addZeroWidthChars(data)
 
 	return data, nil
@@ -243,12 +241,6 @@ func extractStdlibData(data *UnicodeData) {
 			data.CombiningMarks[r] = true
 		}
 	}
-
-	// Emoji data is now parsed from the actual Unicode emoji-data.txt file
-	// This ensures 100% compatibility with go-runewidth's emoji detection
-
-	// Extract ambiguous characters from EastAsianWidth data
-	extractAmbiguousChars(data)
 }
 
 // extractAmbiguousChars extracts all characters marked as "A" (Ambiguous)
