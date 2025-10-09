@@ -468,8 +468,8 @@ func BenchmarkString_ControlChars(b *testing.B) {
 	})
 }
 
-// BenchmarkRuneWidth benchmarks rune width calculation
-func BenchmarkRuneWidth(b *testing.B) {
+// BenchmarkRuneDefault benchmarks rune width calculation
+func BenchmarkRuneDefault(b *testing.B) {
 	testRunes := []rune{
 		// Control characters
 		'\x00', '\t', '\n', '\r', '\x7F',
