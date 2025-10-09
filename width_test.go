@@ -84,12 +84,12 @@ func TestRuneWidth(t *testing.T) {
 		{"escape", '\x1B', Options{}, 0},
 		{"delete", '\x7F', Options{}, 0},
 
-		// Combining marks - when tested standalone as runes, they have width 1
+		// Combining marks - when tested standalone as runes, they have width 0
 		// (In actual strings with grapheme clusters, they combine and have width 0)
-		{"combining grave accent", '\u0300', Options{}, 1},
-		{"combining acute accent", '\u0301', Options{}, 1},
-		{"combining diaeresis", '\u0308', Options{}, 1},
-		{"combining tilde", '\u0303', Options{}, 1},
+		{"combining grave accent", '\u0300', Options{}, 0},
+		{"combining acute accent", '\u0301', Options{}, 0},
+		{"combining diaeresis", '\u0308', Options{}, 0},
+		{"combining tilde", '\u0303', Options{}, 0},
 
 		// Zero width characters
 		{"zero width space", '\u200B', Options{}, 0},
@@ -356,43 +356,44 @@ func TestMoreComparisonWithRunewidth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load test cases: %v", err)
 	}
+	sample, err := testdata.Sample()
+	if err != nil {
+		t.Fatalf("Failed to load sample: %v", err)
+	}
 
 	eastAsianWidth := []bool{false, true}
 	strictEmojiNeutral := []bool{false, true}
 
-	{
-		lines := strings.Split(string(testCases), "\n")
+	t.Run("TestCases", func(t *testing.T) {
+		{
+			lines := strings.Split(string(testCases), "\n")
+			for _, e := range eastAsianWidth {
+				for _, s := range strictEmojiNeutral {
+					options := Options{
+						EastAsianWidth:     e,
+						StrictEmojiNeutral: s,
+					}
+					condition := &runewidth.Condition{
+						EastAsianWidth:     options.EastAsianWidth,
+						StrictEmojiNeutral: options.StrictEmojiNeutral,
+					}
 
-		for _, e := range eastAsianWidth {
-			for _, s := range strictEmojiNeutral {
-				options := Options{
-					EastAsianWidth:     e,
-					StrictEmojiNeutral: s,
-				}
-				condition := &runewidth.Condition{
-					EastAsianWidth:     options.EastAsianWidth,
-					StrictEmojiNeutral: options.StrictEmojiNeutral,
-				}
-
-				for _, line := range lines {
-					w1 := options.String(line)
-					w2 := condition.StringWidth(line)
-					if w1 != w2 {
-						t.Errorf("TestCases mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
-							"  displaywidth result: %d\n"+
-							"  go-runewidth result: %d\n"+
-							"  Difference: %d",
-							line, options.EastAsianWidth, options.StrictEmojiNeutral, w1, w2, w1-w2)
+					for _, line := range lines {
+						w1 := options.String(line)
+						w2 := condition.StringWidth(line)
+						if w1 != w2 {
+							t.Errorf("TestCases mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
+								"  displaywidth result: %d\n"+
+								"  go-runewidth result: %d\n"+
+								"  Difference: %d",
+								line, options.EastAsianWidth, options.StrictEmojiNeutral, w1, w2, w1-w2)
+						}
 					}
 				}
 			}
 		}
-	}
-	{
-		sample, err := testdata.Sample()
-		if err != nil {
-			t.Fatalf("Failed to load sample: %v", err)
-		}
+	})
+	t.Run("Sample", func(t *testing.T) {
 		words := strings.Fields(string(sample))
 		for _, e := range eastAsianWidth {
 			for _, s := range strictEmojiNeutral {
@@ -418,7 +419,35 @@ func TestMoreComparisonWithRunewidth(t *testing.T) {
 				}
 			}
 		}
-	}
+	})
+	t.Run("SampleRunes", func(t *testing.T) {
+		runes := []rune(string(sample))
+
+		for _, e := range eastAsianWidth {
+			for _, s := range strictEmojiNeutral {
+				options := Options{
+					EastAsianWidth:     e,
+					StrictEmojiNeutral: s,
+				}
+				condition := &runewidth.Condition{
+					EastAsianWidth:     options.EastAsianWidth,
+					StrictEmojiNeutral: options.StrictEmojiNeutral,
+				}
+
+				for _, r := range runes {
+					w1 := options.Rune(r)
+					w2 := condition.RuneWidth(r)
+					if w1 != w2 {
+						t.Errorf("Sample mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
+							"  displaywidth result: %d\n"+
+							"  go-runewidth result: %d\n"+
+							"  Difference: %d",
+							r, e, s, w1, w2, w1-w2)
+					}
+				}
+			}
+		}
+	})
 }
 
 func TestSpecificEmojiCharacters(t *testing.T) {
