@@ -1,11 +1,10 @@
 package displaywidth
 
 import (
-	"bufio"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/clipperhouse/displaywidth/internal/testdata"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -17,18 +16,15 @@ type TestCase struct {
 
 // loadTestCases reads and parses test cases from test_cases.txt
 func loadTestCases() ([]TestCase, error) {
-	file, err := os.Open("test_cases.txt")
+	file, err := testdata.TestCases()
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
 
 	var testCases []TestCase
-	scanner := bufio.NewScanner(file)
+	lines := strings.Split(string(file), "\n")
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
+	for _, line := range lines {
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -86,7 +82,7 @@ func loadTestCases() ([]TestCase, error) {
 		}
 	}
 
-	return testCases, scanner.Err()
+	return testCases, nil
 }
 
 // BenchmarkString benchmarks our displaywidth package
