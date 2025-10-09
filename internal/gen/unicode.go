@@ -326,10 +326,6 @@ func isExceptionalCombiningMark(r rune) bool {
 	if (r >= 0x064B && r <= 0x0655) || (r >= 0x0657 && r <= 0x065E) || r == 0x0670 || (r >= 0x06D6 && r <= 0x06DC) || (r >= 0x06DF && r <= 0x06E4) || (r >= 0x06E7 && r <= 0x06E8) || (r >= 0x06EA && r <= 0x06ED) {
 		return true
 	}
-	// Additional Devanagari combining marks that go-runewidth treats as regular characters
-	if (r >= 0x09BE && r <= 0x09C4) || (r >= 0x09C7 && r <= 0x09C7) || (r >= 0x09CB && r <= 0x09CD) || (r >= 0x09D7 && r <= 0x09D7) {
-		return true
-	}
 	// Variation selectors that go-runewidth treats as regular characters
 	if r == 0xFE0F {
 		return true
