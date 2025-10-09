@@ -26,6 +26,9 @@ func main() {
 
     width = displaywidth.Bytes([]byte("🌍"))
     fmt.Println(width)
+
+    width = displaywidth.Rune('🌍')
+    fmt.Println(width)
 }
 ```
 
@@ -33,7 +36,6 @@ func main() {
 
 You can specify East Asian Width and Strict Emoji Neutral settings. If
 unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
-
 
 ```go
 options := displaywidth.Options{
