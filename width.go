@@ -5,10 +5,16 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// String calculates the display width of a string
-// eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
-// strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
-func String(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
+func String(s string) int {
+	return StringOptions(s, DefaultOptions)
+}
+
+func Bytes(s []byte) int {
+	return BytesOptions(s, DefaultOptions)
+}
+
+// StringOptions calculates the display width of a string
+func StringOptions(s string, options Options) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -18,15 +24,13 @@ func String(s string, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	for g.Next() {
 		// Look up character properties from trie for the first character in the grapheme cluster
 		props, _ := lookupProperties(g.Value())
-		total += props.width(eastAsianWidth, strictEmojiNeutral)
+		total += props.width(options)
 	}
 	return total
 }
 
-// Bytes calculates the display width of a []byte
-// eastAsianWidth: when true, treat ambiguous width characters as wide (width 2)
-// strictEmojiNeutral: when true, use strict emoji width calculation (some emoji become width 1)
-func Bytes(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
+// BytesOptions calculates the display width of a []byte
+func BytesOptions(s []byte, options Options) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -36,9 +40,19 @@ func Bytes(s []byte, eastAsianWidth bool, strictEmojiNeutral bool) int {
 	for g.Next() {
 		// Look up character properties from trie for the first character in the grapheme cluster
 		props, _ := lookupProperties(g.Value())
-		total += props.width(eastAsianWidth, strictEmojiNeutral)
+		total += props.width(options)
 	}
 	return total
+}
+
+type Options struct {
+	EastAsianWidth     bool
+	StrictEmojiNeutral bool
+}
+
+var DefaultOptions = Options{
+	EastAsianWidth:     false,
+	StrictEmojiNeutral: true,
 }
 
 const defaultWidth = 1
@@ -73,7 +87,7 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 
 // width determines the display width of a character based on its properties
 // and configuration options
-func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
+func (p property) width(options Options) int {
 	if p == 0 {
 		// Character not in trie, use default behavior
 		return defaultWidth
@@ -83,11 +97,11 @@ func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
 		return 0
 	}
 
-	if eastAsianWidth {
+	if options.EastAsianWidth {
 		if p.is(_EAW_Ambiguous) {
 			return 2
 		}
-		if p.is(_EAW_Ambiguous|_Emoji) && !strictEmojiNeutral {
+		if p.is(_EAW_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
 			return 2
 		}
 	}

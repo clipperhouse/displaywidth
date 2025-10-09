@@ -85,8 +85,8 @@ func loadTestCases() ([]TestCase, error) {
 	return testCases, nil
 }
 
-// BenchmarkString benchmarks our displaywidth package
-func BenchmarkString(b *testing.B) {
+// BenchmarkStringDefault benchmarks our displaywidth package
+func BenchmarkStringDefault(b *testing.B) {
 	b.Run("displaywidth", func(b *testing.B) {
 		testCases, err := loadTestCases()
 		if err != nil {
@@ -98,7 +98,7 @@ func BenchmarkString(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
-				_ = String(tc.Input, false, false)
+				_ = String(tc.Input)
 			}
 		}
 
@@ -116,15 +116,11 @@ func BenchmarkString(b *testing.B) {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
 
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
-
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
-				_ = condition.StringWidth(tc.Input)
+				_ = runewidth.StringWidth(tc.Input)
 			}
 		}
 
@@ -137,8 +133,17 @@ func BenchmarkString(b *testing.B) {
 	})
 }
 
-// BenchmarkString_EAW benchmarks our package with East Asian Width enabled
 func BenchmarkString_EAW(b *testing.B) {
+	options := Options{
+		EastAsianWidth:     true,
+		StrictEmojiNeutral: false,
+	}
+
+	condition := &runewidth.Condition{
+		EastAsianWidth:     options.EastAsianWidth,
+		StrictEmojiNeutral: options.StrictEmojiNeutral,
+	}
+
 	b.Run("displaywidth", func(b *testing.B) {
 		testCases, err := loadTestCases()
 		if err != nil {
@@ -150,7 +155,7 @@ func BenchmarkString_EAW(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with East Asian Width enabled
-				_ = String(tc.Input, true, false)
+				_ = StringOptions(tc.Input, options)
 			}
 		}
 
@@ -167,10 +172,6 @@ func BenchmarkString_EAW(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = true
-		condition.StrictEmojiNeutral = false
 
 		b.ResetTimer()
 
@@ -191,6 +192,16 @@ func BenchmarkString_EAW(b *testing.B) {
 
 // BenchmarkString_StrictEmoji benchmarks our package with strict emoji neutral
 func BenchmarkString_StrictEmoji(b *testing.B) {
+	options := Options{
+		EastAsianWidth:     false,
+		StrictEmojiNeutral: true,
+	}
+
+	condition := &runewidth.Condition{
+		EastAsianWidth:     options.EastAsianWidth,
+		StrictEmojiNeutral: options.StrictEmojiNeutral,
+	}
+
 	b.Run("displaywidth", func(b *testing.B) {
 		testCases, err := loadTestCases()
 		if err != nil {
@@ -202,7 +213,7 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with strict emoji neutral enabled
-				_ = String(tc.Input, false, true)
+				_ = StringOptions(tc.Input, options)
 			}
 		}
 
@@ -219,10 +230,6 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = true
 
 		b.ResetTimer()
 
@@ -255,7 +262,7 @@ func BenchmarkString_ASCII(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range asciiStrings {
-				_ = String(s, false, false)
+				_ = String(s)
 			}
 		}
 
@@ -267,14 +274,10 @@ func BenchmarkString_ASCII(b *testing.B) {
 	})
 
 	b.Run("go-runewidth", func(b *testing.B) {
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
-
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range asciiStrings {
-				_ = condition.StringWidth(s)
+				_ = runewidth.StringWidth(s)
 			}
 		}
 
@@ -307,7 +310,7 @@ func BenchmarkString_Unicode(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
-				_ = String(s, false, false)
+				_ = String(s)
 			}
 		}
 
@@ -319,14 +322,11 @@ func BenchmarkString_Unicode(b *testing.B) {
 	})
 
 	b.Run("go-runewidth", func(b *testing.B) {
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
-				_ = condition.StringWidth(s)
+				_ = runewidth.StringWidth(s)
 			}
 		}
 
@@ -354,7 +354,7 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
-				_ = String(s, false, false)
+				_ = String(s)
 			}
 		}
 
@@ -366,14 +366,10 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 	})
 
 	b.Run("go-runewidth", func(b *testing.B) {
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
-
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
-				_ = condition.StringWidth(s)
+				_ = runewidth.StringWidth(s)
 			}
 		}
 
@@ -400,7 +396,7 @@ func BenchmarkString_Mixed(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
-				_ = String(s, false, false)
+				_ = String(s)
 			}
 		}
 
@@ -412,14 +408,10 @@ func BenchmarkString_Mixed(b *testing.B) {
 	})
 
 	b.Run("go-runewidth", func(b *testing.B) {
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
-
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
-				_ = condition.StringWidth(s)
+				_ = runewidth.StringWidth(s)
 			}
 		}
 
@@ -449,7 +441,7 @@ func BenchmarkString_ControlChars(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
-				_ = String(s, false, false)
+				_ = String(s)
 			}
 		}
 
@@ -461,14 +453,10 @@ func BenchmarkString_ControlChars(b *testing.B) {
 	})
 
 	b.Run("go-runewidth", func(b *testing.B) {
-		condition := runewidth.NewCondition()
-		condition.EastAsianWidth = false
-		condition.StrictEmojiNeutral = false
-
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
-				_ = condition.StringWidth(s)
+				_ = runewidth.StringWidth(s)
 			}
 		}
 
