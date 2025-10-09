@@ -19,7 +19,7 @@ type UnicodeData struct {
 	EmojiData      map[rune]bool   // From emoji-data.txt
 	AmbiguousData  map[rune]bool   // Ambiguous width characters from EastAsianWidth.txt
 	ControlChars   map[rune]bool   // From Go stdlib
-	CombiningMarks map[rune]bool   // From Go stdlib
+	CombiningMarks map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
 	ZeroWidthChars map[rune]bool   // Special zero-width characters
 }
 
@@ -33,7 +33,7 @@ const (
 	EAW_Ambiguous                            // A
 
 	// General categories
-	IsCombiningMark // Mn, Mc, Me
+	IsCombiningMark // Mn, Me (Mc excluded for proper width)
 	IsControlChar   // C0, C1, DEL
 	IsZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
 	IsEmoji         // Emoji base characters
@@ -235,10 +235,26 @@ func extractStdlibData(data *UnicodeData) {
 		data.ControlChars[r] = true // C1 controls
 	}
 
-	// Extract combining marks
-	for r := rune(0); r <= unicode.MaxRune; r++ {
-		if unicode.Is(unicode.Mn, r) || unicode.Is(unicode.Mc, r) || unicode.Is(unicode.Me, r) {
-			data.CombiningMarks[r] = true
+	// Extract combining marks using range tables for efficiency
+	// Mn: Nonspacing_Mark, Me: Enclosing_Mark
+	// Note: Mc (Spacing Mark) characters are excluded so they get default width 1
+	extractRunesFromRangeTable(unicode.Mn, data.CombiningMarks)
+	extractRunesFromRangeTable(unicode.Me, data.CombiningMarks)
+}
+
+// extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
+func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool) {
+	// Iterate over 16-bit ranges
+	for _, r16 := range table.R16 {
+		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
+			target[r] = true
+		}
+	}
+
+	// Iterate over 32-bit ranges
+	for _, r32 := range table.R32 {
+		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
+			target[r] = true
 		}
 	}
 }

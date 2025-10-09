@@ -109,9 +109,9 @@ func writeCharProperties(w io.Writer) {
 	fmt.Fprintf(w, "\t_EAW_Wide                            // W\n")
 	fmt.Fprintf(w, "\t_EAW_Ambiguous                       // A\n\n")
 	fmt.Fprintf(w, "\t// General categories\n")
-	fmt.Fprintf(w, "\t_CombiningMark // Mn, Mc, Me\n")
-	fmt.Fprintf(w, "\t_ControlChar   // C0, C1, DEL\n")
-	fmt.Fprintf(w, "\t_ZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.\n")
-	fmt.Fprintf(w, "\t_Emoji         // Emoji base characters\n")
+	fmt.Fprintf(w, "\t_CombiningMark // Mn, Me (Mc excluded for proper width)\n")
+	fmt.Fprintf(w, "\t_ControlChar  // C0, C1, DEL\n")
+	fmt.Fprintf(w, "\t_ZeroWidth    // ZWSP, ZWJ, ZWNJ, etc.\n")
+	fmt.Fprintf(w, "\t_Emoji        // Emoji base characters\n")
 	fmt.Fprintf(w, ")\n\n")
 }
