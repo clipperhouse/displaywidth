@@ -71,8 +71,6 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 	return props, size
 }
 
-const controlCombiningZero = _ControlChar | _CombiningMark | _ZeroWidth
-
 // width determines the display width of a character based on its properties
 // and configuration options
 func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
@@ -81,27 +79,20 @@ func (p property) width(eastAsianWidth bool, strictEmojiNeutral bool) int {
 		return defaultWidth
 	}
 
-	if p.is(controlCombiningZero) {
+	if p.is(_ControlChar | _CombiningMark | _ZeroWidth) {
 		return 0
 	}
 
-	// Handle East Asian Ambiguous characters (before emoji check)
-	if eastAsianWidth && p.is(_EAW_Ambiguous) {
-		return 2
+	if eastAsianWidth {
+		if p.is(_EAW_Ambiguous) {
+			return 2
+		}
+		if p.is(_EAW_Ambiguous|_Emoji) && !strictEmojiNeutral {
+			return 2
+		}
 	}
 
-	if eastAsianWidth && p.is(_Emoji) &&
-		!strictEmojiNeutral && p.is(_EAW_Ambiguous) {
-		return 2
-	}
-
-	// Handle East Asian Width properties
-	if p.is(_EAW_Fullwidth) || p.is(_EAW_Wide) {
-		return 2
-	}
-
-	// Handle East Asian Width properties
-	if p.is(_EAW_Fullwidth) || p.is(_EAW_Wide) {
+	if p.is(_EAW_Fullwidth | _EAW_Wide) {
 		return 2
 	}
 
