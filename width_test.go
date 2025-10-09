@@ -51,14 +51,14 @@ func TestStringWidth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := StringOptions(tt.input, tt.options)
+			result := tt.options.String(tt.input)
 			if result != tt.expected {
 				t.Errorf("StringWidth(%q, %v) = %d, want %d",
 					tt.input, tt.options, result, tt.expected)
 			}
 
 			b := []byte(tt.input)
-			result = BytesOptions(b, tt.options)
+			result = tt.options.Bytes(b)
 			if result != tt.expected {
 				t.Errorf("BytesWidth(%q, %v) = %d, want %d",
 					b, tt.options, result, tt.expected)
@@ -194,7 +194,7 @@ func TestComparisonWithRunewidth(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Test our implementation
-			ourResult := StringOptions(tc.input, tc.options)
+			ourResult := tc.options.String(tc.input)
 
 			// Test go-runewidth using Condition
 			condition := runewidth.NewCondition()
@@ -239,7 +239,7 @@ func TestMoreComparisonWithRunewidth(t *testing.T) {
 				}
 
 				for _, line := range lines {
-					w1 := StringOptions(line, options)
+					w1 := options.String(line)
 					w2 := condition.StringWidth(line)
 					if w1 != w2 {
 						t.Errorf("TestCases mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
@@ -270,7 +270,7 @@ func TestMoreComparisonWithRunewidth(t *testing.T) {
 				}
 
 				for _, word := range words {
-					w1 := StringOptions(word, options)
+					w1 := options.String(word)
 					w2 := condition.StringWidth(word)
 					if w1 != w2 {
 						t.Errorf("Sample mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
