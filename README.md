@@ -2,6 +2,9 @@
 
 A high-performance Go package for measuring the display width of strings in monospace terminals.
 
+[![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
+![Go](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)
+
 ```bash
 go get github.com/clipperhouse/displaywidth
 ```
