@@ -5,18 +5,9 @@ A high-performance Go package for measuring the display width of strings in mono
 [![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
 ![Go](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)
 
+## Install
 ```bash
 go get github.com/clipperhouse/displaywidth
-```
-
-## API
-
-```go
-// StringWidth calculates the display width of a string
-func String(s string) int
-
-// BytesWidth calculates the display width of a []byte
-func Bytes(s []byte) int
 ```
 
 ## Usage
@@ -30,31 +21,41 @@ import (
 )
 
 func main() {
-    // Basic usage
     width := displaywidth.String("Hello, 世界!")
-    fmt.Println(width) // Output: 13
+    fmt.Println(width)
 
-    // With East Asian width mode
-    width = displaywidth.String("café")
-    fmt.Println(width) // Output: 4
-
-    // Using BytesWidth
     width = displaywidth.Bytes([]byte("🌍"))
-    fmt.Println(width) // Output: 2
+    fmt.Println(width)
 }
+```
+
+### Options
+
+You can specify East Asian Width and Strict Emoji Neutral settings. If
+unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
+
+
+```go
+options := displaywidth.Options{
+    EastAsianWidth:     true,
+    StrictEmojiNeutral: false,
+}
+
+width := options.String("Hello, 世界!")
+fmt.Println(width)
 ```
 
 ## Details
 
-This package implements the Unicode East Asian Width standard (UAX #11) and is intended to be compatible with `go-runewidth` and `wcwidth`. It operates on bytes without decoding runes for better performance.
+This package implements the Unicode East Asian Width standard (UAX #11) and is
+intended to be compatible with `go-runewidth`. It operates on bytes without
+decoding runes for better performance.
 
-There is also an `Options` type, to specify East Asian Width and Strict Emoji Neutral settings. If unspecified, the
-default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
 
 ## Prior Art
 
 [mattn/go-runewidth](https://github.com/mattn/go-runewidth), which is excellent and popular.
-I've made an effort so that `displaywidth` returns identical results.
+In my testing, `displaywidth` returns identical results.
 
 ## Benchmarks
 

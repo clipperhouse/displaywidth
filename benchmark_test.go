@@ -155,7 +155,7 @@ func BenchmarkString_EAW(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with East Asian Width enabled
-				_ = StringOptions(tc.Input, options)
+				_ = options.String(tc.Input)
 			}
 		}
 
@@ -213,7 +213,7 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with strict emoji neutral enabled
-				_ = StringOptions(tc.Input, options)
+				_ = options.String(tc.Input)
 			}
 		}
 

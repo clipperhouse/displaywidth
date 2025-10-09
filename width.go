@@ -5,16 +5,31 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
+// String calculates the display width of a string
+// using the [DefaultOptions]
 func String(s string) int {
-	return StringOptions(s, DefaultOptions)
+	return DefaultOptions.String(s)
 }
 
+// Bytes calculates the display width of a []byte
+// using the [DefaultOptions]
 func Bytes(s []byte) int {
-	return BytesOptions(s, DefaultOptions)
+	return DefaultOptions.Bytes(s)
 }
 
-// StringOptions calculates the display width of a string
-func StringOptions(s string, options Options) int {
+type Options struct {
+	EastAsianWidth     bool
+	StrictEmojiNeutral bool
+}
+
+var DefaultOptions = Options{
+	EastAsianWidth:     false,
+	StrictEmojiNeutral: true,
+}
+
+// String calculates the display width of a string
+// for the given options
+func (options Options) String(s string) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -30,7 +45,8 @@ func StringOptions(s string, options Options) int {
 }
 
 // BytesOptions calculates the display width of a []byte
-func BytesOptions(s []byte, options Options) int {
+// for the given options
+func (options Options) Bytes(s []byte) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -43,16 +59,6 @@ func BytesOptions(s []byte, options Options) int {
 		total += props.width(options)
 	}
 	return total
-}
-
-type Options struct {
-	EastAsianWidth     bool
-	StrictEmojiNeutral bool
-}
-
-var DefaultOptions = Options{
-	EastAsianWidth:     false,
-	StrictEmojiNeutral: true,
 }
 
 const defaultWidth = 1
