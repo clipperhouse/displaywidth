@@ -58,7 +58,7 @@ func ParseUnicodeData() (*UnicodeData, error) {
 
 	// Download and parse EastAsianWidth.txt
 	eawFile := filepath.Join(dataDir, "EastAsianWidth.txt")
-	if err := downloadFile("https://unicode.org/Public/UCD/latest/ucd/EastAsianWidth.txt", eawFile); err != nil {
+	if err := downloadFile("https://unicode.org/Public/UCD/15.1.0/ucd/EastAsianWidth.txt", eawFile); err != nil {
 		return nil, fmt.Errorf("failed to download EastAsianWidth.txt: %v", err)
 	}
 	if err := parseEastAsianWidth(eawFile, data); err != nil {
@@ -220,7 +220,6 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 			continue
 		}
 
-		// Add the range to emoji data, but exclude characters that go-runewidth doesn't treat as emoji
 		for r := r1; r <= r2; r++ {
 			data.EmojiData[r] = true
 		}
