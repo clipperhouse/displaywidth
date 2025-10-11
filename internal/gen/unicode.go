@@ -23,20 +23,35 @@ type UnicodeData struct {
 	ZeroWidthChars map[rune]bool   // Special zero-width characters
 }
 
-// CharProperties represents the properties of a character as bit flags
-type CharProperties uint8
+// property represents the properties of a character as bit flags
+type property uint8
+
+// PropertyDefinition describes a single character property flag
+type PropertyDefinition struct {
+	Name    string
+	Comment string
+}
+
+// PropertyDefinitions is the single source of truth for all character properties.
+// The order matters - it defines the bit positions (via iota).
+var PropertyDefinitions = []PropertyDefinition{
+	{"East_Asian_Fullwidth", "F"},
+	{"East_Asian_Wide", "W"},
+	{"East_Asian_Ambiguous", "A"},
+	{"CombiningMark", "Mn, Me (Mc excluded for proper width)"},
+	{"ControlChar", "C0, C1, DEL"},
+	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
+	{"Emoji", "Emoji base characters"},
+}
 
 const (
-	// East Asian Width properties
-	EAW_Fullwidth CharProperties = 1 << iota // F
-	EAW_Wide                                 // W
-	EAW_Ambiguous                            // A
-
-	// General categories
-	IsCombiningMark // Mn, Me (Mc excluded for proper width)
-	IsControlChar   // C0, C1, DEL
-	IsZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
-	IsEmoji         // Emoji base characters
+	East_Asian_Fullwidth property = 1 << iota // F
+	East_Asian_Wide                           // W
+	East_Asian_Ambiguous                      // A
+	CombiningMark                             // Mn, Me (Mc excluded for proper width)
+	ControlChar                               // C0, C1, DEL
+	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
+	Emoji                                     // Emoji base characters
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -79,7 +94,6 @@ func ParseUnicodeData() (*UnicodeData, error) {
 
 	extractStdlibData(data)
 	extractAmbiguousChars(data)
-	addZeroWidthChars(data)
 
 	return data, nil
 }
@@ -240,6 +254,10 @@ func extractStdlibData(data *UnicodeData) {
 	// Note: Mc (Spacing Mark) characters are excluded so they get default width 1
 	extractRunesFromRangeTable(unicode.Mn, data.CombiningMarks)
 	extractRunesFromRangeTable(unicode.Me, data.CombiningMarks)
+
+	// Cf (Other, format) is the official Unicode category for format characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
 }
 
 // extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
@@ -269,47 +287,37 @@ func extractAmbiguousChars(data *UnicodeData) {
 	}
 }
 
-// addZeroWidthChars adds zero-width format characters from Unicode Cf category
-// Cf (Other, format) is the official Unicode category for format characters
-// which are generally invisible and have zero width. This is more comprehensive
-// and authoritative than maintaining a hand-picked list.
-func addZeroWidthChars(data *UnicodeData) {
-	// Use unicode.Cf (Other, format) category - the standard Unicode category
-	// for format characters that should have zero width
-	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
-}
-
-// BuildPropertyBitmap creates a CharProperties bitmap for a given rune
-func BuildPropertyBitmap(r rune, data *UnicodeData) CharProperties {
-	var props CharProperties
+// BuildPropertyBitmap creates a properties bitmap for a given rune
+func BuildPropertyBitmap(r rune, data *UnicodeData) property {
+	var props property
 
 	// East Asian Width
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F":
-			props |= EAW_Fullwidth
+			props |= East_Asian_Fullwidth
 		case "W":
-			props |= EAW_Wide
+			props |= East_Asian_Wide
 		case "A":
-			props |= EAW_Ambiguous
+			props |= East_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
 	}
 
 	if data.CombiningMarks[r] {
-		props |= IsCombiningMark
+		props |= CombiningMark
 	}
 	if data.ControlChars[r] {
-		props |= IsControlChar
+		props |= ControlChar
 	}
 	if data.ZeroWidthChars[r] {
-		props |= IsZeroWidth
+		props |= ZeroWidth
 	}
 
 	if data.EmojiData[r] {
-		props |= IsEmoji
+		props |= Emoji
 	}
 
 	return props

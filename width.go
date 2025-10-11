@@ -135,15 +135,15 @@ func (p property) width(options Options) int {
 	}
 
 	if options.EastAsianWidth {
-		if p.is(_EAW_Ambiguous) {
+		if p.is(_East_Asian_Ambiguous) {
 			return 2
 		}
-		if p.is(_EAW_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
+		if p.is(_East_Asian_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
 			return 2
 		}
 	}
 
-	if p.is(_EAW_Fullwidth | _EAW_Wide) {
+	if p.is(_East_Asian_Fullwidth | _East_Asian_Wide) {
 		return 2
 	}
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"io"
 	"os"
 	"unicode"
 
@@ -50,6 +51,9 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	fmt.Fprintf(buf, "package displaywidth\n\n")
 	fmt.Fprintf(buf, "import \"github.com/clipperhouse/displaywidth/internal/stringish\"\n\n")
 
+	// Write property definitions
+	writeProperties(buf)
+
 	// Generate the trie using triegen (it will use uint8/uint16/etc directly)
 	size, err := trie.Gen(buf)
 	if err != nil {
@@ -58,12 +62,6 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 
 	b := buf.Bytes()
 	typename := "stringWidthTrie"
-
-	// Add property type alias and constants before the trie definition
-	propertyDef := writeCharPropertiesString()
-	// Insert after imports, before the trie code
-	importEnd := []byte("import \"github.com/clipperhouse/displaywidth/internal/stringish\"\n\n")
-	b = bytes.Replace(b, importEnd, append(importEnd, []byte(propertyDef)...), 1)
 
 	typeDefSig := `type ` + typename + ` struct`
 	noTypeDef := `// ` + typeDefSig
@@ -110,24 +108,23 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	return nil
 }
 
-// writeCharPropertiesString returns the character properties definitions as a string
-func writeCharPropertiesString() string {
-	var buf bytes.Buffer
+// writeProperties writes the character properties definitions to the buffer.
+// It uses PropertyDefinitions from unicode.go as the single source of truth.
+func writeProperties(w io.Writer) {
+	fmt.Fprintf(w, "// property represents the properties of a character as bit flags\n")
+	fmt.Fprintf(w, "// The underlying type is uint8 since we only use %d bits for flags.\n", len(PropertyDefinitions))
+	fmt.Fprintf(w, "type property uint8\n\n")
+	fmt.Fprintf(w, "const (\n")
 
-	fmt.Fprintf(&buf, "// property represents the properties of a character as bit flags\n")
-	fmt.Fprintf(&buf, "// The underlying type is uint8 since we only use 7 bits for flags.\n")
-	fmt.Fprintf(&buf, "type property uint8\n\n")
-	fmt.Fprintf(&buf, "const (\n")
-	fmt.Fprintf(&buf, "\t// East Asian Width properties\n")
-	fmt.Fprintf(&buf, "\t_EAW_Fullwidth property = 1 << iota // F\n")
-	fmt.Fprintf(&buf, "\t_EAW_Wide                            // W\n")
-	fmt.Fprintf(&buf, "\t_EAW_Ambiguous                       // A\n\n")
-	fmt.Fprintf(&buf, "\t// General categories\n")
-	fmt.Fprintf(&buf, "\t_CombiningMark // Mn, Me (Mc excluded for proper width)\n")
-	fmt.Fprintf(&buf, "\t_ControlChar  // C0, C1, DEL\n")
-	fmt.Fprintf(&buf, "\t_ZeroWidth    // ZWSP, ZWJ, ZWNJ, etc.\n")
-	fmt.Fprintf(&buf, "\t_Emoji        // Emoji base characters\n")
-	fmt.Fprintf(&buf, ")\n\n")
+	for i, prop := range PropertyDefinitions {
+		constName := "_" + prop.Name
 
-	return buf.String()
+		if i == 0 {
+			fmt.Fprintf(w, "\t%s property = 1 << iota // %s\n", constName, prop.Comment)
+		} else {
+			fmt.Fprintf(w, "\t%s // %s\n", constName, prop.Comment)
+		}
+	}
+
+	fmt.Fprintf(w, ")\n\n")
 }
