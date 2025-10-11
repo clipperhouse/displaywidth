@@ -2,6 +2,9 @@ package displaywidth
 
 import (
 	"testing"
+	"unicode"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func TestStringWidth(t *testing.T) {
@@ -239,4 +242,26 @@ func TestCalculateWidth(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExhaustive(t *testing.T) {
+	t.Skip("skipping exhaustive test")
+	diffs := 0
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		w1 := Rune(r)
+		w2 := runewidth.RuneWidth(r)
+		if w1 != w2 {
+			if unicode.Is(unicode.Mn, r) {
+				// we know about these, skip
+				continue
+			}
+			if unicode.Is(unicode.Cf, r) {
+				// we know about these, skip
+				continue
+			}
+			t.Errorf("%#x: runewidth is %d, displaywidth is %d, difference is %d", r, w2, w1, w2-w1)
+			diffs++
+		}
+	}
+	t.Logf("total diffs: %d", diffs)
 }

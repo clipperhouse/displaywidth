@@ -80,6 +80,13 @@ func (options Options) Rune(r rune) int {
 		return 1
 	}
 
+	// Surrogates (U+D800-U+DFFF) are invalid UTF-8 and have zero width
+	// Other packages might turn them into the replacement character (U+FFFD)
+	// in which case, we won't see it.
+	if r >= 0xD800 && r <= 0xDFFF {
+		return 0
+	}
+
 	// Stack-allocated to avoid heap allocation
 	var buf [4]byte // UTF-8 is at most 4 bytes
 	n := utf8.EncodeRune(buf[:], r)

@@ -18,7 +18,7 @@ func GenerateTrie(data *UnicodeData) (*triegen.Trie, error) {
 
 	// Insert all characters with non-default properties
 	inserted := 0
-	for r := rune(0); r <= 0x10FFFF; r++ {
+	for r := rune(0); r <= unicode.MaxRune; r++ {
 		// Skip surrogate characters (U+D800-U+DFFF) and other invalid characters
 		if r >= 0xD800 && r <= 0xDFFF {
 			continue
