@@ -255,6 +255,14 @@ func extractStdlibData(data *UnicodeData) {
 	// Cf (Other, format) is the official Unicode category for format characters
 	// which are generally invisible and have zero width.
 	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
+
+	// Zl (Other, line separator) is the official Unicode category for line separator characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Zl, data.ZeroWidthChars)
+
+	// Zp (Other, paragraph separator) is the official Unicode category for paragraph separator characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Zp, data.ZeroWidthChars)
 }
 
 // extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
