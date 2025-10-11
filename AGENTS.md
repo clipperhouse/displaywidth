@@ -22,7 +22,7 @@ For PRs, you can use the gh CLI tool to retrieve or post comments.
 
 ## Comparisons to go-runewidth
 
-We originally attemped to make this package compatible with go-runewidth.
+We originally attempted to make this package compatible with go-runewidth.
 However, we found that there were too many differences in the handling of
 certain characters and properties.
 
