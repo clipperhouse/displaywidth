@@ -17,7 +17,6 @@ import (
 type UnicodeData struct {
 	EastAsianWidth map[rune]string // From EastAsianWidth.txt
 	EmojiData      map[rune]bool   // From emoji-data.txt
-	AmbiguousData  map[rune]bool   // Ambiguous width characters from EastAsianWidth.txt
 	ControlChars   map[rune]bool   // From Go stdlib
 	CombiningMarks map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
 	ZeroWidthChars map[rune]bool   // Special zero-width characters
@@ -59,7 +58,6 @@ func ParseUnicodeData() (*UnicodeData, error) {
 	data := &UnicodeData{
 		EastAsianWidth: make(map[rune]string),
 		EmojiData:      make(map[rune]bool),
-		AmbiguousData:  make(map[rune]bool),
 		ControlChars:   make(map[rune]bool),
 		CombiningMarks: make(map[rune]bool),
 		ZeroWidthChars: make(map[rune]bool),
@@ -93,7 +91,6 @@ func ParseUnicodeData() (*UnicodeData, error) {
 	}
 
 	extractStdlibData(data)
-	extractAmbiguousChars(data)
 
 	return data, nil
 }
@@ -273,16 +270,6 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 	for _, r32 := range table.R32 {
 		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
 			target[r] = true
-		}
-	}
-}
-
-// extractAmbiguousChars extracts all characters marked as "A" (Ambiguous)
-// in EastAsianWidth.txt and adds them to the AmbiguousData map
-func extractAmbiguousChars(data *UnicodeData) {
-	for r, width := range data.EastAsianWidth {
-		if width == "A" {
-			data.AmbiguousData[r] = true
 		}
 	}
 }
