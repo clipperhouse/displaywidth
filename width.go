@@ -43,7 +43,8 @@ func (options Options) String(s string) int {
 	total := 0
 	g := graphemes.FromString(s)
 	for g.Next() {
-		// Look up character properties from trie for the first character in the grapheme cluster
+		// The first character in the grapheme cluster determines the width;
+		// modifiers and joiners do not contribute to the width.
 		props, _ := lookupProperties(g.Value())
 		total += props.width(options)
 	}
@@ -60,7 +61,8 @@ func (options Options) Bytes(s []byte) int {
 	total := 0
 	g := graphemes.FromBytes(s)
 	for g.Next() {
-		// Look up character properties from trie for the first character in the grapheme cluster
+		// The first character in the grapheme cluster determines the width;
+		// modifiers and joiners do not contribute to the width.
 		props, _ := lookupProperties(g.Value())
 		total += props.width(options)
 	}
