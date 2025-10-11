@@ -16,22 +16,16 @@ dependencies and are hard to cleanup.)
 If you make changes to the trie generation in internal/gen, it can be invoked
 by running `go generate` from the top package directory.
 
-We have hard-coded some exceptions to achieve compatibility with go-runewidth.
-We consider them technical debt. One example is isExceptionalCombiningMark.
-Ideally, we would not have these exceptional cases. Our current theory in the
-case of isExceptionalCombiningMark is that go-runewidth is incorrect, but we
-don't know for sure.
-
-## Known Differences from go-runewidth
-
-### Tag Characters (U+E0020-U+E007F)
-
-We treat Unicode tag characters (used in extended flag emoji sequences) as
-zero-width, following the Unicode Cf (format) category specification.
-go-runewidth treats these as width 1. Our behavior is more correct according
-to Unicode standards. In practice, these characters are part of grapheme
-clusters (e.g., 🏴󠁧󠁢󠁥󠁮󠁧󠁿), and the base character determines the display width,
-so this difference only appears when checking individual runes outside of their
-grapheme cluster context.
+## Pull Requests
 
 For PRs, you can use the gh CLI tool to retrieve or post comments.
+
+## Comparisons to go-runewidth
+
+We originally attemped to make this package compatible with go-runewidth.
+However, we found that there were too many differences in the handling of
+certain characters and properties.
+
+We believe, preliminarily, that our choices are more correct and complete,
+by using more complete categories such as Unicode Cf (format) for zero-width
+and Mn (Nonspacing_Mark) for combining marks.
