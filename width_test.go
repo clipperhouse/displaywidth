@@ -207,11 +207,7 @@ func TestCalculateWidth(t *testing.T) {
 		props    property
 		options  Options
 		expected int
-	}{
-		// Combining marks
-		{"combining mark", _CombiningMark, Options{}, 0},
-
-		// Zero width
+	}{ // Zero width
 		{"zero width", _ZeroWidth, Options{}, 0},
 
 		// East Asian Wide

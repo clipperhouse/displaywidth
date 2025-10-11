@@ -137,7 +137,7 @@ func (p property) width(options Options) int {
 		return defaultWidth
 	}
 
-	if p.is(_CombiningMark | _ZeroWidth) {
+	if p.is(_ZeroWidth) {
 		return 0
 	}
 
