@@ -208,9 +208,6 @@ func TestCalculateWidth(t *testing.T) {
 		options  Options
 		expected int
 	}{
-		// Control characters
-		{"control char", _ControlChar, Options{}, 0},
-
 		// Combining marks
 		{"combining mark", _CombiningMark, Options{}, 0},
 

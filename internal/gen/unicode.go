@@ -38,7 +38,6 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"East_Asian_Wide", "W"},
 	{"East_Asian_Ambiguous", "A"},
 	{"CombiningMark", "Mn, Me (Mc excluded for proper width)"},
-	{"ControlChar", "C0, C1, DEL"},
 	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
 	{"Emoji", "Emoji base characters"},
 }
@@ -48,7 +47,6 @@ const (
 	East_Asian_Wide                           // W
 	East_Asian_Ambiguous                      // A
 	CombiningMark                             // Mn, Me (Mc excluded for proper width)
-	ControlChar                               // C0, C1, DEL
 	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 	Emoji                                     // Emoji base characters
 )
@@ -309,7 +307,7 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 		props |= CombiningMark
 	}
 	if data.ControlChars[r] {
-		props |= ControlChar
+		props |= ZeroWidth
 	}
 	if data.ZeroWidthChars[r] {
 		props |= ZeroWidth
