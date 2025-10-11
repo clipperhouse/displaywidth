@@ -96,3 +96,17 @@ BenchmarkRuneWidth_ASCII/go-runewidth-8       	17664040	        67.34 ns/op	 430
 ```
 
 I use a similar technique in [this grapheme cluster library](https://github.com/clipperhouse/uax29).
+
+## Compatibility
+
+`displaywidth` will mostly give the same outputs as `go-runewidth`, but there are some differences:
+
+- Unicode category Mn (Nonspacing Mark): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes.
+- Unicode category Cf (Format): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes.
+- Unicode category Mc (Spacing Mark): `displaywidth` will return width 1, `go-runewidth` may return width 0 for some runes.
+- Unicode category Cs (Surrogate): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes. Surrogates are not valid UTF-8; some packages may turn them into the replacement character (U+FFFD).
+- Unicode category Zl (Line separator): `displaywidth` will return width 0, `go-runewidth` may return width 1.
+- Unicode category Zp (Paragraph separator): `displaywidth` will return width 0, `go-runewidth` may return width 1.
+- Unicode Noncharacters (U+FFFE and U+FFFF): `displaywidth` will return width 0, `go-runewidth` may return width 1.
+
+See `TestCompatibility` for more details.
