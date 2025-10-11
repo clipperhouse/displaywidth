@@ -36,15 +36,15 @@ type PropertyDefinition struct {
 var PropertyDefinitions = []PropertyDefinition{
 	{"East_Asian_Full_Wide", "F, W"},
 	{"East_Asian_Ambiguous", "A"},
-	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
 	{"Emoji", "Emoji base characters"},
+	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
 }
 
 const (
 	East_Asian_Full_Wide property = 1 << iota // F, W
 	East_Asian_Ambiguous                      // A
-	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 	Emoji                                     // Emoji base characters
+	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
