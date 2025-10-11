@@ -244,8 +244,16 @@ func TestCalculateWidth(t *testing.T) {
 	}
 }
 
-// Intended to discover differences between displaywidth and go-runewidth
+// Investigate differences between displaywidth and go-runewidth.
+// Not meant to be a real test, more of a tool, but good to
+// fail if something changes in the future.
 func TestCompatibility(t *testing.T) {
+	if unicode.Version < "15" {
+		// We only care about Unicode 15 and above,
+		// which I believe was Go version 1.21.
+		return
+	}
+
 	for r := rune(0); r <= unicode.MaxRune; r++ {
 		w1 := Rune(r)
 		w2 := runewidth.RuneWidth(r)
