@@ -1,11 +1,9 @@
 package displaywidth
 
 import (
-	"fmt"
-	"strings"
 	"testing"
+	"unicode"
 
-	"github.com/clipperhouse/displaywidth/internal/testdata"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -220,12 +218,12 @@ func TestCalculateWidth(t *testing.T) {
 		{"zero width", _ZeroWidth, Options{}, 0},
 
 		// East Asian Wide
-		{"EAW fullwidth", _EAW_Fullwidth, Options{}, 2},
-		{"EAW wide", _EAW_Wide, Options{}, 2},
+		{"EAW fullwidth", _East_Asian_Fullwidth, Options{}, 2},
+		{"EAW wide", _East_Asian_Wide, Options{}, 2},
 
 		// East Asian Ambiguous
-		{"EAW ambiguous default", _EAW_Ambiguous, Options{}, 1},
-		{"EAW ambiguous EAW", _EAW_Ambiguous, Options{EastAsianWidth: true}, 2},
+		{"EAW ambiguous default", _East_Asian_Ambiguous, Options{}, 1},
+		{"EAW ambiguous EAW", _East_Asian_Ambiguous, Options{EastAsianWidth: true}, 2},
 
 		// Emoji
 		// {"emoji default", _Emoji, false, false, 2},
@@ -246,229 +244,39 @@ func TestCalculateWidth(t *testing.T) {
 	}
 }
 
-func TestComparisonWithRunewidth(t *testing.T) {
-	testCases := []struct {
-		name    string
-		input   string
-		options Options
-	}{
-		// Basic ASCII
-		{"empty string", "", Options{}},
-		{"single ASCII", "a", Options{}},
-		{"multiple ASCII", "hello", Options{}},
-		{"ASCII with spaces", "hello world", Options{}},
-		{"numbers", "1234567890", Options{}},
-		{"symbols", "!@#$%^&*()", Options{}},
-
-		// Control characters
-		{"newline", "\n", Options{}},
-		{"tab", "\t", Options{}},
-		{"carriage return", "\r", Options{}},
-		{"backspace", "\b", Options{}},
-		{"null", "\x00", Options{}},
-		{"del", "\x7f", Options{}},
-
-		// Latin characters with diacritics
-		{"cafe", "café", Options{}},
-		{"naive", "naïve", Options{}},
-		{"resume", "résumé", Options{}},
-		{"zurich", "Zürich", Options{}},
-		{"sao paulo", "São Paulo", Options{}},
-
-		// East Asian characters
-		{"chinese", "中文", Options{}},
-		{"japanese", "こんにちは", Options{}},
-		{"korean", "안녕하세요", Options{}},
-		{"mixed", "Hello 世界", Options{}},
-
-		// Fullwidth characters
-		{"fullwidth A", "Ａ", Options{}},
-		{"fullwidth 1", "１", Options{}},
-		{"fullwidth !", "！", Options{}},
-
-		// Ambiguous characters
-		{"star", "★", Options{}},
-		{"star EAW", "★", Options{EastAsianWidth: true}},
-		{"degree", "°", Options{}},
-		{"degree EAW", "°", Options{EastAsianWidth: true}},
-		{"plus minus", "±", Options{}},
-		{"plus minus EAW", "±", Options{EastAsianWidth: true}},
-
-		// Emoji
-		{"grinning face", "😀", Options{}},
-		{"grinning face strict", "😀", Options{StrictEmojiNeutral: true}},
-		{"rocket", "🚀", Options{}},
-		{"rocket strict", "🚀", Options{StrictEmojiNeutral: true}},
-		{"party popper", "🎉", Options{}},
-		{"party popper strict", "🎉", Options{StrictEmojiNeutral: true}},
-
-		// Complex emoji sequences
-		{"family", "👨‍👩‍👧‍👦", Options{}},
-		{"family strict", "👨‍👩‍👧‍👦", Options{StrictEmojiNeutral: true}},
-		{"technologist", "👨‍💻", Options{}},
-		{"technologist strict", "👨‍💻", Options{StrictEmojiNeutral: true}},
-
-		// Mixed content
-		{"hello world emoji", "Hello 世界! 😀", Options{}},
-		{"price", "Price: $100.00 €85.50", Options{}},
-		{"math", "Math: ∑(x²) = ∞", Options{}},
-		{"emoji sequence", "👨‍💻 working on 🚀", Options{}},
-
-		// Edge cases
-		{"single space", " ", Options{}},
-		{"multiple spaces", "     ", Options{}},
-		{"tab and newline", "\t\n", Options{}},
-		{"mixed whitespace", " \t \n ", Options{}},
-
-		// Long string
-		{"long string", "This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols.", Options{}},
-
-		// Many emoji
-		{"many emoji", "😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾", Options{}},
+// Investigate differences between displaywidth and go-runewidth.
+// Not meant to be a real test, more of a tool, but good to
+// fail if something changes in the future.
+func TestCompatibility(t *testing.T) {
+	if unicode.Version < "15" {
+		// We only care about Unicode 15 and above,
+		// which I believe was Go version 1.21.
+		return
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Test our implementation
-			ourResult := tc.options.String(tc.input)
-
-			// Test go-runewidth using Condition
-			condition := runewidth.NewCondition()
-			condition.EastAsianWidth = tc.options.EastAsianWidth
-			condition.StrictEmojiNeutral = tc.options.StrictEmojiNeutral
-			goRunewidthResult := condition.StringWidth(tc.input)
-
-			// Compare results
-			if ourResult != goRunewidthResult {
-				t.Errorf("StringWidth mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
-					"  Our result: %d\n"+
-					"  go-runewidth result: %d\n"+
-					"  Difference: %d",
-					tc.input, tc.options.EastAsianWidth, tc.options.StrictEmojiNeutral,
-					ourResult, goRunewidthResult, ourResult-goRunewidthResult)
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		w1 := Rune(r)
+		w2 := runewidth.RuneWidth(r)
+		if w1 != w2 {
+			if unicode.Is(unicode.Mn, r) {
+				// these are in the trie, known
+				// we will return width 0,
+				// go-runewidth may return width 1
+				continue
 			}
-		})
-	}
-}
-
-func TestMoreComparisonWithRunewidth(t *testing.T) {
-	testCases, err := testdata.TestCases()
-	if err != nil {
-		t.Fatalf("Failed to load test cases: %v", err)
-	}
-	sample, err := testdata.Sample()
-	if err != nil {
-		t.Fatalf("Failed to load sample: %v", err)
-	}
-
-	eastAsianWidth := []bool{false, true}
-	strictEmojiNeutral := []bool{false, true}
-
-	t.Run("TestCases", func(t *testing.T) {
-		{
-			lines := strings.Split(string(testCases), "\n")
-			for _, e := range eastAsianWidth {
-				for _, s := range strictEmojiNeutral {
-					options := Options{
-						EastAsianWidth:     e,
-						StrictEmojiNeutral: s,
-					}
-					condition := &runewidth.Condition{
-						EastAsianWidth:     options.EastAsianWidth,
-						StrictEmojiNeutral: options.StrictEmojiNeutral,
-					}
-
-					for _, line := range lines {
-						w1 := options.String(line)
-						w2 := condition.StringWidth(line)
-						if w1 != w2 {
-							t.Errorf("TestCases mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
-								"  displaywidth result: %d\n"+
-								"  go-runewidth result: %d\n"+
-								"  Difference: %d",
-								line, options.EastAsianWidth, options.StrictEmojiNeutral, w1, w2, w1-w2)
-						}
-					}
-				}
+			if unicode.Is(unicode.Cf, r) {
+				// these are in the trie, known
+				// we will return width 0,
+				// go-runewidth may return width 1
+				continue
 			}
+			if unicode.Is(unicode.Mc, r) {
+				// these are deliberately excluded from the trie, known
+				// we will return width 1,
+				// go-runewidth may return width 0
+				continue
+			}
+			t.Errorf("%#x: runewidth is %d, displaywidth is %d, difference is %d", r, w2, w1, w2-w1)
 		}
-	})
-	t.Run("Sample", func(t *testing.T) {
-		words := strings.Fields(string(sample))
-		for _, e := range eastAsianWidth {
-			for _, s := range strictEmojiNeutral {
-				options := Options{
-					EastAsianWidth:     e,
-					StrictEmojiNeutral: s,
-				}
-				condition := &runewidth.Condition{
-					EastAsianWidth:     options.EastAsianWidth,
-					StrictEmojiNeutral: options.StrictEmojiNeutral,
-				}
-
-				for _, word := range words {
-					w1 := options.String(word)
-					w2 := condition.StringWidth(word)
-					if w1 != w2 {
-						t.Errorf("Sample mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
-							"  displaywidth result: %d\n"+
-							"  go-runewidth result: %d\n"+
-							"  Difference: %d",
-							word, e, s, w1, w2, w1-w2)
-					}
-				}
-			}
-		}
-	})
-	t.Run("SampleRunes", func(t *testing.T) {
-		runes := []rune(string(sample))
-
-		for _, e := range eastAsianWidth {
-			for _, s := range strictEmojiNeutral {
-				options := Options{
-					EastAsianWidth:     e,
-					StrictEmojiNeutral: s,
-				}
-				condition := &runewidth.Condition{
-					EastAsianWidth:     options.EastAsianWidth,
-					StrictEmojiNeutral: options.StrictEmojiNeutral,
-				}
-
-				for _, r := range runes {
-					w1 := options.Rune(r)
-					w2 := condition.RuneWidth(r)
-					if w1 != w2 {
-						t.Errorf("Sample mismatch for %q (eastAsianWidth=%v, strictEmojiNeutral=%v):\n"+
-							"  displaywidth result: %d\n"+
-							"  go-runewidth result: %d\n"+
-							"  Difference: %d",
-							r, e, s, w1, w2, w1-w2)
-					}
-				}
-			}
-		}
-	})
-}
-
-func TestSpecificEmojiCharacters(t *testing.T) {
-	// Test the specific characters that are causing differences with go-runewidth
-	chars := []rune{'☺', '☹', '☠', '️'}
-
-	for _, char := range chars {
-		t.Run(fmt.Sprintf("char_%04X", char), func(t *testing.T) {
-			props, _ := lookupProperties(string(char))
-			w1 := String(string(char))
-			w2 := runewidth.RuneWidth(char)
-
-			t.Logf("Character: %c (U+%04X)", char, char)
-			t.Logf("Our properties: %d", props)
-			t.Logf("Our width: %d", w1)
-			t.Logf("go-runewidth width: %d", w2)
-
-			// For now, just log the differences - we'll fix them next
-			if w1 != w2 {
-				t.Logf("DIFFERENCE: Our width %d != go-runewidth width %d", w1, w2)
-			}
-		})
 	}
 }

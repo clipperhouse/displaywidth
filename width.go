@@ -43,7 +43,8 @@ func (options Options) String(s string) int {
 	total := 0
 	g := graphemes.FromString(s)
 	for g.Next() {
-		// Look up character properties from trie for the first character in the grapheme cluster
+		// The first character in the grapheme cluster determines the width;
+		// modifiers and joiners do not contribute to the width.
 		props, _ := lookupProperties(g.Value())
 		total += props.width(options)
 	}
@@ -60,7 +61,8 @@ func (options Options) Bytes(s []byte) int {
 	total := 0
 	g := graphemes.FromBytes(s)
 	for g.Next() {
-		// Look up character properties from trie for the first character in the grapheme cluster
+		// The first character in the grapheme cluster determines the width;
+		// modifiers and joiners do not contribute to the width.
 		props, _ := lookupProperties(g.Value())
 		total += props.width(options)
 	}
@@ -76,6 +78,13 @@ func (options Options) Rune(r rune) int {
 		}
 		// ASCII printable (0x20-0x7E)
 		return 1
+	}
+
+	// Surrogates (U+D800-U+DFFF) are invalid UTF-8 and have zero width
+	// Other packages might turn them into the replacement character (U+FFFD)
+	// in which case, we won't see it.
+	if r >= 0xD800 && r <= 0xDFFF {
+		return 0
 	}
 
 	// Stack-allocated to avoid heap allocation
@@ -133,15 +142,15 @@ func (p property) width(options Options) int {
 	}
 
 	if options.EastAsianWidth {
-		if p.is(_EAW_Ambiguous) {
+		if p.is(_East_Asian_Ambiguous) {
 			return 2
 		}
-		if p.is(_EAW_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
+		if p.is(_East_Asian_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
 			return 2
 		}
 	}
 
-	if p.is(_EAW_Fullwidth | _EAW_Wide) {
+	if p.is(_East_Asian_Fullwidth | _East_Asian_Wide) {
 		return 2
 	}
 

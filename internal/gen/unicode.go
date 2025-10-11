@@ -17,26 +17,40 @@ import (
 type UnicodeData struct {
 	EastAsianWidth map[rune]string // From EastAsianWidth.txt
 	EmojiData      map[rune]bool   // From emoji-data.txt
-	AmbiguousData  map[rune]bool   // Ambiguous width characters from EastAsianWidth.txt
 	ControlChars   map[rune]bool   // From Go stdlib
 	CombiningMarks map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
 	ZeroWidthChars map[rune]bool   // Special zero-width characters
 }
 
-// CharProperties represents the properties of a character as bit flags
-type CharProperties uint8
+// property represents the properties of a character as bit flags
+type property uint8
+
+// PropertyDefinition describes a single character property flag
+type PropertyDefinition struct {
+	Name    string
+	Comment string
+}
+
+// PropertyDefinitions is the single source of truth for all character properties.
+// The order matters - it defines the bit positions (via iota).
+var PropertyDefinitions = []PropertyDefinition{
+	{"East_Asian_Fullwidth", "F"},
+	{"East_Asian_Wide", "W"},
+	{"East_Asian_Ambiguous", "A"},
+	{"CombiningMark", "Mn, Me (Mc excluded for proper width)"},
+	{"ControlChar", "C0, C1, DEL"},
+	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
+	{"Emoji", "Emoji base characters"},
+}
 
 const (
-	// East Asian Width properties
-	EAW_Fullwidth CharProperties = 1 << iota // F
-	EAW_Wide                                 // W
-	EAW_Ambiguous                            // A
-
-	// General categories
-	IsCombiningMark // Mn, Me (Mc excluded for proper width)
-	IsControlChar   // C0, C1, DEL
-	IsZeroWidth     // ZWSP, ZWJ, ZWNJ, etc.
-	IsEmoji         // Emoji base characters
+	East_Asian_Fullwidth property = 1 << iota // F
+	East_Asian_Wide                           // W
+	East_Asian_Ambiguous                      // A
+	CombiningMark                             // Mn, Me (Mc excluded for proper width)
+	ControlChar                               // C0, C1, DEL
+	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
+	Emoji                                     // Emoji base characters
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -44,7 +58,6 @@ func ParseUnicodeData() (*UnicodeData, error) {
 	data := &UnicodeData{
 		EastAsianWidth: make(map[rune]string),
 		EmojiData:      make(map[rune]bool),
-		AmbiguousData:  make(map[rune]bool),
 		ControlChars:   make(map[rune]bool),
 		CombiningMarks: make(map[rune]bool),
 		ZeroWidthChars: make(map[rune]bool),
@@ -78,8 +91,6 @@ func ParseUnicodeData() (*UnicodeData, error) {
 	}
 
 	extractStdlibData(data)
-	extractAmbiguousChars(data)
-	addZeroWidthChars(data)
 
 	return data, nil
 }
@@ -240,6 +251,22 @@ func extractStdlibData(data *UnicodeData) {
 	// Note: Mc (Spacing Mark) characters are excluded so they get default width 1
 	extractRunesFromRangeTable(unicode.Mn, data.CombiningMarks)
 	extractRunesFromRangeTable(unicode.Me, data.CombiningMarks)
+
+	// Cf (Other, format) is the official Unicode category for format characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
+
+	// Zl (Other, line separator) is the official Unicode category for line separator characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Zl, data.ZeroWidthChars)
+
+	// Zp (Other, paragraph separator) is the official Unicode category for paragraph separator characters
+	// which are generally invisible and have zero width.
+	extractRunesFromRangeTable(unicode.Zp, data.ZeroWidthChars)
+
+	// Noncharacters (U+nFFFE and U+nFFFF)
+	data.ZeroWidthChars[0xFFFE] = true
+	data.ZeroWidthChars[0xFFFF] = true
 }
 
 // extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
@@ -259,92 +286,38 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 	}
 }
 
-// extractAmbiguousChars extracts all characters marked as "A" (Ambiguous)
-// in EastAsianWidth.txt and adds them to the AmbiguousData map
-func extractAmbiguousChars(data *UnicodeData) {
-	for r, width := range data.EastAsianWidth {
-		if width == "A" {
-			data.AmbiguousData[r] = true
-		}
-	}
-}
-
-// addZeroWidthChars adds special zero-width characters
-func addZeroWidthChars(data *UnicodeData) {
-	zeroWidthChars := []rune{
-		0x200B, // Zero Width Space
-		0x200C, // Zero Width Non-Joiner
-		0x200D, // Zero Width Joiner
-		0x2060, // Word Joiner
-		0x2061, // Function Application
-		0xFEFF, // Zero Width No-Break Space
-	}
-
-	for _, r := range zeroWidthChars {
-		data.ZeroWidthChars[r] = true
-	}
-}
-
-// BuildPropertyBitmap creates a CharProperties bitmap for a given rune
-func BuildPropertyBitmap(r rune, data *UnicodeData) CharProperties {
-	var props CharProperties
+// BuildPropertyBitmap creates a properties bitmap for a given rune
+func BuildPropertyBitmap(r rune, data *UnicodeData) property {
+	var props property
 
 	// East Asian Width
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F":
-			props |= EAW_Fullwidth
+			props |= East_Asian_Fullwidth
 		case "W":
-			props |= EAW_Wide
+			props |= East_Asian_Wide
 		case "A":
-			props |= EAW_Ambiguous
+			props |= East_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
 	}
 
-	if data.CombiningMarks[r] && !isExceptionalCombiningMark(r) {
-		props |= IsCombiningMark
+	if data.CombiningMarks[r] {
+		props |= CombiningMark
 	}
 	if data.ControlChars[r] {
-		props |= IsControlChar
+		props |= ControlChar
 	}
 	if data.ZeroWidthChars[r] {
-		props |= IsZeroWidth
+		props |= ZeroWidth
 	}
 
 	if data.EmojiData[r] {
-		props |= IsEmoji
+		props |= Emoji
 	}
 
 	return props
-}
-
-// isExceptionalCombiningMark removes certain combining marks that
-// go-runewidth treats as regular characters. We believe this might be
-// incorrect in go-runewidth, but would need to confirm. This is
-// debt/expediency for now.
-func isExceptionalCombiningMark(r rune) bool {
-	// Thai combining marks (U+0E31-U+0E3A, U+0E47-U+0E4F)
-	if (r >= 0x0E31 && r <= 0x0E3A) || (r >= 0x0E47 && r <= 0x0E4F) {
-		return true
-	}
-	// Bengali combining marks (U+0982, U+09BC-U+09C4, U+09C7-U+09C8, U+09CB-U+09CD, U+09D7)
-	if r == 0x0982 || (r >= 0x09BC && r <= 0x09C4) || (r >= 0x09C7 && r <= 0x09C8) || (r >= 0x09CB && r <= 0x09CD) || r == 0x09D7 {
-		return true
-	}
-	// Devanagari combining marks (U+0900-U+0903, U+093A-U+093C, U+093E-U+0940, U+0941-U+0948, U+0949-U+094D, U+0951-U+0957, U+0962-U+0963)
-	if (r >= 0x0900 && r <= 0x0903) || (r >= 0x093A && r <= 0x093C) || (r >= 0x093E && r <= 0x0940) || (r >= 0x0941 && r <= 0x0948) || (r >= 0x0949 && r <= 0x094D) || (r >= 0x0951 && r <= 0x0957) || (r >= 0x0962 && r <= 0x0963) {
-		return true
-	}
-	// Arabic combining marks (U+064B-U+0655, U+0657-U+065E, U+0670, U+06D6-U+06DC, U+06DF-U+06E4, U+06E7-U+06E8, U+06EA-U+06ED)
-	if (r >= 0x064B && r <= 0x0655) || (r >= 0x0657 && r <= 0x065E) || r == 0x0670 || (r >= 0x06D6 && r <= 0x06DC) || (r >= 0x06DF && r <= 0x06E4) || (r >= 0x06E7 && r <= 0x06E8) || (r >= 0x06EA && r <= 0x06ED) {
-		return true
-	}
-	// Variation selectors that go-runewidth treats as regular characters
-	if r == 0xFE0F {
-		return true
-	}
-	return false
 }

@@ -18,7 +18,7 @@ func GenerateTrie(data *UnicodeData) (*triegen.Trie, error) {
 
 	// Insert all characters with non-default properties
 	inserted := 0
-	for r := rune(0); r <= 0x10FFFF; r++ {
+	for r := rune(0); r <= unicode.MaxRune; r++ {
 		// Skip surrogate characters (U+D800-U+DFFF) and other invalid characters
 		if r >= 0xD800 && r <= 0xDFFF {
 			continue
@@ -51,10 +51,10 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	fmt.Fprintf(buf, "package displaywidth\n\n")
 	fmt.Fprintf(buf, "import \"github.com/clipperhouse/displaywidth/internal/stringish\"\n\n")
 
-	// Write character properties definitions
-	writeCharProperties(buf)
+	// Write property definitions
+	writeProperties(buf)
 
-	// Generate the trie using triegen
+	// Generate the trie using triegen (it will use uint8/uint16/etc directly)
 	size, err := trie.Gen(buf)
 	if err != nil {
 		return fmt.Errorf("failed to generate trie: %v", err)
@@ -79,6 +79,15 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	genericLookupCallSig := `lookupValue(`
 	b = bytes.ReplaceAll(b, []byte(lookupCallSig), []byte(genericLookupCallSig))
 
+	// Replace uint8 return type in lookup with property and add necessary casts
+	b = bytes.ReplaceAll(b, []byte(") (v uint8, sz int)"), []byte(") (v property, sz int)"))
+	b = bytes.ReplaceAll(b, []byte(") uint8 {"), []byte(") property {"))
+	b = bytes.ReplaceAll(b, []byte("func lookupValue(n uint32, b byte) uint8"), []byte("func lookupValue(n uint32, b byte) property"))
+	// Cast return values from Values array (uint8) to property
+	b = bytes.ReplaceAll(b, []byte("return stringWidthValues["), []byte("return property(stringWidthValues["))
+	b = bytes.ReplaceAll(b, []byte("], 1"), []byte("]), 1"))
+	b = bytes.ReplaceAll(b, []byte("return uint8(stringWidthValues["), []byte("return property(stringWidthValues["))
+
 	formatted, err := format.Source(b)
 	if err != nil {
 		return err
@@ -99,19 +108,23 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	return nil
 }
 
-// writeCharProperties writes the character properties definitions
-func writeCharProperties(w io.Writer) {
+// writeProperties writes the character properties definitions to the buffer.
+// It uses PropertyDefinitions from unicode.go as the single source of truth.
+func writeProperties(w io.Writer) {
 	fmt.Fprintf(w, "// property represents the properties of a character as bit flags\n")
+	fmt.Fprintf(w, "// The underlying type is uint8 since we only use %d bits for flags.\n", len(PropertyDefinitions))
 	fmt.Fprintf(w, "type property uint8\n\n")
 	fmt.Fprintf(w, "const (\n")
-	fmt.Fprintf(w, "\t// East Asian Width properties\n")
-	fmt.Fprintf(w, "\t_EAW_Fullwidth property = 1 << iota // F\n")
-	fmt.Fprintf(w, "\t_EAW_Wide                            // W\n")
-	fmt.Fprintf(w, "\t_EAW_Ambiguous                       // A\n\n")
-	fmt.Fprintf(w, "\t// General categories\n")
-	fmt.Fprintf(w, "\t_CombiningMark // Mn, Me (Mc excluded for proper width)\n")
-	fmt.Fprintf(w, "\t_ControlChar  // C0, C1, DEL\n")
-	fmt.Fprintf(w, "\t_ZeroWidth    // ZWSP, ZWJ, ZWNJ, etc.\n")
-	fmt.Fprintf(w, "\t_Emoji        // Emoji base characters\n")
+
+	for i, prop := range PropertyDefinitions {
+		constName := "_" + prop.Name
+
+		if i == 0 {
+			fmt.Fprintf(w, "\t%s property = 1 << iota // %s\n", constName, prop.Comment)
+		} else {
+			fmt.Fprintf(w, "\t%s // %s\n", constName, prop.Comment)
+		}
+	}
+
 	fmt.Fprintf(w, ")\n\n")
 }
