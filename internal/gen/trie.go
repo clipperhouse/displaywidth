@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io"
 	"os"
 	"unicode"
 
@@ -51,10 +50,7 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	fmt.Fprintf(buf, "package displaywidth\n\n")
 	fmt.Fprintf(buf, "import \"github.com/clipperhouse/displaywidth/internal/stringish\"\n\n")
 
-	// Write character properties definitions
-	writeCharProperties(buf)
-
-	// Generate the trie using triegen
+	// Generate the trie using triegen (it will use uint8/uint16/etc directly)
 	size, err := trie.Gen(buf)
 	if err != nil {
 		return fmt.Errorf("failed to generate trie: %v", err)
@@ -62,6 +58,12 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 
 	b := buf.Bytes()
 	typename := "stringWidthTrie"
+
+	// Add property type alias and constants before the trie definition
+	propertyDef := writeCharPropertiesString()
+	// Insert after imports, before the trie code
+	importEnd := []byte("import \"github.com/clipperhouse/displaywidth/internal/stringish\"\n\n")
+	b = bytes.Replace(b, importEnd, append(importEnd, []byte(propertyDef)...), 1)
 
 	typeDefSig := `type ` + typename + ` struct`
 	noTypeDef := `// ` + typeDefSig
@@ -78,6 +80,15 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	lookupCallSig := `t.lookupValue(`
 	genericLookupCallSig := `lookupValue(`
 	b = bytes.ReplaceAll(b, []byte(lookupCallSig), []byte(genericLookupCallSig))
+
+	// Replace uint8 return type in lookup with property and add necessary casts
+	b = bytes.ReplaceAll(b, []byte(") (v uint8, sz int)"), []byte(") (v property, sz int)"))
+	b = bytes.ReplaceAll(b, []byte(") uint8 {"), []byte(") property {"))
+	b = bytes.ReplaceAll(b, []byte("func lookupValue(n uint32, b byte) uint8"), []byte("func lookupValue(n uint32, b byte) property"))
+	// Cast return values from Values array (uint8) to property
+	b = bytes.ReplaceAll(b, []byte("return stringWidthValues["), []byte("return property(stringWidthValues["))
+	b = bytes.ReplaceAll(b, []byte("], 1"), []byte("]), 1"))
+	b = bytes.ReplaceAll(b, []byte("return uint8(stringWidthValues["), []byte("return property(stringWidthValues["))
 
 	formatted, err := format.Source(b)
 	if err != nil {
@@ -99,19 +110,24 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	return nil
 }
 
-// writeCharProperties writes the character properties definitions
-func writeCharProperties(w io.Writer) {
-	fmt.Fprintf(w, "// property represents the properties of a character as bit flags\n")
-	fmt.Fprintf(w, "type property uint8\n\n")
-	fmt.Fprintf(w, "const (\n")
-	fmt.Fprintf(w, "\t// East Asian Width properties\n")
-	fmt.Fprintf(w, "\t_EAW_Fullwidth property = 1 << iota // F\n")
-	fmt.Fprintf(w, "\t_EAW_Wide                            // W\n")
-	fmt.Fprintf(w, "\t_EAW_Ambiguous                       // A\n\n")
-	fmt.Fprintf(w, "\t// General categories\n")
-	fmt.Fprintf(w, "\t_CombiningMark // Mn, Me (Mc excluded for proper width)\n")
-	fmt.Fprintf(w, "\t_ControlChar  // C0, C1, DEL\n")
-	fmt.Fprintf(w, "\t_ZeroWidth    // ZWSP, ZWJ, ZWNJ, etc.\n")
-	fmt.Fprintf(w, "\t_Emoji        // Emoji base characters\n")
-	fmt.Fprintf(w, ")\n\n")
+// writeCharPropertiesString returns the character properties definitions as a string
+func writeCharPropertiesString() string {
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "// property represents the properties of a character as bit flags\n")
+	fmt.Fprintf(&buf, "// The underlying type is uint8 since we only use 7 bits for flags.\n")
+	fmt.Fprintf(&buf, "type property uint8\n\n")
+	fmt.Fprintf(&buf, "const (\n")
+	fmt.Fprintf(&buf, "\t// East Asian Width properties\n")
+	fmt.Fprintf(&buf, "\t_EAW_Fullwidth property = 1 << iota // F\n")
+	fmt.Fprintf(&buf, "\t_EAW_Wide                            // W\n")
+	fmt.Fprintf(&buf, "\t_EAW_Ambiguous                       // A\n\n")
+	fmt.Fprintf(&buf, "\t// General categories\n")
+	fmt.Fprintf(&buf, "\t_CombiningMark // Mn, Me (Mc excluded for proper width)\n")
+	fmt.Fprintf(&buf, "\t_ControlChar  // C0, C1, DEL\n")
+	fmt.Fprintf(&buf, "\t_ZeroWidth    // ZWSP, ZWJ, ZWNJ, etc.\n")
+	fmt.Fprintf(&buf, "\t_Emoji        // Emoji base characters\n")
+	fmt.Fprintf(&buf, ")\n\n")
+
+	return buf.String()
 }

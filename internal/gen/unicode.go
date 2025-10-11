@@ -298,7 +298,7 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) CharProperties {
 		}
 	}
 
-	if data.CombiningMarks[r] && !isExceptionalCombiningMark(r) {
+	if data.CombiningMarks[r] {
 		props |= IsCombiningMark
 	}
 	if data.ControlChars[r] {
@@ -313,32 +313,4 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) CharProperties {
 	}
 
 	return props
-}
-
-// isExceptionalCombiningMark removes certain combining marks that
-// go-runewidth treats as regular characters. We believe this might be
-// incorrect in go-runewidth, but would need to confirm. This is
-// debt/expediency for now.
-func isExceptionalCombiningMark(r rune) bool {
-	// Thai combining marks (U+0E31-U+0E3A, U+0E47-U+0E4F)
-	if (r >= 0x0E31 && r <= 0x0E3A) || (r >= 0x0E47 && r <= 0x0E4F) {
-		return true
-	}
-	// Bengali combining marks (U+0982, U+09BC-U+09C4, U+09C7-U+09C8, U+09CB-U+09CD, U+09D7)
-	if r == 0x0982 || (r >= 0x09BC && r <= 0x09C4) || (r >= 0x09C7 && r <= 0x09C8) || (r >= 0x09CB && r <= 0x09CD) || r == 0x09D7 {
-		return true
-	}
-	// Devanagari combining marks (U+0900-U+0903, U+093A-U+093C, U+093E-U+0940, U+0941-U+0948, U+0949-U+094D, U+0951-U+0957, U+0962-U+0963)
-	if (r >= 0x0900 && r <= 0x0903) || (r >= 0x093A && r <= 0x093C) || (r >= 0x093E && r <= 0x0940) || (r >= 0x0941 && r <= 0x0948) || (r >= 0x0949 && r <= 0x094D) || (r >= 0x0951 && r <= 0x0957) || (r >= 0x0962 && r <= 0x0963) {
-		return true
-	}
-	// Arabic combining marks (U+064B-U+0655, U+0657-U+065E, U+0670, U+06D6-U+06DC, U+06DF-U+06E4, U+06E7-U+06E8, U+06EA-U+06ED)
-	if (r >= 0x064B && r <= 0x0655) || (r >= 0x0657 && r <= 0x065E) || r == 0x0670 || (r >= 0x06D6 && r <= 0x06DC) || (r >= 0x06DF && r <= 0x06E4) || (r >= 0x06E7 && r <= 0x06E8) || (r >= 0x06EA && r <= 0x06ED) {
-		return true
-	}
-	// Variation selectors that go-runewidth treats as regular characters
-	if r == 0xFE0F {
-		return true
-	}
-	return false
 }
