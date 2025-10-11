@@ -22,4 +22,16 @@ Ideally, we would not have these exceptional cases. Our current theory in the
 case of isExceptionalCombiningMark is that go-runewidth is incorrect, but we
 don't know for sure.
 
+## Known Differences from go-runewidth
+
+### Tag Characters (U+E0020-U+E007F)
+
+We treat Unicode tag characters (used in extended flag emoji sequences) as
+zero-width, following the Unicode Cf (format) category specification.
+go-runewidth treats these as width 1. Our behavior is more correct according
+to Unicode standards. In practice, these characters are part of grapheme
+clusters (e.g., 🏴󠁧󠁢󠁥󠁮󠁧󠁿), and the base character determines the display width,
+so this difference only appears when checking individual runes outside of their
+grapheme cluster context.
+
 For PRs, you can use the gh CLI tool to retrieve or post comments.

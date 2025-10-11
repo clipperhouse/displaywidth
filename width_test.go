@@ -435,6 +435,14 @@ func TestMoreComparisonWithRunewidth(t *testing.T) {
 				}
 
 				for _, r := range runes {
+					// Skip Unicode tag characters (U+E0020-U+E007F) - we correctly
+					// treat them as zero-width per Unicode Cf category, while
+					// go-runewidth treats them as width 1. This is a known difference
+					// where we are more correct.
+					if r >= 0xE0020 && r <= 0xE007F {
+						continue
+					}
+
 					w1 := options.Rune(r)
 					w2 := condition.RuneWidth(r)
 					if w1 != w2 {

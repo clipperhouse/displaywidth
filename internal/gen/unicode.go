@@ -269,20 +269,14 @@ func extractAmbiguousChars(data *UnicodeData) {
 	}
 }
 
-// addZeroWidthChars adds special zero-width characters
+// addZeroWidthChars adds zero-width format characters from Unicode Cf category
+// Cf (Other, format) is the official Unicode category for format characters
+// which are generally invisible and have zero width. This is more comprehensive
+// and authoritative than maintaining a hand-picked list.
 func addZeroWidthChars(data *UnicodeData) {
-	zeroWidthChars := []rune{
-		0x200B, // Zero Width Space
-		0x200C, // Zero Width Non-Joiner
-		0x200D, // Zero Width Joiner
-		0x2060, // Word Joiner
-		0x2061, // Function Application
-		0xFEFF, // Zero Width No-Break Space
-	}
-
-	for _, r := range zeroWidthChars {
-		data.ZeroWidthChars[r] = true
-	}
+	// Use unicode.Cf (Other, format) category - the standard Unicode category
+	// for format characters that should have zero width
+	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
 }
 
 // BuildPropertyBitmap creates a CharProperties bitmap for a given rune
