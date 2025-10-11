@@ -81,7 +81,7 @@ func lookup[T stringish.Interface](s T) (v property, sz int) {
 	return 0, 1
 }
 
-// stringWidthTrie. Total size: 20672 bytes (20.19 KiB). Checksum: a41a3452b6988e5b.
+// stringWidthTrie. Total size: 20672 bytes (20.19 KiB). Checksum: 3e812c29ea990a57.
 // type stringWidthTrie struct { }
 
 // func newStringWidthTrie(i int) *stringWidthTrie {
@@ -1025,6 +1025,7 @@ var stringWidthValues = [16704]uint8{
 	0x2520: 0x0001, 0x2521: 0x0001, 0x2522: 0x0001, 0x2523: 0x0001,
 	0x2524: 0x0001, 0x2525: 0x0001, 0x2526: 0x0001,
 	0x2539: 0x0020, 0x253a: 0x0020, 0x253b: 0x0020,
+	0x253e: 0x0020, 0x253f: 0x0020,
 	// Block 0x95, offset 0x2540
 	0x257d: 0x0008,
 	// Block 0x96, offset 0x2580

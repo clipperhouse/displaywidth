@@ -263,6 +263,10 @@ func extractStdlibData(data *UnicodeData) {
 	// Zp (Other, paragraph separator) is the official Unicode category for paragraph separator characters
 	// which are generally invisible and have zero width.
 	extractRunesFromRangeTable(unicode.Zp, data.ZeroWidthChars)
+
+	// Noncharacters (U+nFFFE and U+nFFFF)
+	data.ZeroWidthChars[0xFFFE] = true
+	data.ZeroWidthChars[0xFFFF] = true
 }
 
 // extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
