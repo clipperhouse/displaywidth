@@ -150,7 +150,7 @@ func (p property) width(options Options) int {
 		}
 	}
 
-	if p.is(_East_Asian_Fullwidth | _East_Asian_Wide) {
+	if p.is(_East_Asian_Full_Wide) {
 		return 2
 	}
 

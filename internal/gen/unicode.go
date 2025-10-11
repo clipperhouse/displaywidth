@@ -34,16 +34,14 @@ type PropertyDefinition struct {
 // PropertyDefinitions is the single source of truth for all character properties.
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
-	{"East_Asian_Fullwidth", "F"},
-	{"East_Asian_Wide", "W"},
+	{"East_Asian_Full_Wide", "F, W"},
 	{"East_Asian_Ambiguous", "A"},
 	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
 	{"Emoji", "Emoji base characters"},
 }
 
 const (
-	East_Asian_Fullwidth property = 1 << iota // F
-	East_Asian_Wide                           // W
+	East_Asian_Full_Wide property = 1 << iota // F, W
 	East_Asian_Ambiguous                      // A
 	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 	Emoji                                     // Emoji base characters
@@ -290,10 +288,8 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
-		case "F":
-			props |= East_Asian_Fullwidth
-		case "W":
-			props |= East_Asian_Wide
+		case "F", "W":
+			props |= East_Asian_Full_Wide
 		case "A":
 			props |= East_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
