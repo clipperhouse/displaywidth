@@ -71,28 +71,28 @@ goos: darwin
 goarch: arm64
 pkg: github.com/clipperhouse/displaywidth
 cpu: Apple M2
-BenchmarkStringDefault/displaywidth-8         	   96490	     10552 ns/op	 159.88 MB/s	       0 B/op	       0 allocs/op
-BenchmarkStringDefault/go-runewidth-8         	   83907	     14369 ns/op	 117.41 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_EAW/displaywidth-8            	  112807	     10646 ns/op	 158.46 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_EAW/go-runewidth-8            	   50692	     23977 ns/op	  70.36 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_StrictEmoji/displaywidth-8    	  113710	     10601 ns/op	 159.14 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_StrictEmoji/go-runewidth-8    	   83220	     14403 ns/op	 117.13 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_ASCII/displaywidth-8          	 1000000	      1077 ns/op	 118.83 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_ASCII/go-runewidth-8          	 1000000	      1173 ns/op	 109.13 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_Unicode/displaywidth-8        	 1367460	       881.1 ns/op	 150.94 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_Unicode/go-runewidth-8        	  840982	      1437 ns/op	  92.57 MB/s	       0 B/op	       0 allocs/op
-BenchmarkStringWidth_Emoji/displaywidth-8     	  403082	      3022 ns/op	 239.56 MB/s	       0 B/op	       0 allocs/op
-BenchmarkStringWidth_Emoji/go-runewidth-8     	  247605	      4821 ns/op	 150.18 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_Mixed/displaywidth-8          	  303606	      3956 ns/op	 128.17 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_Mixed/go-runewidth-8          	  256921	      4639 ns/op	 109.30 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_ControlChars/displaywidth-8   	 3795948	       315.2 ns/op	 104.70 MB/s	       0 B/op	       0 allocs/op
-BenchmarkString_ControlChars/go-runewidth-8   	 3273128	       364.7 ns/op	  90.48 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneDefault/displaywidth-8           	 3772311	       318.1 ns/op	 433.82 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneDefault/go-runewidth-8           	 1753222	       684.4 ns/op	 201.63 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneWidth_EAW/displaywidth-8         	 8469133	       142.6 ns/op	 385.75 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneWidth_EAW/go-runewidth-8         	 2383420	       502.9 ns/op	 109.37 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneWidth_ASCII/displaywidth-8       	19660138	        62.01 ns/op	 467.63 MB/s	       0 B/op	       0 allocs/op
-BenchmarkRuneWidth_ASCII/go-runewidth-8       	17664040	        67.34 ns/op	 430.68 MB/s	       0 B/op	       0 allocs/op
+BenchmarkStringDefault/displaywidth-8      	     10537 ns/op	     160.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkStringDefault/go-runewidth-8      	     14162 ns/op	     119.12 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_EAW/displaywidth-8         	     10776 ns/op	     156.55 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_EAW/go-runewidth-8         	     23987 ns/op	      70.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_StrictEmoji/displaywidth-8 	     10892 ns/op	     154.88 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_StrictEmoji/go-runewidth-8 	     14552 ns/op	     115.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_ASCII/displaywidth-8       	      1116 ns/op	     114.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_ASCII/go-runewidth-8       	      1178 ns/op	     108.67 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_Unicode/displaywidth-8     	       896.9 ns/op	     148.29 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_Unicode/go-runewidth-8     	      1434 ns/op	      92.72 MB/s	       0 B/op	       0 allocs/op
+BenchmarkStringWidth_Emoji/displaywidth-8  	      3033 ns/op	     238.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkStringWidth_Emoji/go-runewidth-8  	      4841 ns/op	     149.56 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_Mixed/displaywidth-8       	      4064 ns/op	     124.74 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_Mixed/go-runewidth-8       	      4696 ns/op	     107.97 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_ControlChars/displaywidth-8	       320.6 ns/op	     102.93 MB/s	       0 B/op	       0 allocs/op
+BenchmarkString_ControlChars/go-runewidth-8	       373.8 ns/op	      88.28 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneDefault/displaywidth-8        	       335.5 ns/op	     411.35 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneDefault/go-runewidth-8        	       681.2 ns/op	     202.58 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneWidth_EAW/displaywidth-8      	       146.7 ns/op	     374.80 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneWidth_EAW/go-runewidth-8      	       495.6 ns/op	     110.98 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneWidth_ASCII/displaywidth-8    	        63.00 ns/op	     460.33 MB/s	       0 B/op	       0 allocs/op
+BenchmarkRuneWidth_ASCII/go-runewidth-8    	        68.90 ns/op	     420.91 MB/s	       0 B/op	       0 allocs/op
 ```
 
 I use a similar technique in [this grapheme cluster library](https://github.com/clipperhouse/uax29).
