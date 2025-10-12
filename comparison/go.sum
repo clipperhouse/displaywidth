@@ -1,0 +1,6 @@
+github.com/clipperhouse/displaywidth v0.2.0 h1:rgsptyf+vdcUj2E5DADgM6nMMlcj5dOmpJqWeO4t/0Q=
+github.com/clipperhouse/displaywidth v0.2.0/go.mod h1:0pW8rEIr4/Pjji52WJsYnMpoj/8Cse3d703ZVdU6vBI=
+github.com/clipperhouse/uax29/v2 v2.2.0 h1:ChwIKnQN3kcZteTXMgb1wztSgaU+ZemkgWdohwgs8tY=
+github.com/clipperhouse/uax29/v2 v2.2.0/go.mod h1:EFJ2TJMRUaplDxHKj1qAEhCtQPW2tJSwu5BF98AuoVM=
+github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byFGLdw=
+github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=

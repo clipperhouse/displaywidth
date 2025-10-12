@@ -1,10 +1,11 @@
-package displaywidth
+package comparison
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/clipperhouse/displaywidth/internal/testdata"
+	"github.com/clipperhouse/displaywidth"
+	"github.com/clipperhouse/displaywidth/comparison/testdata"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -98,7 +99,7 @@ func BenchmarkStringDefault(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
 				// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
-				_ = String(tc.Input)
+				_ = displaywidth.String(tc.Input)
 			}
 		}
 
@@ -134,7 +135,7 @@ func BenchmarkStringDefault(b *testing.B) {
 }
 
 func BenchmarkString_EAW(b *testing.B) {
-	options := Options{
+	options := displaywidth.Options{
 		EastAsianWidth:     true,
 		StrictEmojiNeutral: false,
 	}
@@ -192,7 +193,7 @@ func BenchmarkString_EAW(b *testing.B) {
 
 // BenchmarkString_StrictEmoji benchmarks our package with strict emoji neutral
 func BenchmarkString_StrictEmoji(b *testing.B) {
-	options := Options{
+	options := displaywidth.Options{
 		EastAsianWidth:     false,
 		StrictEmojiNeutral: true,
 	}
@@ -262,7 +263,7 @@ func BenchmarkString_ASCII(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range asciiStrings {
-				_ = String(s)
+				_ = displaywidth.String(s)
 			}
 		}
 
@@ -310,7 +311,7 @@ func BenchmarkString_Unicode(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
-				_ = String(s)
+				_ = displaywidth.String(s)
 			}
 		}
 
@@ -354,7 +355,7 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
-				_ = String(s)
+				_ = displaywidth.String(s)
 			}
 		}
 
@@ -396,7 +397,7 @@ func BenchmarkString_Mixed(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
-				_ = String(s)
+				_ = displaywidth.String(s)
 			}
 		}
 
@@ -441,7 +442,7 @@ func BenchmarkString_ControlChars(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
-				_ = String(s)
+				_ = displaywidth.String(s)
 			}
 		}
 
@@ -499,7 +500,7 @@ func BenchmarkRuneDefault(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range testRunes {
-				_ = Rune(r)
+				_ = displaywidth.Rune(r)
 			}
 		}
 
@@ -529,7 +530,7 @@ func BenchmarkRuneDefault(b *testing.B) {
 
 // BenchmarkRuneWidth_EAW benchmarks rune width with East Asian Width option
 func BenchmarkRuneWidth_EAW(b *testing.B) {
-	options := Options{
+	options := displaywidth.Options{
 		EastAsianWidth:     true,
 		StrictEmojiNeutral: false,
 	}
@@ -591,7 +592,7 @@ func BenchmarkRuneWidth_ASCII(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range asciiRunes {
-				_ = Rune(r)
+				_ = displaywidth.Rune(r)
 			}
 		}
 
