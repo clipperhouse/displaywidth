@@ -24,6 +24,8 @@ and reviewing a branch are about the same, but the PR may add context.
 
 Look for bugs. Think like GitHub Copilot or Cursor BugBot.
 
+Offer to post a brief summary of the review to the PR, via the gh CLI tool.
+
 ## Comparisons to go-runewidth
 
 We originally attempted to make this package compatible with go-runewidth.
