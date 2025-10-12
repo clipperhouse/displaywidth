@@ -117,12 +117,13 @@ func writeProperties(w io.Writer) {
 	fmt.Fprintf(w, "const (\n")
 
 	for i, prop := range PropertyDefinitions {
-		constName := "_" + prop.Name
+		fmt.Fprintf(w, "// %s\n", prop.Comment)
 
+		constName := "_" + prop.Name
 		if i == 0 {
-			fmt.Fprintf(w, "\t%s property = 1 << iota // %s\n", constName, prop.Comment)
+			fmt.Fprintf(w, "%s property = 1 << iota\n", constName)
 		} else {
-			fmt.Fprintf(w, "\t%s // %s\n", constName, prop.Comment)
+			fmt.Fprintf(w, "%s\n", constName)
 		}
 	}
 

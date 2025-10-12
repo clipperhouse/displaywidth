@@ -34,10 +34,10 @@ type PropertyDefinition struct {
 // PropertyDefinitions is the single source of truth for all character properties.
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
-	{"East_Asian_Full_Wide", "F, W"},
-	{"East_Asian_Ambiguous", "A"},
-	{"Emoji", "Emoji base characters"},
-	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
+	{"East_Asian_Full_Wide", "Always 2 wide"},
+	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
+	{"Emoji", "Width depends on EastAsianWidth and StrictEmojiNeutral options"},
+	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 }
 
 const (

@@ -9,10 +9,14 @@ import "github.com/clipperhouse/displaywidth/internal/stringish"
 type property uint8
 
 const (
-	_East_Asian_Full_Wide property = 1 << iota // F, W
-	_East_Asian_Ambiguous                      // A
-	_Emoji                                     // Emoji base characters
-	_ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
+	// Always 2 wide
+	_East_Asian_Full_Wide property = 1 << iota
+	// Width depends on EastAsianWidth option
+	_East_Asian_Ambiguous
+	// Width depends on EastAsianWidth and StrictEmojiNeutral options
+	_Emoji
+	// Always 0 width, includes combining marks, control characters, non-printable, etc
+	_ZeroWidth
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and
