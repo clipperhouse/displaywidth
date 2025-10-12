@@ -55,8 +55,11 @@ decoding runes for better performance.
 
 ## Prior Art
 
-[mattn/go-runewidth](https://github.com/mattn/go-runewidth), which is excellent and popular.
-In my testing, `displaywidth` returns identical outputs.
+[mattn/go-runewidth](https://github.com/mattn/go-runewidth)
+
+[x/text/width](https://pkg.go.dev/golang.org/x/text/width)
+
+[x/text/internal/triegen](https://pkg.go.dev/golang.org/x/text/internal/triegen)
 
 ## Benchmarks
 
