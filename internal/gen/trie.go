@@ -79,15 +79,6 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	genericLookupCallSig := `lookupValue(`
 	b = bytes.ReplaceAll(b, []byte(lookupCallSig), []byte(genericLookupCallSig))
 
-	// Replace uint8 return type in lookup with property and add necessary casts
-	b = bytes.ReplaceAll(b, []byte(") (v uint8, sz int)"), []byte(") (v property, sz int)"))
-	b = bytes.ReplaceAll(b, []byte(") uint8 {"), []byte(") property {"))
-	b = bytes.ReplaceAll(b, []byte("func lookupValue(n uint32, b byte) uint8"), []byte("func lookupValue(n uint32, b byte) property"))
-	// Cast return values from Values array (uint8) to property
-	b = bytes.ReplaceAll(b, []byte("return stringWidthValues["), []byte("return property(stringWidthValues["))
-	b = bytes.ReplaceAll(b, []byte("], 1"), []byte("]), 1"))
-	b = bytes.ReplaceAll(b, []byte("return uint8(stringWidthValues["), []byte("return property(stringWidthValues["))
-
 	formatted, err := format.Source(b)
 	if err != nil {
 		return err

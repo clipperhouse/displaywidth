@@ -126,7 +126,7 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 
 	// Use the generated trie for lookup
 	props, size := lookup(s)
-	return props, size
+	return property(props), size
 }
 
 // width determines the display width of a character based on its properties

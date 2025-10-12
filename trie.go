@@ -22,11 +22,11 @@ const (
 // lookup returns the trie value for the first UTF-8 encoding in s and
 // the width in bytes of this encoding. The size will be 0 if s does not
 // hold enough bytes to complete the encoding. len(s) must be greater than 0.
-func lookup[T stringish.Interface](s T) (v property, sz int) {
+func lookup[T stringish.Interface](s T) (v uint8, sz int) {
 	c0 := s[0]
 	switch {
 	case c0 < 0x80: // is ASCII
-		return property(stringWidthValues[c0]), 1
+		return stringWidthValues[c0], 1
 	case c0 < 0xC2:
 		return 0, 1 // Illegal UTF-8: not a starter, not ASCII.
 	case c0 < 0xE0: // 2-byte UTF-8
@@ -90,10 +90,10 @@ func lookup[T stringish.Interface](s T) (v property, sz int) {
 // }
 
 // lookupValue determines the type of block n and looks up the value for b.
-func lookupValue(n uint32, b byte) property {
+func lookupValue(n uint32, b byte) uint8 {
 	switch {
 	default:
-		return property(stringWidthValues[n<<6+uint32(b)])
+		return uint8(stringWidthValues[n<<6+uint32(b)])
 	}
 }
 
