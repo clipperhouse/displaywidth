@@ -22,6 +22,8 @@ For PRs (pull requests), you can use the gh CLI tool to retrieve details,
 or post comments. Then, compare the current branch with main. Reviewing a PR
 and reviewing a branch are about the same, but the PR may add context.
 
+Look for bugs. Think like GitHub Copilot or Cursor BugBot.
+
 ## Comparisons to go-runewidth
 
 We originally attempted to make this package compatible with go-runewidth.
