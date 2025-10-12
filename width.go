@@ -117,7 +117,7 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 	if b < utf8.RuneSelf { // Single-byte ASCII
 		if isASCIIControl(b) {
 			// Control characters (0x00-0x1F) and DEL (0x7F) - width 0
-			return _ControlChar, 1
+			return _ZeroWidth, 1
 		}
 		// ASCII printable characters (0x20-0x7E) - width 1
 		// Return 0 properties, width calculation will default to 1
@@ -126,7 +126,7 @@ func lookupProperties[T stringish.Interface](s T) (property, int) {
 
 	// Use the generated trie for lookup
 	props, size := lookup(s)
-	return props, size
+	return property(props), size
 }
 
 // width determines the display width of a character based on its properties
@@ -137,7 +137,7 @@ func (p property) width(options Options) int {
 		return defaultWidth
 	}
 
-	if p.is(_ControlChar | _CombiningMark | _ZeroWidth) {
+	if p.is(_ZeroWidth) {
 		return 0
 	}
 
@@ -150,7 +150,7 @@ func (p property) width(options Options) int {
 		}
 	}
 
-	if p.is(_East_Asian_Fullwidth | _East_Asian_Wide) {
+	if p.is(_East_Asian_Full_Wide) {
 		return 2
 	}
 

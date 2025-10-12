@@ -34,23 +34,17 @@ type PropertyDefinition struct {
 // PropertyDefinitions is the single source of truth for all character properties.
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
-	{"East_Asian_Fullwidth", "F"},
-	{"East_Asian_Wide", "W"},
-	{"East_Asian_Ambiguous", "A"},
-	{"CombiningMark", "Mn, Me (Mc excluded for proper width)"},
-	{"ControlChar", "C0, C1, DEL"},
-	{"ZeroWidth", "ZWSP, ZWJ, ZWNJ, etc."},
-	{"Emoji", "Emoji base characters"},
+	{"East_Asian_Full_Wide", "Always 2 wide"},
+	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
+	{"Emoji", "Width depends on EastAsianWidth and StrictEmojiNeutral options"},
+	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 }
 
 const (
-	East_Asian_Fullwidth property = 1 << iota // F
-	East_Asian_Wide                           // W
+	East_Asian_Full_Wide property = 1 << iota // F, W
 	East_Asian_Ambiguous                      // A
-	CombiningMark                             // Mn, Me (Mc excluded for proper width)
-	ControlChar                               // C0, C1, DEL
-	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 	Emoji                                     // Emoji base characters
+	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -294,10 +288,8 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
-		case "F":
-			props |= East_Asian_Fullwidth
-		case "W":
-			props |= East_Asian_Wide
+		case "F", "W":
+			props |= East_Asian_Full_Wide
 		case "A":
 			props |= East_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
@@ -306,10 +298,10 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	}
 
 	if data.CombiningMarks[r] {
-		props |= CombiningMark
+		props |= ZeroWidth
 	}
 	if data.ControlChars[r] {
-		props |= ControlChar
+		props |= ZeroWidth
 	}
 	if data.ZeroWidthChars[r] {
 		props |= ZeroWidth

@@ -16,9 +16,13 @@ dependencies and are hard to cleanup.)
 If you make changes to the trie generation in internal/gen, it can be invoked
 by running `go generate` from the top package directory.
 
-## Pull Requests
+## Pull Requests and branches
 
-For PRs, you can use the gh CLI tool to retrieve or post comments.
+For PRs (pull requests), you can use the gh CLI tool to retrieve details,
+or post comments. Then, compare the current branch with main. Reviewing a PR
+and reviewing a branch are about the same, but the PR may add context.
+
+Look for bugs. Think like GitHub Copilot or Cursor BugBot.
 
 ## Comparisons to go-runewidth
 
