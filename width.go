@@ -3,7 +3,7 @@ package displaywidth
 import (
 	"unicode/utf8"
 
-	"github.com/clipperhouse/displaywidth/internal/stringish"
+	"github.com/clipperhouse/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
