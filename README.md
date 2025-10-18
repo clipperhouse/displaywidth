@@ -3,8 +3,8 @@
 A high-performance Go package for measuring the monospace display width of strings, UTF-8 bytes, and runes.
 
 [![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
-![Go](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)
-
+[![Test](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml)
+[![Fuzz](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml)
 ## Install
 ```bash
 go get github.com/clipperhouse/displaywidth
