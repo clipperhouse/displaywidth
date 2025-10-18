@@ -1,0 +1,25 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  all:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fuzzer: [FuzzBytes, FuzzRune]
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        cache: true
+
+    - name: ${{ matrix.fuzzer }}
+      run: go test -fuzz=${{ matrix.fuzzer }} -fuzztime=60s .
