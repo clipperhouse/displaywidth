@@ -44,8 +44,8 @@ func (options Options) String(s string) int {
 	g := graphemes.FromString(s)
 	for g.Next() {
 		// The first character in the grapheme cluster determines the width;
-		// modifiers and joiners do not contribute to the width.
-		props, _ := lookupProperties(g.Value())
+		// we use lookupProperties which can consider immediate VS15/VS16.
+		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}
 	return total
@@ -62,8 +62,8 @@ func (options Options) Bytes(s []byte) int {
 	g := graphemes.FromBytes(s)
 	for g.Next() {
 		// The first character in the grapheme cluster determines the width;
-		// modifiers and joiners do not contribute to the width.
-		props, _ := lookupProperties(g.Value())
+		// we use lookupProperties which can consider immediate VS15/VS16.
+		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}
 	return total
@@ -91,7 +91,7 @@ func (options Options) Rune(r rune) int {
 	var buf [4]byte // UTF-8 is at most 4 bytes
 	n := utf8.EncodeRune(buf[:], r)
 	// Skip the grapheme iterator and directly lookup properties
-	props, _ := lookupProperties(buf[:n])
+	props := lookupProperties(buf[:n])
 	return props.width(options)
 }
 
@@ -106,27 +106,62 @@ func (p property) is(flag property) bool {
 	return p&flag != 0
 }
 
+const (
+	// if the trie values are changed, be careful to update these
+
+	// VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation
+	_VS16 property = 1 << 4 // force emoji presentation (width 2)
+
+	// VARIATION SELECTOR-15 (U+FE0E) requests text presentation
+	_VS15 property = 1 << 5 // force text presentation (width 1)
+)
+
 // lookupProperties returns the properties for the first character in a string
-func lookupProperties[T stringish.Interface](s T) (property, int) {
+func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
-		return 0, 0
+		return 0
 	}
 
-	// Fast path for ASCII characters (single byte)
+	var p property
+	var size int
+
+	// Determine base properties for the first rune
 	b := s[0]
 	if b < utf8.RuneSelf { // Single-byte ASCII
+		size = 1
 		if isASCIIControl(b) {
-			// Control characters (0x00-0x1F) and DEL (0x7F) - width 0
-			return _ZeroWidth, 1
+			return _ZeroWidth
 		}
-		// ASCII printable characters (0x20-0x7E) - width 1
-		// Return 0 properties, width calculation will default to 1
-		return 0, 1
+		p = 0 // default width will be 1
+	} else {
+		// Use the generated trie for lookup
+		props, n := lookup(s)
+		p = property(props)
+		size = n
 	}
 
-	// Use the generated trie for lookup
-	props, size := lookup(s)
-	return property(props), size
+	// After the first code point, check for VS15 (U+FE0E) or VS16 (U+FE0F)
+	// encoded as 0xEF 0xB8 0x8E/0x8F immediately following.
+	if size > 0 && len(s) >= size+3 {
+		if s[size] == 0xEF && s[size+1] == 0xB8 {
+			switch s[size+2] {
+			case 0x8F: // VS16: request emoji presentation
+				p |= _VS16
+
+				// Special-case keycap sequences: base + VS16 + U+20E3
+				// U+20E3 encodes as 0xE2 0x83 0xA3
+				if len(s) >= size+6 {
+					if s[size+3] == 0xE2 && s[size+4] == 0x83 && s[size+5] == 0xA3 {
+						p |= _VS16
+					}
+				}
+			case 0x8E: // VS15: request text presentation
+				p |= _VS15
+			}
+		}
+	}
+
+	return p
 }
 
 // width determines the display width of a character based on its properties
@@ -139,6 +174,14 @@ func (p property) width(options Options) int {
 
 	if p.is(_ZeroWidth) {
 		return 0
+	}
+
+	// Explicit presentation overrides from VS come first.
+	if p.is(_VS16) {
+		return 2
+	}
+	if p.is(_VS15) {
+		return 1
 	}
 
 	if options.EastAsianWidth {
