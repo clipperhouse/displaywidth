@@ -116,6 +116,14 @@ const (
 	_VS15 property = 1 << 5 // force text presentation (width 1)
 )
 
+// UTF-8 encoded 3-byte sequences packed into uint32 for fast comparison.
+// Note: values are 0xEF 0xB8 0x8F -> 0xEFB88F, etc.
+const (
+	utf8VS16   uint32 = 0xEFB88F // U+FE0F
+	utf8VS15   uint32 = 0xEFB88E // U+FE0E
+	utf8Keycap uint32 = 0xE283A3 // U+20E3
+)
+
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
@@ -143,21 +151,20 @@ func lookupProperties[T stringish.Interface](s T) property {
 	// After the first code point, check for VS15 (U+FE0E) or VS16 (U+FE0F)
 	// encoded as 0xEF 0xB8 0x8E/0x8F immediately following.
 	if size > 0 && len(s) >= size+3 {
-		if s[size] == 0xEF && s[size+1] == 0xB8 {
-			switch s[size+2] {
-			case 0x8F: // VS16: request emoji presentation
-				p |= _VS16
+		vs := (uint32(s[size]) << 16) | (uint32(s[size+1]) << 8) | uint32(s[size+2])
+		switch vs {
+		case utf8VS16: // VS16: request emoji presentation
+			p |= _VS16
 
-				// Special-case keycap sequences: base + VS16 + U+20E3
-				// U+20E3 encodes as 0xE2 0x83 0xA3
-				if len(s) >= size+6 {
-					if s[size+3] == 0xE2 && s[size+4] == 0x83 && s[size+5] == 0xA3 {
-						p |= _VS16
-					}
+			// Special-case keycap sequences: base + VS16 + U+20E3
+			if len(s) >= size+6 {
+				kc := (uint32(s[size+3]) << 16) | (uint32(s[size+4]) << 8) | uint32(s[size+5])
+				if kc == utf8Keycap {
+					p |= _VS16
 				}
-			case 0x8E: // VS15: request text presentation
-				p |= _VS15
 			}
+		case utf8VS15: // VS15: request text presentation
+			p |= _VS15
 		}
 	}
 
