@@ -106,13 +106,6 @@ func (p property) is(flag property) bool {
 	return p&flag != 0
 }
 
-// UTF-8 encoded 3-byte sequences packed into uint32 for fast comparison.
-// Note: values are 0xEF 0xB8 0x8F -> 0xEFB88F, etc.
-const (
-	utf8VS16 uint32 = 0xEFB88F // U+FE0F
-	utf8VS15 uint32 = 0xEFB88E // U+FE0E
-)
-
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
@@ -136,14 +129,16 @@ func lookupProperties[T stringish.Interface](s T) property {
 	}
 
 	// After the first code point, check for VS15 (U+FE0E) or VS16 (U+FE0F)
-	// encoded as 0xEF 0xB8 0x8E/0x8F immediately following.
 	if size > 0 && len(s) >= size+3 {
-		vs := (uint32(s[size]) << 16) | (uint32(s[size+1]) << 8) | uint32(s[size+2])
-		switch vs {
-		case utf8VS15:
-			p |= _VS15
-		case utf8VS16:
-			p |= _VS16
+		// Create a subslice to help the compiler eliminate bounds checks
+		vs := s[size : size+3]
+		if vs[0] == 0xEF && vs[1] == 0xB8 {
+			switch vs[2] {
+			case 0x8E: // VS15: request text presentation
+				p |= _VS15
+			case 0x8F: // VS16: request emoji presentation
+				p |= _VS16
+			}
 		}
 	}
 
