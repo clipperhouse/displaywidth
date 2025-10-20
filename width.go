@@ -134,9 +134,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 		vs := s[size : size+3]
 		if vs[0] == 0xEF && vs[1] == 0xB8 {
 			switch vs[2] {
-			case 0x8E: // VS15: request text presentation
+			case 0x8E:
 				p |= _VS15
-			case 0x8F: // VS16: request emoji presentation
+			case 0x8F:
 				p |= _VS16
 			}
 		}
