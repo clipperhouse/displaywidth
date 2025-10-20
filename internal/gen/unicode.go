@@ -38,6 +38,8 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
 	{"Emoji", "Width depends on EastAsianWidth and StrictEmojiNeutral options"},
 	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
+	{"VS15", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
+	{"VS16", "VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation (width 2); not in the trie, see [width]"},
 }
 
 const (

@@ -106,22 +106,11 @@ func (p property) is(flag property) bool {
 	return p&flag != 0
 }
 
-const (
-	// if the trie values are changed, be careful to update these
-
-	// VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation
-	_VS16 property = 1 << 4 // force emoji presentation (width 2)
-
-	// VARIATION SELECTOR-15 (U+FE0E) requests text presentation
-	_VS15 property = 1 << 5 // force text presentation (width 1)
-)
-
 // UTF-8 encoded 3-byte sequences packed into uint32 for fast comparison.
 // Note: values are 0xEF 0xB8 0x8F -> 0xEFB88F, etc.
 const (
-	utf8VS16   uint32 = 0xEFB88F // U+FE0F
-	utf8VS15   uint32 = 0xEFB88E // U+FE0E
-	utf8Keycap uint32 = 0xE283A3 // U+20E3
+	utf8VS16 uint32 = 0xEFB88F // U+FE0F
+	utf8VS15 uint32 = 0xEFB88E // U+FE0E
 )
 
 // lookupProperties returns the properties for the first character in a string
@@ -151,10 +140,10 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if size > 0 && len(s) >= size+3 {
 		vs := (uint32(s[size]) << 16) | (uint32(s[size+1]) << 8) | uint32(s[size+2])
 		switch vs {
-		case utf8VS16: // VS16: request emoji presentation
-			p |= _VS16
-		case utf8VS15: // VS15: request text presentation
+		case utf8VS15:
 			p |= _VS15
+		case utf8VS16:
+			p |= _VS16
 		}
 	}
 
