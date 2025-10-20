@@ -42,6 +42,18 @@ func TestStringWidth(t *testing.T) {
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", "\xff", Options{}, 1},
 		{"partial UTF-8", "\xc2", Options{}, 1},
+
+		// Variation selectors - VS16 (U+FE0F) requests emoji, VS15 (U+FE0E) requests text
+		{"☺ text default", "☺", Options{}, 1},      // U+263A has text presentation by default
+		{"☺️ emoji with VS16", "☺️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
+		{"⌛ emoji default", "⌛", Options{}, 2},     // U+231B has emoji presentation by default
+		{"⌛︎ text with VS15", "⌛︎", Options{}, 1},  // VS15 forces text presentation (width 1)
+		{"❤ text default", "❤", Options{}, 1},      // U+2764 has text presentation by default
+		{"❤️ emoji with VS16", "❤️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
+		{"✂ text default", "✂", Options{}, 1},      // U+2702 has text presentation by default
+		{"✂️ emoji with VS16", "✂️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
+		{"keycap 1️⃣", "1️⃣", Options{}, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
+		{"keycap #️⃣", "#️⃣", Options{}, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
 	}
 
 	for _, tt := range tests {
@@ -185,6 +197,15 @@ func TestRuneWidth(t *testing.T) {
 		// Test edge cases with both options disabled
 		{"ambiguous both disabled", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: false}, 1},
 		{"ambiguous strict only", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: true}, 1},
+
+		// Variation selectors (note: Rune() tests single runes without VS, not sequences)
+		{"☺ U+263A text default", '☺', Options{}, 1},    // Has text presentation by default
+		{"⌛ U+231B emoji default", '⌛', Options{}, 2},   // Has emoji presentation by default
+		{"❤ U+2764 text default", '❤', Options{}, 1},    // Has text presentation by default
+		{"✂ U+2702 text default", '✂', Options{}, 1},    // Has text presentation by default
+		{"VS16 U+FE0F alone", '\ufe0f', Options{}, 0},   // Variation selectors are zero-width by themselves
+		{"VS15 U+FE0E alone", '\ufe0e', Options{}, 0},   // Variation selectors are zero-width by themselves
+		{"keycap U+20E3 alone", '\u20e3', Options{}, 0}, // Combining enclosing keycap is zero-width alone
 	}
 
 	for _, tt := range tests {
