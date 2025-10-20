@@ -133,16 +133,14 @@ func lookupProperties[T stringish.Interface](s T) property {
 	var p property
 	var size int
 
-	// Determine base properties for the first rune
 	b := s[0]
 	if b < utf8.RuneSelf { // Single-byte ASCII
-		size = 1
 		if isASCIIControl(b) {
 			return _ZeroWidth
 		}
-		p = 0 // default width will be 1
+		size = 1
+		// Don't bother assigning properties, default width will be 1
 	} else {
-		// Use the generated trie for lookup
 		props, n := lookup(s)
 		p = property(props)
 		size = n
@@ -155,14 +153,6 @@ func lookupProperties[T stringish.Interface](s T) property {
 		switch vs {
 		case utf8VS16: // VS16: request emoji presentation
 			p |= _VS16
-
-			// Special-case keycap sequences: base + VS16 + U+20E3
-			if len(s) >= size+6 {
-				kc := (uint32(s[size+3]) << 16) | (uint32(s[size+4]) << 8) | uint32(s[size+5])
-				if kc == utf8Keycap {
-					p |= _VS16
-				}
-			}
 		case utf8VS15: // VS15: request text presentation
 			p |= _VS15
 		}
