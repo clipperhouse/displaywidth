@@ -95,11 +95,12 @@ func loadTestCases() ([]TestCase, int64, error) {
 // BenchmarkStringDefault benchmarks our displaywidth package
 func BenchmarkStringDefault(b *testing.B) {
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -111,11 +112,12 @@ func BenchmarkStringDefault(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -126,11 +128,12 @@ func BenchmarkStringDefault(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -159,11 +162,12 @@ func BenchmarkString_EAW(b *testing.B) {
 	}()
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -175,11 +179,12 @@ func BenchmarkString_EAW(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -196,11 +201,12 @@ func BenchmarkString_EAW(b *testing.B) {
 			uniseg.EastAsianAmbiguousWidth = 1
 		}()
 
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -224,11 +230,12 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -240,11 +247,12 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -257,11 +265,12 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 	b.Run("rivo/uniseg", func(b *testing.B) {
 		// Note: rivo/uniseg doesn't have an equivalent to StrictEmojiNeutral
 		// It uses emoji presentation properties directly
-		testCases, length, err := loadTestCases()
+		testCases, n, err := loadTestCases()
 		if err != nil {
 			b.Fatalf("Failed to load test cases: %v", err)
 		}
-		b.SetBytes(length)
+		b.SetBytes(n)
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -282,13 +291,14 @@ func BenchmarkString_ASCII(b *testing.B) {
 		"This is a very long string with many characters to test performance of both implementations.",
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, s := range asciiStrings {
-		totalBytes += len(s)
+		n += len(s)
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -299,7 +309,8 @@ func BenchmarkString_ASCII(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -310,7 +321,8 @@ func BenchmarkString_ASCII(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -338,13 +350,14 @@ func BenchmarkString_Unicode(b *testing.B) {
 		"← → ↑ ↓",
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, s := range unicodeStrings {
-		totalBytes += len(s)
+		n += len(s)
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
@@ -354,7 +367,8 @@ func BenchmarkString_Unicode(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
@@ -364,7 +378,8 @@ func BenchmarkString_Unicode(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range unicodeStrings {
@@ -386,13 +401,14 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 		"😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾",
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, s := range emojiStrings {
-		totalBytes += len(s)
+		n += len(s)
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
@@ -402,7 +418,8 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
@@ -412,7 +429,8 @@ func BenchmarkStringWidth_Emoji(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range emojiStrings {
@@ -433,12 +451,13 @@ func BenchmarkString_Mixed(b *testing.B) {
 		"This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols. The purpose is to see how both packages handle longer strings and whether there are any performance differences or edge cases that emerge with more complex input.",
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, s := range mixedStrings {
-		totalBytes += len(s)
+		n += len(s)
 	}
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
@@ -448,7 +467,8 @@ func BenchmarkString_Mixed(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
@@ -458,7 +478,8 @@ func BenchmarkString_Mixed(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range mixedStrings {
@@ -482,13 +503,14 @@ func BenchmarkString_ControlChars(b *testing.B) {
 		" \t \n ",
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, s := range controlStrings {
-		totalBytes += len(s)
+		n += len(s)
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
@@ -498,7 +520,8 @@ func BenchmarkString_ControlChars(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
@@ -508,7 +531,8 @@ func BenchmarkString_ControlChars(b *testing.B) {
 	})
 
 	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, s := range controlStrings {
@@ -545,14 +569,15 @@ func BenchmarkRuneDefault(b *testing.B) {
 		'•', '…', '—',
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, r := range testRunes {
-		totalBytes += len(string(r))
+		n += len(string(r))
 	}
-	b.SetBytes(int64(totalBytes))
+	b.SetBytes(int64(n))
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range testRunes {
@@ -562,7 +587,8 @@ func BenchmarkRuneDefault(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range testRunes {
@@ -592,14 +618,14 @@ func BenchmarkRuneWidth_EAW(b *testing.B) {
 		'😀', '🚀', '🎉',
 	}
 
-	totalBytes := 0
+	n := 0
 	for _, r := range testRunes {
-		totalBytes += len(string(r))
+		n += len(string(r))
 	}
-	b.SetBytes(int64(totalBytes))
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range testRunes {
@@ -610,7 +636,8 @@ func BenchmarkRuneWidth_EAW(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range testRunes {
@@ -628,14 +655,16 @@ func BenchmarkRuneWidth_ASCII(b *testing.B) {
 		'0', '1', '2', '3', '8', '9',
 		'!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
 	}
-	totalBytes := 0
+
+	n := 0
 	for _, r := range asciiRunes {
-		totalBytes += len(string(r))
+		n += len(string(r))
 	}
-	b.SetBytes(int64(totalBytes))
+	b.SetBytes(int64(n))
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range asciiRunes {
@@ -645,7 +674,8 @@ func BenchmarkRuneWidth_ASCII(b *testing.B) {
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(totalBytes))
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range asciiRunes {

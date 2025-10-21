@@ -1,74 +1,31 @@
-# displaywidth
+This package is for comparision of `clipperhouse/displaywidth` with the excellent
+ `mattn/go-runewidth` and `rivo/uniseg` packages.
 
-A high-performance Go package for measuring the monospace display width of strings, UTF-8 bytes, and runes.
+## Compatibility
 
-[![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
-[![Test](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml)
-[![Fuzz](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml)
-## Install
-```bash
-go get github.com/clipperhouse/displaywidth
-```
+In real-world text, you should see the same outputs from `clipperhouse/displaywidth`,
+`mattn/go-runewidth`, and `rivo/uniseg`. It's mostly the same data and logic.
 
-## Usage
+In each of those libraries, you almost certainly want to use the `String` or `StringWidth`
+methods. They operate on graphemes, not runes, which is what appears on your screen.
 
-```go
-package main
+`mattn/go-runewidth` has some automatic defaults based on a machine's locale and
+environment variables. `clipperhouse/displaywidth` does not, but you can set them
+ manually with the `Options` struct.
 
-import (
-    "fmt"
-    "github.com/clipperhouse/displaywidth"
-)
+If you are operating on individual runes (which you shouldn't!):
 
-func main() {
-    width := displaywidth.String("Hello, 世界!")
-    fmt.Println(width)
-
-    width = displaywidth.Bytes([]byte("🌍"))
-    fmt.Println(width)
-
-    width = displaywidth.Rune('🌍')
-    fmt.Println(width)
-}
-```
-
-For most purposes, you should use the `String` or `Bytes` methods.
-
-### Options
-
-You can specify East Asian Width and Strict Emoji Neutral settings. If
-unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
-
-```go
-options := displaywidth.Options{
-    EastAsianWidth:     true,
-    StrictEmojiNeutral: false,
-}
-
-width := options.String("Hello, 世界!")
-fmt.Println(width)
-```
-
-## Details
-
-This package implements the Unicode East Asian Width standard ([UAX #11](https://www.unicode.org/reports/tr11/)) and is
-intended to be compatible with `go-runewidth`. It operates on bytes without
-decoding runes for better performance.
-
-## Prior Art
-
-[mattn/go-runewidth](https://github.com/mattn/go-runewidth)
-
-[rivo/uniseg](https://github.com/rivo/uniseg)
-
-[x/text/width](https://pkg.go.dev/golang.org/x/text/width)
-
-[x/text/internal/triegen](https://pkg.go.dev/golang.org/x/text/internal/triegen)
+- Unicode category Mn (Nonspacing Mark): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes.
+- Unicode category Cf (Format): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes.
+- Unicode category Mc (Spacing Mark): `displaywidth` will return width 1, `go-runewidth` may return width 0 for some runes.
+- Unicode category Cs (Surrogate): `displaywidth` will return width 0, `go-runewidth` may return width 1 for some runes. Surrogates are not valid UTF-8; some packages may turn them into the replacement character (U+FFFD).
+- Unicode category Zl (Line separator): `displaywidth` will return width 0, `go-runewidth` may return width 1.
+- Unicode category Zp (Paragraph separator): `displaywidth` will return width 0, `go-runewidth` may return width 1.
+- Unicode Noncharacters (U+FFFE and U+FFFF): `displaywidth` will return width 0, `go-runewidth` may return width 1.
 
 ## Benchmarks
 
 ```bash
-cd comparison
 go test -bench=. -benchmem
 ```
 
@@ -109,10 +66,3 @@ BenchmarkString_ControlChars/clipperhouse/displaywidth-8  	       351.5 ns/op	  
 BenchmarkString_ControlChars/mattn/go-runewidth-8         	       365.0 ns/op	      90.40 MB/s	     0 B/op	       0 allocs/op
 BenchmarkString_ControlChars/rivo/uniseg-8                	       411.9 ns/op	      80.12 MB/s	     0 B/op	       0 allocs/op
 ```
-
-I use a similar technique in [this grapheme cluster library](https://github.com/clipperhouse/uax29).
-
-## Compatibility
-
-`clipperhouse/displaywidth`, `mattn/go-runewidth`, and `rivo/uniseg` should give the
-same outputs for real-world text. See [comparison/README.md](comparison/README.md).
