@@ -51,9 +51,11 @@ fmt.Println(width)
 
 ## Details
 
-This package implements the Unicode East Asian Width standard ([UAX #11](https://www.unicode.org/reports/tr11/)) and is
-intended to be compatible with `go-runewidth`. It operates on bytes without
-decoding runes for better performance.
+This package implements the Unicode East Asian Width standard
+([UAX #11](https://www.unicode.org/reports/tr11/)), and handles
+[version selectors](https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)),
+and [regional indicator pairs](https://en.wikipedia.org/wiki/Regional_indicator_symbol)
+(flags). It operates on bytes without decoding runes for better performance.
 
 ## Prior Art
 
@@ -77,37 +79,30 @@ goos: darwin
 goarch: arm64
 pkg: github.com/clipperhouse/displaywidth/comparison
 cpu: Apple M2
-BenchmarkStringDefault/clipperhouse/displaywidth-8        	     11225 ns/op	     150.28 MB/s	     0 B/op	       0 allocs/op
-BenchmarkStringDefault/mattn/go-runewidth-8               	     14732 ns/op	     114.51 MB/s	     0 B/op	       0 allocs/op
-BenchmarkStringDefault/rivo/uniseg-8                      	     19820 ns/op	      85.12 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_EAW/clipperhouse/displaywidth-8           	     11224 ns/op	     150.30 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_EAW/mattn/go-runewidth-8                  	     27861 ns/op	      60.55 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_EAW/rivo/uniseg-8                         	     19929 ns/op	      84.65 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_StrictEmoji/clipperhouse/displaywidth-8   	     11221 ns/op	     150.35 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_StrictEmoji/mattn/go-runewidth-8          	     14724 ns/op	     114.58 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_StrictEmoji/rivo/uniseg-8                 	     19812 ns/op	      85.15 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_ASCII/clipperhouse/displaywidth-8         	      1143 ns/op	     111.95 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_ASCII/mattn/go-runewidth-8                	      1166 ns/op	     109.74 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_ASCII/rivo/uniseg-8                       	      1628 ns/op	      78.65 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_Unicode/clipperhouse/displaywidth-8       	       942.0 ns/op	     141.19 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_Unicode/mattn/go-runewidth-8              	      1579 ns/op	      84.25 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_Unicode/rivo/uniseg-8                     	      2026 ns/op	      65.66 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkStringWidth_Emoji/clipperhouse/displaywidth-8    	      3158 ns/op	     229.28 MB/s	     0 B/op	       0 allocs/op
-BenchmarkStringWidth_Emoji/mattn/go-runewidth-8           	      4805 ns/op	     150.66 MB/s	     0 B/op	       0 allocs/op
-BenchmarkStringWidth_Emoji/rivo/uniseg-8                  	      6606 ns/op	     109.60 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_Mixed/clipperhouse/displaywidth-8         	      4201 ns/op	     120.69 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_Mixed/mattn/go-runewidth-8                	      4710 ns/op	     107.65 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_Mixed/rivo/uniseg-8                       	      6311 ns/op	      80.34 MB/s	     0 B/op	       0 allocs/op
-
-BenchmarkString_ControlChars/clipperhouse/displaywidth-8  	       351.5 ns/op	      93.87 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_ControlChars/mattn/go-runewidth-8         	       365.0 ns/op	      90.40 MB/s	     0 B/op	       0 allocs/op
-BenchmarkString_ControlChars/rivo/uniseg-8                	       411.9 ns/op	      80.12 MB/s	     0 B/op	       0 allocs/op
+BenchmarkStringDefault/clipperhouse/displaywidth-8           11124 ns/op	 151.66 MB/s	  0 B/op	   0 allocs/op
+BenchmarkStringDefault/mattn/go-runewidth-8                  14209 ns/op	 118.73 MB/s	  0 B/op	   0 allocs/op
+BenchmarkStringDefault/rivo/uniseg-8                         19287 ns/op	  87.47 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_EAW/clipperhouse/displaywidth-8              11134 ns/op	 151.52 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_EAW/mattn/go-runewidth-8                     23793 ns/op	  70.90 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_EAW/rivo/uniseg-8                            19593 ns/op	  86.10 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_StrictEmoji/clipperhouse/displaywidth-8      11124 ns/op	 151.65 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_StrictEmoji/mattn/go-runewidth-8             14310 ns/op	 117.89 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_StrictEmoji/rivo/uniseg-8                    19699 ns/op	  85.64 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ASCII/clipperhouse/displaywidth-8             1107 ns/op	 115.64 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ASCII/mattn/go-runewidth-8                    1174 ns/op	 109.04 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ASCII/rivo/uniseg-8                           1582 ns/op	  80.93 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Unicode/clipperhouse/displaywidth-8            959.7 ns/op	 138.59 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Unicode/mattn/go-runewidth-8                  1422 ns/op	  93.53 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Unicode/rivo/uniseg-8                         2032 ns/op	  65.47 MB/s	  0 B/op	   0 allocs/op
+BenchmarkStringWidth_Emoji/clipperhouse/displaywidth-8        3230 ns/op	 224.17 MB/s	  0 B/op	   0 allocs/op
+BenchmarkStringWidth_Emoji/mattn/go-runewidth-8               4826 ns/op	 150.03 MB/s	  0 B/op	   0 allocs/op
+BenchmarkStringWidth_Emoji/rivo/uniseg-8                      6582 ns/op	 109.99 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Mixed/clipperhouse/displaywidth-8             4094 ns/op	 123.83 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Mixed/mattn/go-runewidth-8                    4612 ns/op	 109.92 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_Mixed/rivo/uniseg-8                           6312 ns/op	  80.32 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ControlChars/clipperhouse/displaywidth-8       346.7 ns/op	  95.19 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ControlChars/mattn/go-runewidth-8              365.0 ns/op	  90.42 MB/s	  0 B/op	   0 allocs/op
+BenchmarkString_ControlChars/rivo/uniseg-8                     408.9 ns/op	  80.70 MB/s	  0 B/op	   0 allocs/op
 ```
 
 I use a similar technique in [this grapheme cluster library](https://github.com/clipperhouse/uax29).

@@ -1,4 +1,4 @@
-This package is for comparision of `clipperhouse/displaywidth` with the excellent
+This package is for comparison of `clipperhouse/displaywidth` with the excellent
  `mattn/go-runewidth` and `rivo/uniseg` packages.
 
 ## Compatibility
