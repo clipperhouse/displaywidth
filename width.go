@@ -112,24 +112,58 @@ func lookupProperties[T stringish.Interface](s T) property {
 		return 0
 	}
 
-	var p property
-	var size int
-
 	b := s[0]
-	if b < utf8.RuneSelf { // Single-byte ASCII
-		if isASCIIControl(b) {
-			return _ZeroWidth
-		}
-		size = 1
-		// Don't bother assigning properties, default width will be 1
-	} else {
-		props, n := lookup(s)
-		p = property(props)
-		size = n
+	if isASCIIControl(b) {
+		return _ZeroWidth
 	}
 
-	// After the first code point, check for VS15 (U+FE0E) or VS16 (U+FE0F)
-	if size > 0 && len(s) >= size+3 {
+	l := len(s)
+
+	if b < utf8.RuneSelf { // Single-byte ASCII
+		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
+		var p property
+		if l >= 4 {
+			// Create a subslice to help the compiler eliminate bounds checks
+			vs := s[1:4]
+			if vs[0] == 0xEF && vs[1] == 0xB8 {
+				switch vs[2] {
+				case 0x8E:
+					p |= _VS15
+				case 0x8F:
+					p |= _VS16
+				}
+			}
+		}
+		return p // ASCII characters are width 1 by default, or 2 with VS16
+	}
+
+	// Regional indicator pair (flag) - detect early before trie lookup.
+	// Formed by two Regional Indicator symbols (U+1F1E6–U+1F1FF),
+	// each encoded as F0 9F 87 A6–BF. Always width 2, no trie lookup needed.
+	if l >= 8 {
+		// Create a subslice to help the compiler eliminate bounds checks
+		ri := s[:8]
+		if ri[0] == 0xF0 &&
+			ri[1] == 0x9F &&
+			ri[2] == 0x87 {
+			b3 := ri[3]
+			if b3 >= 0xA6 && b3 <= 0xBF &&
+				ri[4] == 0xF0 &&
+				ri[5] == 0x9F &&
+				ri[6] == 0x87 {
+				b7 := ri[7]
+				if b7 >= 0xA6 && b7 <= 0xBF {
+					return _RI_PAIR
+				}
+			}
+		}
+	}
+
+	props, size := lookup(s)
+	p := property(props)
+
+	// Variation Selectors
+	if size > 0 && l >= size+3 {
 		// Create a subslice to help the compiler eliminate bounds checks
 		vs := s[size : size+3]
 		if vs[0] == 0xEF && vs[1] == 0xB8 {
@@ -163,6 +197,11 @@ func (p property) width(options Options) int {
 	}
 	if p.is(_VS15) {
 		return 1
+	}
+
+	// Regional indicator pair (flag) grapheme cluster
+	if p.is(_RI_PAIR) {
+		return 2
 	}
 
 	if options.EastAsianWidth {

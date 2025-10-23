@@ -5,7 +5,7 @@ package displaywidth
 import "github.com/clipperhouse/stringish"
 
 // property represents the properties of a character as bit flags
-// The underlying type is uint8 since we only use 6 bits for flags.
+// The underlying type is uint8 since we only use 7 bits for flags.
 type property uint8
 
 const (
@@ -21,6 +21,8 @@ const (
 	_VS15
 	// VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation (width 2); not in the trie, see [width]
 	_VS16
+	// Regional Indicator Pair (flag) grapheme cluster; not in the trie, see [width]
+	_RI_PAIR
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and
