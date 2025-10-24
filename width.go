@@ -44,8 +44,8 @@ func (options Options) String(s string) int {
 	g := graphemes.FromString(s)
 	for g.Next() {
 		// The first character in the grapheme cluster determines the width;
-		// modifiers and joiners do not contribute to the width.
-		props, _ := lookupProperties(g.Value())
+		// we use lookupProperties which can consider immediate VS15/VS16.
+		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}
 	return total
@@ -62,8 +62,8 @@ func (options Options) Bytes(s []byte) int {
 	g := graphemes.FromBytes(s)
 	for g.Next() {
 		// The first character in the grapheme cluster determines the width;
-		// modifiers and joiners do not contribute to the width.
-		props, _ := lookupProperties(g.Value())
+		// we use lookupProperties which can consider immediate VS15/VS16.
+		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}
 	return total
@@ -91,7 +91,7 @@ func (options Options) Rune(r rune) int {
 	var buf [4]byte // UTF-8 is at most 4 bytes
 	n := utf8.EncodeRune(buf[:], r)
 	// Skip the grapheme iterator and directly lookup properties
-	props, _ := lookupProperties(buf[:n])
+	props := lookupProperties(buf[:n])
 	return props.width(options)
 }
 
@@ -107,26 +107,76 @@ func (p property) is(flag property) bool {
 }
 
 // lookupProperties returns the properties for the first character in a string
-func lookupProperties[T stringish.Interface](s T) (property, int) {
+func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
-		return 0, 0
+		return 0
 	}
 
-	// Fast path for ASCII characters (single byte)
 	b := s[0]
-	if b < utf8.RuneSelf { // Single-byte ASCII
-		if isASCIIControl(b) {
-			// Control characters (0x00-0x1F) and DEL (0x7F) - width 0
-			return _ZeroWidth, 1
-		}
-		// ASCII printable characters (0x20-0x7E) - width 1
-		// Return 0 properties, width calculation will default to 1
-		return 0, 1
+	if isASCIIControl(b) {
+		return _ZeroWidth
 	}
 
-	// Use the generated trie for lookup
+	l := len(s)
+
+	if b < utf8.RuneSelf { // Single-byte ASCII
+		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
+		var p property
+		if l >= 4 {
+			// Create a subslice to help the compiler eliminate bounds checks
+			vs := s[1:4]
+			if vs[0] == 0xEF && vs[1] == 0xB8 {
+				switch vs[2] {
+				case 0x8E:
+					p |= _VS15
+				case 0x8F:
+					p |= _VS16
+				}
+			}
+		}
+		return p // ASCII characters are width 1 by default, or 2 with VS16
+	}
+
+	// Regional indicator pair (flag) - detect early before trie lookup.
+	// Formed by two Regional Indicator symbols (U+1F1E6–U+1F1FF),
+	// each encoded as F0 9F 87 A6–BF. Always width 2, no trie lookup needed.
+	if l >= 8 {
+		// Create a subslice to help the compiler eliminate bounds checks
+		ri := s[:8]
+		if ri[0] == 0xF0 &&
+			ri[1] == 0x9F &&
+			ri[2] == 0x87 {
+			b3 := ri[3]
+			if b3 >= 0xA6 && b3 <= 0xBF &&
+				ri[4] == 0xF0 &&
+				ri[5] == 0x9F &&
+				ri[6] == 0x87 {
+				b7 := ri[7]
+				if b7 >= 0xA6 && b7 <= 0xBF {
+					return _RI_PAIR
+				}
+			}
+		}
+	}
+
 	props, size := lookup(s)
-	return property(props), size
+	p := property(props)
+
+	// Variation Selectors
+	if size > 0 && l >= size+3 {
+		// Create a subslice to help the compiler eliminate bounds checks
+		vs := s[size : size+3]
+		if vs[0] == 0xEF && vs[1] == 0xB8 {
+			switch vs[2] {
+			case 0x8E:
+				p |= _VS15
+			case 0x8F:
+				p |= _VS16
+			}
+		}
+	}
+
+	return p
 }
 
 // width determines the display width of a character based on its properties
@@ -139,6 +189,19 @@ func (p property) width(options Options) int {
 
 	if p.is(_ZeroWidth) {
 		return 0
+	}
+
+	// Explicit presentation overrides from VS come first.
+	if p.is(_VS16) {
+		return 2
+	}
+	if p.is(_VS15) {
+		return 1
+	}
+
+	// Regional indicator pair (flag) grapheme cluster
+	if p.is(_RI_PAIR) {
+		return 2
 	}
 
 	if options.EastAsianWidth {
