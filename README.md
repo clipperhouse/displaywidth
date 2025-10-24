@@ -53,7 +53,7 @@ This package implements the Unicode East Asian Width standard
 ([UAX #11](https://www.unicode.org/reports/tr11/)), and handles
 [version selectors](https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)),
 and [regional indicator pairs](https://en.wikipedia.org/wiki/Regional_indicator_symbol)
-(flags). It operates on bytes without decoding runes for better performance.
+(flags). We cover much of [Unicode TR51](https://unicode.org/reports/tr51/).
 
 ## Prior Art
 
