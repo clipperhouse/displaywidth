@@ -36,13 +36,11 @@ For most purposes, you should use the `String` or `Bytes` methods.
 
 ### Options
 
-You can specify East Asian Width and Strict Emoji Neutral settings. If
-unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
+You can specify East Asian Width settings. If unspecified, the default is `EastAsianWidth: false`.
 
 ```go
 options := displaywidth.Options{
-    EastAsianWidth:     true,
-    StrictEmojiNeutral: false,
+    EastAsianWidth: true,
 }
 
 width := options.String("Hello, 世界!")

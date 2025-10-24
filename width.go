@@ -24,13 +24,11 @@ func Rune(r rune) int {
 }
 
 type Options struct {
-	EastAsianWidth     bool
-	StrictEmojiNeutral bool
+	EastAsianWidth bool
 }
 
 var DefaultOptions = Options{
-	EastAsianWidth:     false,
-	StrictEmojiNeutral: true,
+	EastAsianWidth: false,
 }
 
 // String calculates the display width of a string

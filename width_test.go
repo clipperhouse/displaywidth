@@ -36,9 +36,8 @@ func TestStringWidth(t *testing.T) {
 		{"ambiguous character EAW", "★", Options{EastAsianWidth: true}, 2}, // East Asian wide
 
 		// Emoji
-		{"emoji", "😀", Options{}, 2},                                  // Default emoji width
-		{"emoji strict", "😀", Options{StrictEmojiNeutral: true}, 2},   // Strict emoji neutral - only ambiguous emoji get width 1
-		{"checkered flag", "🏁", Options{StrictEmojiNeutral: true}, 2}, // U+1F3C1 chequered flag is an emoji, width 2
+		{"emoji", "😀", Options{}, 2},          // Default emoji width
+		{"checkered flag", "🏁", Options{}, 2}, // U+1F3C1 chequered flag is an emoji, width 2
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", "\xff", Options{}, 1},
@@ -168,15 +167,6 @@ func TestRuneWidth(t *testing.T) {
 		{"red heart", '❤', Options{}, 1},      // Text presentation by default
 		{"checkered flag", '🏁', Options{}, 2}, // U+1F3C1 chequered flag
 
-		// Emoji with StrictEmojiNeutral
-		{"grinning face strict", '😀', Options{StrictEmojiNeutral: true}, 2},
-		{"rocket strict", '🚀', Options{StrictEmojiNeutral: true}, 2},
-		{"party popper strict", '🎉', Options{StrictEmojiNeutral: true}, 2},
-
-		// Emoji with both options
-		{"grinning face both", '😀', Options{EastAsianWidth: true, StrictEmojiNeutral: true}, 2},
-		{"rocket both", '🚀', Options{EastAsianWidth: true, StrictEmojiNeutral: true}, 2},
-
 		// Mathematical symbols
 		{"infinity", '∞', Options{}, 1},
 		{"summation", '∑', Options{}, 1},
@@ -201,9 +191,8 @@ func TestRuneWidth(t *testing.T) {
 		{"left single quote", '\u2018', Options{}, 1},
 		{"right single quote", '\u2019', Options{}, 1},
 
-		// Test edge cases with both options disabled
-		{"ambiguous both disabled", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: false}, 1},
-		{"ambiguous strict only", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: true}, 1},
+		// Test edge cases with options disabled
+		{"ambiguous EAW disabled", '★', Options{EastAsianWidth: false}, 1},
 
 		// Variation selectors (note: Rune() tests single runes without VS, not sequences)
 		{"☺ U+263A text default", '☺', Options{}, 1},    // Has text presentation by default
@@ -242,10 +231,6 @@ func TestCalculateWidth(t *testing.T) {
 		// East Asian Ambiguous
 		{"EAW ambiguous default", _East_Asian_Ambiguous, Options{}, 1},
 		{"EAW ambiguous EAW", _East_Asian_Ambiguous, Options{EastAsianWidth: true}, 2},
-
-		// Emoji
-		// {"emoji default", _Emoji, false, false, 2},
-		// {"emoji strict", _Emoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
 
 		// Default (no properties set)
 		{"default", 0, Options{}, 1},
