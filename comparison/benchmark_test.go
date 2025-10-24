@@ -146,13 +146,12 @@ func BenchmarkStringDefault(b *testing.B) {
 
 func BenchmarkString_EAW(b *testing.B) {
 	options := displaywidth.Options{
-		EastAsianWidth:     true,
-		StrictEmojiNeutral: false,
+		EastAsianWidth: true,
 	}
 
 	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
+		EastAsianWidth:     true,
+		StrictEmojiNeutral: false,
 	}
 
 	// Save original value and restore after benchmark
@@ -217,16 +216,12 @@ func BenchmarkString_EAW(b *testing.B) {
 	})
 }
 
-// BenchmarkString_StrictEmoji benchmarks our package with strict emoji neutral
+// BenchmarkString_StrictEmoji benchmarks with go-runewidth's strict emoji neutral option
+// Note: displaywidth no longer has this option, using TR51 emoji presentation instead
 func BenchmarkString_StrictEmoji(b *testing.B) {
-	options := displaywidth.Options{
+	condition := &runewidth.Condition{
 		EastAsianWidth:     false,
 		StrictEmojiNeutral: true,
-	}
-
-	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
@@ -240,8 +235,8 @@ func BenchmarkString_StrictEmoji(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
-				// Test with strict emoji neutral enabled
-				_ = options.String(tc.Input)
+				// Using default options (TR51 emoji presentation)
+				_ = displaywidth.String(tc.Input)
 			}
 		}
 	})
@@ -601,13 +596,12 @@ func BenchmarkRuneDefault(b *testing.B) {
 // BenchmarkRuneWidth_EAW benchmarks rune width with East Asian Width option
 func BenchmarkRuneWidth_EAW(b *testing.B) {
 	options := displaywidth.Options{
-		EastAsianWidth:     true,
-		StrictEmojiNeutral: false,
+		EastAsianWidth: true,
 	}
 
 	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
+		EastAsianWidth:     true,
+		StrictEmojiNeutral: false,
 	}
 
 	// Focus on ambiguous characters that are affected by EastAsianWidth
