@@ -36,13 +36,11 @@ For most purposes, you should use the `String` or `Bytes` methods.
 
 ### Options
 
-You can specify East Asian Width and Strict Emoji Neutral settings. If
-unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
+You can specify East Asian Width settings. If unspecified, the default is `EastAsianWidth: false`.
 
 ```go
 options := displaywidth.Options{
-    EastAsianWidth:     true,
-    StrictEmojiNeutral: false,
+    EastAsianWidth: true,
 }
 
 width := options.String("Hello, 世界!")
@@ -55,7 +53,7 @@ This package implements the Unicode East Asian Width standard
 ([UAX #11](https://www.unicode.org/reports/tr11/)), and handles
 [version selectors](https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)),
 and [regional indicator pairs](https://en.wikipedia.org/wiki/Regional_indicator_symbol)
-(flags). It operates on bytes without decoding runes for better performance.
+(flags). We cover much of [Unicode TR51](https://unicode.org/reports/tr51/).
 
 ## Prior Art
 

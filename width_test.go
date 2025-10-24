@@ -36,9 +36,8 @@ func TestStringWidth(t *testing.T) {
 		{"ambiguous character EAW", "★", Options{EastAsianWidth: true}, 2}, // East Asian wide
 
 		// Emoji
-		{"emoji", "😀", Options{}, 2},                                  // Default emoji width
-		{"emoji strict", "😀", Options{StrictEmojiNeutral: true}, 2},   // Strict emoji neutral - only ambiguous emoji get width 1
-		{"checkered flag", "🏁", Options{StrictEmojiNeutral: true}, 2}, // U+1F3C1 chequered flag is an emoji, width 2
+		{"emoji", "😀", Options{}, 2},          // Default emoji width
+		{"checkered flag", "🏁", Options{}, 2}, // U+1F3C1 chequered flag is an emoji, width 2
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
 		{"invalid UTF-8", "\xff", Options{}, 1},
@@ -168,15 +167,6 @@ func TestRuneWidth(t *testing.T) {
 		{"red heart", '❤', Options{}, 1},      // Text presentation by default
 		{"checkered flag", '🏁', Options{}, 2}, // U+1F3C1 chequered flag
 
-		// Emoji with StrictEmojiNeutral
-		{"grinning face strict", '😀', Options{StrictEmojiNeutral: true}, 2},
-		{"rocket strict", '🚀', Options{StrictEmojiNeutral: true}, 2},
-		{"party popper strict", '🎉', Options{StrictEmojiNeutral: true}, 2},
-
-		// Emoji with both options
-		{"grinning face both", '😀', Options{EastAsianWidth: true, StrictEmojiNeutral: true}, 2},
-		{"rocket both", '🚀', Options{EastAsianWidth: true, StrictEmojiNeutral: true}, 2},
-
 		// Mathematical symbols
 		{"infinity", '∞', Options{}, 1},
 		{"summation", '∑', Options{}, 1},
@@ -201,9 +191,8 @@ func TestRuneWidth(t *testing.T) {
 		{"left single quote", '\u2018', Options{}, 1},
 		{"right single quote", '\u2019', Options{}, 1},
 
-		// Test edge cases with both options disabled
-		{"ambiguous both disabled", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: false}, 1},
-		{"ambiguous strict only", '★', Options{EastAsianWidth: false, StrictEmojiNeutral: true}, 1},
+		// Test edge cases with options disabled
+		{"ambiguous EAW disabled", '★', Options{EastAsianWidth: false}, 1},
 
 		// Variation selectors (note: Rune() tests single runes without VS, not sequences)
 		{"☺ U+263A text default", '☺', Options{}, 1},    // Has text presentation by default
@@ -243,10 +232,6 @@ func TestCalculateWidth(t *testing.T) {
 		{"EAW ambiguous default", _East_Asian_Ambiguous, Options{}, 1},
 		{"EAW ambiguous EAW", _East_Asian_Ambiguous, Options{EastAsianWidth: true}, 2},
 
-		// Emoji
-		// {"emoji default", _Emoji, false, false, 2},
-		// {"emoji strict", _Emoji, false, true, 2}, // Only ambiguous emoji get width 1 in strict mode
-
 		// Default (no properties set)
 		{"default", 0, Options{}, 1},
 	}
@@ -260,4 +245,472 @@ func TestCalculateWidth(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEmojiPresentation verifies correct width behavior for characters with different
+// Emoji_Presentation property values according to TR51 conformance
+func TestEmojiPresentation(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantDefault  int
+		wantWithVS16 int
+		wantWithVS15 int
+		description  string
+	}{
+		// Characters with Extended_Pictographic=Yes AND Emoji_Presentation=Yes
+		// Should have width 2 by default (emoji presentation)
+		{
+			name:         "Watch (EP=Yes, EmojiPres=Yes)",
+			input:        "\u231A",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⌚ U+231A has default emoji presentation",
+		},
+		{
+			name:         "Hourglass (EP=Yes, EmojiPres=Yes)",
+			input:        "\u231B",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⌛ U+231B has default emoji presentation",
+		},
+		{
+			name:         "Fast-forward (EP=Yes, EmojiPres=Yes)",
+			input:        "\u23E9",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⏩ U+23E9 has default emoji presentation",
+		},
+		{
+			name:         "Alarm Clock (EP=Yes, EmojiPres=Yes)",
+			input:        "\u23F0",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⏰ U+23F0 has default emoji presentation",
+		},
+		{
+			name:         "Soccer Ball (EP=Yes, EmojiPres=Yes)",
+			input:        "\u26BD",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⚽ U+26BD has default emoji presentation",
+		},
+		{
+			name:         "Anchor (EP=Yes, EmojiPres=Yes)",
+			input:        "\u2693",
+			wantDefault:  2,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⚓ U+2693 has default emoji presentation",
+		},
+
+		// Characters with Extended_Pictographic=Yes BUT Emoji_Presentation=No
+		// Should have width 1 by default (text presentation)
+		{
+			name:         "Star of David (EP=Yes, EmojiPres=No)",
+			input:        "\u2721",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "✡ U+2721 has default text presentation",
+		},
+		{
+			name:         "Hammer and Pick (EP=Yes, EmojiPres=No)",
+			input:        "\u2692",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⚒ U+2692 has default text presentation",
+		},
+		{
+			name:         "Gear (EP=Yes, EmojiPres=No)",
+			input:        "\u2699",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "⚙ U+2699 has default text presentation",
+		},
+		{
+			name:         "Star and Crescent (EP=Yes, EmojiPres=No)",
+			input:        "\u262A",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "☪ U+262A has default text presentation",
+		},
+		{
+			name:         "Infinity (EP=Yes, EmojiPres=No)",
+			input:        "\u267E",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "♾ U+267E has default text presentation",
+		},
+		{
+			name:         "Recycling Symbol (EP=Yes, EmojiPres=No)",
+			input:        "\u267B",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "♻ U+267B has default text presentation",
+		},
+
+		// Characters with Emoji=Yes but NOT Extended_Pictographic
+		// These are typically ASCII characters like # that can become emoji with VS16
+		{
+			name:         "Hash Sign (Emoji=Yes, EP=No)",
+			input:        "\u0023",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "# U+0023 has default text presentation",
+		},
+		{
+			name:         "Asterisk (Emoji=Yes, EP=No)",
+			input:        "\u002A",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "* U+002A has default text presentation",
+		},
+		{
+			name:         "Digit Zero (Emoji=Yes, EP=No)",
+			input:        "\u0030",
+			wantDefault:  1,
+			wantWithVS16: 2,
+			wantWithVS15: 1,
+			description:  "0 U+0030 has default text presentation",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test default width (no variation selector)
+			gotDefault := String(tt.input)
+			if gotDefault != tt.wantDefault {
+				t.Errorf("String(%q) default = %d, want %d (%s)",
+					tt.input, gotDefault, tt.wantDefault, tt.description)
+			}
+
+			// Test with VS16 (U+FE0F) for emoji presentation
+			inputWithVS16 := tt.input + "\uFE0F"
+			gotWithVS16 := String(inputWithVS16)
+			if gotWithVS16 != tt.wantWithVS16 {
+				t.Errorf("String(%q) with VS16 = %d, want %d (%s)",
+					tt.input, gotWithVS16, tt.wantWithVS16, tt.description)
+			}
+
+			// Test with VS15 (U+FE0E) for text presentation
+			inputWithVS15 := tt.input + "\uFE0E"
+			gotWithVS15 := String(inputWithVS15)
+			if gotWithVS15 != tt.wantWithVS15 {
+				t.Errorf("String(%q) with VS15 = %d, want %d (%s)",
+					tt.input, gotWithVS15, tt.wantWithVS15, tt.description)
+			}
+		})
+	}
+}
+
+// TestEmojiPresentationRune tests the Rune() function specifically
+func TestEmojiPresentationRune(t *testing.T) {
+	tests := []struct {
+		name string
+		r    rune
+		want int
+		desc string
+	}{
+		// Emoji_Presentation=Yes
+		{name: "Watch", r: '\u231A', want: 2, desc: "⌚ has default emoji presentation"},
+		{name: "Alarm Clock", r: '\u23F0', want: 2, desc: "⏰ has default emoji presentation"},
+		{name: "Soccer Ball", r: '\u26BD', want: 2, desc: "⚽ has default emoji presentation"},
+
+		// Emoji_Presentation=No (but Extended_Pictographic=Yes)
+		{name: "Star of David", r: '\u2721', want: 1, desc: "✡ has default text presentation"},
+		{name: "Hammer and Pick", r: '\u2692', want: 1, desc: "⚒ has default text presentation"},
+		{name: "Gear", r: '\u2699', want: 1, desc: "⚙ has default text presentation"},
+		{name: "Infinity", r: '\u267E', want: 1, desc: "♾ has default text presentation"},
+
+		// Not Extended_Pictographic
+		{name: "Hash Sign", r: '#', want: 1, desc: "# is regular ASCII"},
+		{name: "Asterisk", r: '*', want: 1, desc: "* is regular ASCII"},
+		{name: "Digit Zero", r: '0', want: 1, desc: "0 is regular ASCII"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Rune(tt.r)
+			if got != tt.want {
+				t.Errorf("Rune(%U) = %d, want %d (%s)", tt.r, got, tt.want, tt.desc)
+			}
+		})
+	}
+}
+
+// TestComplexEmojiSequences tests width of complex emoji sequences
+func TestComplexEmojiSequences(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  int
+		desc  string
+	}{
+		{
+			name:  "Keycap sequence #️⃣",
+			input: "#\uFE0F\u20E3",
+			want:  2,
+			desc:  "# + VS16 + combining enclosing keycap",
+		},
+		{
+			name:  "Keycap sequence 0️⃣",
+			input: "0\uFE0F\u20E3",
+			want:  2,
+			desc:  "0 + VS16 + combining enclosing keycap",
+		},
+		{
+			name:  "Flag sequence 🇺🇸",
+			input: "\U0001F1FA\U0001F1F8",
+			want:  2,
+			desc:  "US flag (RI pair)",
+		},
+		{
+			name:  "ZWJ sequence 👨‍👩‍👧",
+			input: "\U0001F468\u200D\U0001F469\u200D\U0001F467",
+			want:  2,
+			desc:  "Family emoji (man + ZWJ + woman + ZWJ + girl)",
+		},
+		{
+			name:  "Skin tone modifier 👍🏽",
+			input: "\U0001F44D\U0001F3FD",
+			want:  2,
+			desc:  "Thumbs up with medium skin tone",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := String(tt.input)
+			if got != tt.want {
+				t.Errorf("String(%q) = %d, want %d (%s)",
+					tt.input, got, tt.want, tt.desc)
+			}
+		})
+	}
+}
+
+// TestMixedContent tests width of strings with mixed emoji and text
+func TestMixedContent(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  int
+		desc  string
+	}{
+		{
+			name:  "Text with emoji-presentation emoji",
+			input: "Hi\u231AWorld",
+			want:  9, // "Hi" (2) + ⌚ (2) + "World" (5)
+			desc:  "Text with watch emoji (emoji presentation)",
+		},
+		{
+			name:  "Text with text-presentation emoji",
+			input: "Hi\u2721Go",
+			want:  5, // "Hi" (2) + ✡ (1) + "Go" (2)
+			desc:  "Text with star of David (text presentation)",
+		},
+		{
+			name:  "Text with text-presentation emoji + VS16",
+			input: "Hi\u2721\uFE0FGo",
+			want:  6, // "Hi" (2) + ✡️ (2) + "Go" (2)
+			desc:  "Text with star of David (forced emoji presentation)",
+		},
+		{
+			name:  "Multiple emojis",
+			input: "⌚⚽⚓",
+			want:  6, // All three have Emoji_Presentation=Yes
+			desc:  "Watch, soccer ball, anchor",
+		},
+		{
+			name:  "Mixed presentation",
+			input: "⌚⚙⚓",
+			want:  5, // ⌚(2) + ⚙(1) + ⚓(2)
+			desc:  "Watch (emoji), gear (text), anchor (emoji)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := String(tt.input)
+			if got != tt.want {
+				t.Errorf("String(%q) = %d, want %d (%s)",
+					tt.input, got, tt.want, tt.desc)
+			}
+		})
+	}
+}
+
+// TestTR51Conformance verifies key TR51 conformance requirements
+func TestTR51Conformance(t *testing.T) {
+	t.Run("C1: Default Emoji Presentation", func(t *testing.T) {
+		// Characters with Emoji_Presentation=Yes should display as emoji by default (width 2)
+		emojiPresentationChars := []rune{
+			'\u231A', // ⌚ watch
+			'\u231B', // ⌛ hourglass
+			'\u23F0', // ⏰ alarm clock
+			'\u26BD', // ⚽ soccer ball
+			'\u2693', // ⚓ anchor
+		}
+
+		for _, r := range emojiPresentationChars {
+			got := Rune(r)
+			if got != 2 {
+				t.Errorf("Rune(%U) = %d, want 2 (should have default emoji presentation)", r, got)
+			}
+		}
+	})
+
+	t.Run("C1: Default Text Presentation", func(t *testing.T) {
+		// Characters with Emoji_Presentation=No should display as text by default (width 1)
+		textPresentationChars := []rune{
+			'\u2721', // ✡ star of David
+			'\u2692', // ⚒ hammer and pick
+			'\u2699', // ⚙ gear
+			'\u267E', // ♾ infinity
+			'\u267B', // ♻ recycling symbol
+		}
+
+		for _, r := range textPresentationChars {
+			got := Rune(r)
+			if got != 1 {
+				t.Errorf("Rune(%U) = %d, want 1 (should have default text presentation)", r, got)
+			}
+		}
+	})
+
+	t.Run("C2: VS15 forces text presentation", func(t *testing.T) {
+		// VS15 (U+FE0E) should force text presentation (width 1) even for emoji-presentation characters
+		emojiWithVS15 := []string{
+			"\u231A\uFE0E", // ⌚︎ watch with VS15
+			"\u26BD\uFE0E", // ⚽︎ soccer ball with VS15
+			"\u2693\uFE0E", // ⚓︎ anchor with VS15
+		}
+
+		for _, s := range emojiWithVS15 {
+			got := String(s)
+			if got != 1 {
+				t.Errorf("String(%q) with VS15 = %d, want 1 (VS15 should force text presentation)", s, got)
+			}
+		}
+	})
+
+	t.Run("C3: VS16 forces emoji presentation", func(t *testing.T) {
+		// VS16 (U+FE0F) should force emoji presentation (width 2) even for text-presentation characters
+		textWithVS16 := []string{
+			"\u2721\uFE0F", // ✡️ star of David with VS16
+			"\u2692\uFE0F", // ⚒️ hammer and pick with VS16
+			"\u2699\uFE0F", // ⚙️ gear with VS16
+			"\u0023\uFE0F", // #️ hash with VS16
+		}
+
+		for _, s := range textWithVS16 {
+			got := String(s)
+			if got != 2 {
+				t.Errorf("String(%q) with VS16 = %d, want 2 (VS16 should force emoji presentation)", s, got)
+			}
+		}
+	})
+
+	t.Run("ED-16: ZWJ Sequences treated as single grapheme", func(t *testing.T) {
+		// ZWJ sequences should be treated as a single grapheme cluster by the grapheme tokenizer
+		// and should have width 2 (since they display as a single emoji image)
+		tests := []struct {
+			name     string
+			sequence string
+			want     int
+			desc     string
+		}{
+			{
+				name:     "Family",
+				sequence: "\U0001F468\u200D\U0001F469\u200D\U0001F467\u200D\U0001F466", // 👨‍👩‍👧‍👦
+				want:     2,
+				desc:     "Family: man, woman, girl, boy (4 people + 3 ZWJ)",
+			},
+			{
+				name:     "Kiss",
+				sequence: "\U0001F469\u200D\u2764\uFE0F\u200D\U0001F48B\u200D\U0001F468", // 👩‍❤️‍💋‍👨
+				want:     2,
+				desc:     "Kiss: woman, heart, kiss mark, man",
+			},
+			{
+				name:     "Couple with heart",
+				sequence: "\U0001F469\u200D\u2764\uFE0F\u200D\U0001F468", // 👩‍❤️‍👨
+				want:     2,
+				desc:     "Couple with heart: woman, heart, man",
+			},
+			{
+				name:     "Woman technologist",
+				sequence: "\U0001F469\u200D\U0001F4BB", // 👩‍💻
+				want:     2,
+				desc:     "Woman technologist: woman, ZWJ, laptop",
+			},
+			{
+				name:     "Rainbow flag",
+				sequence: "\U0001F3F4\u200D\U0001F308", // 🏴‍🌈
+				want:     2,
+				desc:     "Rainbow flag: black flag, ZWJ, rainbow",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := String(tt.sequence)
+				if got != tt.want {
+					t.Errorf("String(%q) = %d, want %d (%s)",
+						tt.sequence, got, tt.want, tt.desc)
+					// Show the individual components for debugging
+					t.Logf("  Sequence: %+q", tt.sequence)
+					t.Logf("  Expected: single grapheme cluster of width %d", tt.want)
+					t.Logf("  Got: %d (if > 2, grapheme tokenizer may not be recognizing ZWJ sequence)", got)
+				}
+			})
+		}
+	})
+
+	// ED-13: Emoji Modifier Sequences
+	// Per TR51: emoji_modifier_sequence := emoji_modifier_base emoji_modifier
+	// These should be treated as single grapheme clusters with width 2
+	t.Run("ED-13: Emoji Modifier Sequences", func(t *testing.T) {
+		tests := []struct {
+			sequence string
+			want     int
+			desc     string
+		}{
+			{"👍🏻", 2, "thumbs up + light skin tone"},
+			{"👍🏼", 2, "thumbs up + medium-light skin tone"},
+			{"👍🏽", 2, "thumbs up + medium skin tone"},
+			{"👍🏾", 2, "thumbs up + medium-dark skin tone"},
+			{"👍🏿", 2, "thumbs up + dark skin tone"},
+			{"👋🏻", 2, "waving hand + light skin tone"},
+			{"🧑🏽", 2, "person + medium skin tone"},
+			{"👶🏿", 2, "baby + dark skin tone"},
+			{"👩🏼", 2, "woman + medium-light skin tone"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.desc, func(t *testing.T) {
+				got := String(tt.sequence)
+				if got != tt.want {
+					t.Errorf("String(%q) = %d, want %d (%s)",
+						tt.sequence, got, tt.want, tt.desc)
+					t.Logf("  Sequence: %+q", tt.sequence)
+					t.Logf("  Expected: single grapheme cluster of width %d", tt.want)
+					t.Logf("  Got: %d (if > 2, grapheme tokenizer may not be recognizing modifier sequence)", got)
+				}
+			})
+		}
+	})
 }

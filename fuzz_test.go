@@ -98,10 +98,8 @@ func FuzzBytes(f *testing.F) {
 
 		// Test with different options combinations
 		options := []Options{
-			{EastAsianWidth: false, StrictEmojiNeutral: true}, // default
-			{EastAsianWidth: true, StrictEmojiNeutral: true},
-			{EastAsianWidth: false, StrictEmojiNeutral: false},
-			{EastAsianWidth: true, StrictEmojiNeutral: false},
+			{EastAsianWidth: false}, // default
+			{EastAsianWidth: true},
 		}
 
 		for _, option := range options {
@@ -194,10 +192,8 @@ func FuzzRune(f *testing.F) {
 
 		// Test with different options
 		options := []Options{
-			{EastAsianWidth: false, StrictEmojiNeutral: true}, // default
-			{EastAsianWidth: true, StrictEmojiNeutral: true},
-			{EastAsianWidth: false, StrictEmojiNeutral: false},
-			{EastAsianWidth: true, StrictEmojiNeutral: false},
+			{EastAsianWidth: false}, // default
+			{EastAsianWidth: true},
 		}
 
 		for _, option := range options {
