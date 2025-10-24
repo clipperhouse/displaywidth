@@ -679,4 +679,38 @@ func TestTR51Conformance(t *testing.T) {
 			})
 		}
 	})
+
+	// ED-13: Emoji Modifier Sequences
+	// Per TR51: emoji_modifier_sequence := emoji_modifier_base emoji_modifier
+	// These should be treated as single grapheme clusters with width 2
+	t.Run("ED-13: Emoji Modifier Sequences", func(t *testing.T) {
+		tests := []struct {
+			sequence string
+			want     int
+			desc     string
+		}{
+			{"👍🏻", 2, "thumbs up + light skin tone"},
+			{"👍🏼", 2, "thumbs up + medium-light skin tone"},
+			{"👍🏽", 2, "thumbs up + medium skin tone"},
+			{"👍🏾", 2, "thumbs up + medium-dark skin tone"},
+			{"👍🏿", 2, "thumbs up + dark skin tone"},
+			{"👋🏻", 2, "waving hand + light skin tone"},
+			{"🧑🏽", 2, "person + medium skin tone"},
+			{"👶🏿", 2, "baby + dark skin tone"},
+			{"👩🏼", 2, "woman + medium-light skin tone"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.desc, func(t *testing.T) {
+				got := String(tt.sequence)
+				if got != tt.want {
+					t.Errorf("String(%q) = %d, want %d (%s)",
+						tt.sequence, got, tt.want, tt.desc)
+					t.Logf("  Sequence: %+q", tt.sequence)
+					t.Logf("  Expected: single grapheme cluster of width %d", tt.want)
+					t.Logf("  Got: %d (if > 2, grapheme tokenizer may not be recognizing modifier sequence)", got)
+				}
+			})
+		}
+	})
 }
