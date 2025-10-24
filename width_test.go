@@ -625,4 +625,60 @@ func TestTR51Conformance(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("ED-16: ZWJ Sequences treated as single grapheme", func(t *testing.T) {
+		// ZWJ sequences should be treated as a single grapheme cluster by the grapheme tokenizer
+		// and should have width 2 (since they display as a single emoji image)
+		tests := []struct {
+			name     string
+			sequence string
+			want     int
+			desc     string
+		}{
+			{
+				name:     "Family",
+				sequence: "\U0001F468\u200D\U0001F469\u200D\U0001F467\u200D\U0001F466", // 👨‍👩‍👧‍👦
+				want:     2,
+				desc:     "Family: man, woman, girl, boy (4 people + 3 ZWJ)",
+			},
+			{
+				name:     "Kiss",
+				sequence: "\U0001F469\u200D\u2764\uFE0F\u200D\U0001F48B\u200D\U0001F468", // 👩‍❤️‍💋‍👨
+				want:     2,
+				desc:     "Kiss: woman, heart, kiss mark, man",
+			},
+			{
+				name:     "Couple with heart",
+				sequence: "\U0001F469\u200D\u2764\uFE0F\u200D\U0001F468", // 👩‍❤️‍👨
+				want:     2,
+				desc:     "Couple with heart: woman, heart, man",
+			},
+			{
+				name:     "Woman technologist",
+				sequence: "\U0001F469\u200D\U0001F4BB", // 👩‍💻
+				want:     2,
+				desc:     "Woman technologist: woman, ZWJ, laptop",
+			},
+			{
+				name:     "Rainbow flag",
+				sequence: "\U0001F3F4\u200D\U0001F308", // 🏴‍🌈
+				want:     2,
+				desc:     "Rainbow flag: black flag, ZWJ, rainbow",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := String(tt.sequence)
+				if got != tt.want {
+					t.Errorf("String(%q) = %d, want %d (%s)",
+						tt.sequence, got, tt.want, tt.desc)
+					// Show the individual components for debugging
+					t.Logf("  Sequence: %+q", tt.sequence)
+					t.Logf("  Expected: single grapheme cluster of width %d", tt.want)
+					t.Logf("  Got: %d (if > 2, grapheme tokenizer may not be recognizing ZWJ sequence)", got)
+				}
+			})
+		}
+	})
 }
