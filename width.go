@@ -200,8 +200,8 @@ func (p property) width(options Options) int {
 	}
 
 	// Regional indicator pair (flag) grapheme cluster
-	if p.is(_RI_PAIR) {
-		return 2
+	if p.is(_RI_PAIR) && options.StrictEmojiNeutral {
+		return 2 // Strict interpretation
 	}
 
 	if options.EastAsianWidth {
