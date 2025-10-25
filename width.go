@@ -200,6 +200,8 @@ func (p property) width(options Options) int {
 	}
 
 	// Regional indicator pair (flag) grapheme cluster
+	// returns 1 under StrictEmojiNeutral=false, which
+	// is compatible with go-runewidth & uniseg.
 	if p.is(_RI_PAIR) && options.StrictEmojiNeutral {
 		return 2 // Strict interpretation
 	}

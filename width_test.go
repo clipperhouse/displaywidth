@@ -56,10 +56,12 @@ func TestStringWidth(t *testing.T) {
 		{"keycap 1️⃣", "1️⃣", Options{}, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
 		{"keycap #️⃣", "#️⃣", Options{}, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
 
-		// Flags (regional indicator pairs form a single grapheme, width 2)
-		{"flag US", "🇺🇸", Options{}, 2},
-		{"flag JP", "🇯🇵", Options{}, 2},
-		{"text with flags", "Go 🇺🇸🚀", Options{}, 3 + 2 + 2},
+		// Flags (regional indicator pairs form a single grapheme, width 1 by default, width 2 with StrictEmojiNeutral=true)
+		{"flag US", "🇺🇸", Options{}, 1},
+		{"flag JP", "🇯🇵", Options{}, 1},
+		{"text with flags", "Go 🇺🇸🚀", Options{}, 3 + 1 + 2},
+		{"flag US strict", "🇺🇸", Options{StrictEmojiNeutral: true}, 2},
+		{"flag JP strict", "🇯🇵", Options{StrictEmojiNeutral: true}, 2},
 	}
 
 	for _, tt := range tests {
