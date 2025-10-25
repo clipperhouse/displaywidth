@@ -203,7 +203,7 @@ func (p property) width(options Options) int {
 	// returns 1 under StrictEmojiNeutral=false, which
 	// is compatible with go-runewidth & uniseg.
 	if p.is(_RI_PAIR) && options.StrictEmojiNeutral {
-		return 2 // Strict interpretation
+		return 2
 	}
 
 	if options.EastAsianWidth {
