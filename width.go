@@ -24,7 +24,10 @@ func Rune(r rune) int {
 }
 
 type Options struct {
-	EastAsianWidth     bool
+	EastAsianWidth bool
+	// StrictEmojiNeutral will treat regional indicator pairs (flags) as width 2
+	// when true, width 1 when false. Intended primarily for compatibility with
+	// go-runewidth.
 	StrictEmojiNeutral bool
 }
 
