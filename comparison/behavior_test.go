@@ -65,6 +65,18 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 			},
 		},
 
+		// Unicode 16.0 new emojis
+		{
+			name:  "Unicode 16.0 emojis",
+			input: "🫩🫆🪾🫜🪉🪏🫟", // Face with Bags Under Eyes, Fingerprint, Leafless Tree, Root Vegetable, Harp, Shovel, Splatter
+			expected: map[string]int{
+				"displaywidth_default":   14, // 2 per emoji (properly handles Unicode 16.0)
+				"displaywidth_options{}": 14,
+				"go-runewidth_default":   7, // go-runewidth may not fully support Unicode 16.0 yet (treats as width 1)
+				"uniseg_default":         7,  // uniseg may not fully support Unicode 16.0 yet (treats as width 1)
+			},
+		},
+
 		// Regional Indicator Pairs (flags) - the key difference
 		{
 			name:  "Flags",
