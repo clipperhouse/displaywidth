@@ -4,6 +4,10 @@ import (
 	"testing"
 )
 
+var defaultOptions = Options{}
+
+var eawOptions = Options{EastAsianWidth: true}
+
 func TestStringWidth(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -12,55 +16,53 @@ func TestStringWidth(t *testing.T) {
 		expected int
 	}{
 		// Basic ASCII characters
-		{"empty string", "", Options{}, 0},
-		{"single ASCII", "a", Options{}, 1},
-		{"multiple ASCII", "hello", Options{}, 5},
-		{"ASCII with spaces", "hello world", Options{}, 11},
+		{"empty string", "", defaultOptions, 0},
+		{"single ASCII", "a", defaultOptions, 1},
+		{"multiple ASCII", "hello", defaultOptions, 5},
+		{"ASCII with spaces", "hello world", defaultOptions, 11},
 
 		// Control characters (width 0)
-		{"newline", "\n", Options{}, 0},
-		{"tab", "\t", Options{}, 0},
-		{"carriage return", "\r", Options{}, 0},
-		{"backspace", "\b", Options{}, 0},
+		{"newline", "\n", defaultOptions, 0},
+		{"tab", "\t", defaultOptions, 0},
+		{"carriage return", "\r", defaultOptions, 0},
+		{"backspace", "\b", defaultOptions, 0},
 
 		// Mixed content
-		{"ASCII with newline", "hello\nworld", Options{}, 10},
-		{"ASCII with tab", "hello\tworld", Options{}, 10},
+		{"ASCII with newline", "hello\nworld", defaultOptions, 10},
+		{"ASCII with tab", "hello\tworld", defaultOptions, 10},
 
 		// East Asian characters (should be in trie)
-		{"CJK ideograph", "中", Options{}, 2},
-		{"CJK with ASCII", "hello中", Options{}, 7},
+		{"CJK ideograph", "中", defaultOptions, 2},
+		{"CJK with ASCII", "hello中", defaultOptions, 7},
 
 		// Ambiguous characters
-		{"ambiguous character", "★", Options{}, 1},                         // Default narrow
-		{"ambiguous character EAW", "★", Options{EastAsianWidth: true}, 2}, // East Asian wide
+		{"ambiguous character", "★", defaultOptions, 1}, // Default narrow
+		{"ambiguous character EAW", "★", eawOptions, 2}, // East Asian wide
 
 		// Emoji
-		{"emoji", "😀", Options{}, 2},          // Default emoji width
-		{"checkered flag", "🏁", Options{}, 2}, // U+1F3C1 chequered flag is an emoji, width 2
+		{"emoji", "😀", defaultOptions, 2},          // Default emoji width
+		{"checkered flag", "🏁", defaultOptions, 2}, // U+1F3C1 chequered flag is an emoji, width 2
 
 		// Invalid UTF-8 - the trie treats \xff as a valid character with default properties
-		{"invalid UTF-8", "\xff", Options{}, 1},
-		{"partial UTF-8", "\xc2", Options{}, 1},
+		{"invalid UTF-8", "\xff", defaultOptions, 1},
+		{"partial UTF-8", "\xc2", defaultOptions, 1},
 
 		// Variation selectors - VS16 (U+FE0F) requests emoji, VS15 (U+FE0E) requests text
-		{"☺ text default", "☺", Options{}, 1},      // U+263A has text presentation by default
-		{"☺️ emoji with VS16", "☺️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
-		{"⌛ emoji default", "⌛", Options{}, 2},     // U+231B has emoji presentation by default
-		{"⌛︎ text with VS15", "⌛︎", Options{}, 1},  // VS15 forces text presentation (width 1)
-		{"❤ text default", "❤", Options{}, 1},      // U+2764 has text presentation by default
-		{"❤️ emoji with VS16", "❤️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
-		{"✂ text default", "✂", Options{}, 1},      // U+2702 has text presentation by default
-		{"✂️ emoji with VS16", "✂️", Options{}, 2}, // VS16 forces emoji presentation (width 2)
-		{"keycap 1️⃣", "1️⃣", Options{}, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
-		{"keycap #️⃣", "#️⃣", Options{}, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
+		{"☺ text default", "☺", defaultOptions, 1},      // U+263A has text presentation by default
+		{"☺️ emoji with VS16", "☺️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
+		{"⌛ emoji default", "⌛", defaultOptions, 2},     // U+231B has emoji presentation by default
+		{"⌛︎ text with VS15", "⌛︎", defaultOptions, 1},  // VS15 forces text presentation (width 1)
+		{"❤ text default", "❤", defaultOptions, 1},      // U+2764 has text presentation by default
+		{"❤️ emoji with VS16", "❤️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
+		{"✂ text default", "✂", defaultOptions, 1},      // U+2702 has text presentation by default
+		{"✂️ emoji with VS16", "✂️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
+		{"keycap 1️⃣", "1️⃣", defaultOptions, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
+		{"keycap #️⃣", "#️⃣", defaultOptions, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
 
 		// Flags (regional indicator pairs form a single grapheme, width 1 by default, width 2 with StrictEmojiNeutral=true)
-		{"flag US", "🇺🇸", Options{}, 1},
-		{"flag JP", "🇯🇵", Options{}, 1},
-		{"text with flags", "Go 🇺🇸🚀", Options{}, 3 + 1 + 2},
-		{"flag US strict", "🇺🇸", Options{StrictEmojiNeutral: true}, 2},
-		{"flag JP strict", "🇯🇵", Options{StrictEmojiNeutral: true}, 2},
+		{"flag US", "🇺🇸", defaultOptions, 2},
+		{"flag JP", "🇯🇵", defaultOptions, 2},
+		{"text with flags", "Go 🇺🇸🚀", defaultOptions, 3 + 2 + 2},
 	}
 
 	for _, tt := range tests {
@@ -89,121 +91,121 @@ func TestRuneWidth(t *testing.T) {
 		expected int
 	}{
 		// Control characters (width 0)
-		{"null char", '\x00', Options{}, 0},
-		{"bell", '\x07', Options{}, 0},
-		{"backspace", '\x08', Options{}, 0},
-		{"tab", '\t', Options{}, 0},
-		{"newline", '\n', Options{}, 0},
-		{"carriage return", '\r', Options{}, 0},
-		{"escape", '\x1B', Options{}, 0},
-		{"delete", '\x7F', Options{}, 0},
+		{"null char", '\x00', defaultOptions, 0},
+		{"bell", '\x07', defaultOptions, 0},
+		{"backspace", '\x08', defaultOptions, 0},
+		{"tab", '\t', defaultOptions, 0},
+		{"newline", '\n', defaultOptions, 0},
+		{"carriage return", '\r', defaultOptions, 0},
+		{"escape", '\x1B', defaultOptions, 0},
+		{"delete", '\x7F', defaultOptions, 0},
 
 		// Combining marks - when tested standalone as runes, they have width 0
 		// (In actual strings with grapheme clusters, they combine and have width 0)
-		{"combining grave accent", '\u0300', Options{}, 0},
-		{"combining acute accent", '\u0301', Options{}, 0},
-		{"combining diaeresis", '\u0308', Options{}, 0},
-		{"combining tilde", '\u0303', Options{}, 0},
+		{"combining grave accent", '\u0300', defaultOptions, 0},
+		{"combining acute accent", '\u0301', defaultOptions, 0},
+		{"combining diaeresis", '\u0308', defaultOptions, 0},
+		{"combining tilde", '\u0303', defaultOptions, 0},
 
 		// Zero width characters
-		{"zero width space", '\u200B', Options{}, 0},
-		{"zero width non-joiner", '\u200C', Options{}, 0},
-		{"zero width joiner", '\u200D', Options{}, 0},
+		{"zero width space", '\u200B', defaultOptions, 0},
+		{"zero width non-joiner", '\u200C', defaultOptions, 0},
+		{"zero width joiner", '\u200D', defaultOptions, 0},
 
 		// ASCII printable (width 1)
-		{"space", ' ', Options{}, 1},
-		{"letter a", 'a', Options{}, 1},
-		{"letter Z", 'Z', Options{}, 1},
-		{"digit 0", '0', Options{}, 1},
-		{"digit 9", '9', Options{}, 1},
-		{"exclamation", '!', Options{}, 1},
-		{"at sign", '@', Options{}, 1},
-		{"tilde", '~', Options{}, 1},
+		{"space", ' ', defaultOptions, 1},
+		{"letter a", 'a', defaultOptions, 1},
+		{"letter Z", 'Z', defaultOptions, 1},
+		{"digit 0", '0', defaultOptions, 1},
+		{"digit 9", '9', defaultOptions, 1},
+		{"exclamation", '!', defaultOptions, 1},
+		{"at sign", '@', defaultOptions, 1},
+		{"tilde", '~', defaultOptions, 1},
 
 		// Latin extended (width 1)
-		{"latin e with acute", 'é', Options{}, 1},
-		{"latin n with tilde", 'ñ', Options{}, 1},
-		{"latin o with diaeresis", 'ö', Options{}, 1},
+		{"latin e with acute", 'é', defaultOptions, 1},
+		{"latin n with tilde", 'ñ', defaultOptions, 1},
+		{"latin o with diaeresis", 'ö', defaultOptions, 1},
 
 		// East Asian Wide characters
-		{"CJK ideograph", '中', Options{}, 2},
-		{"CJK ideograph", '文', Options{}, 2},
-		{"hiragana a", 'あ', Options{}, 2},
-		{"katakana a", 'ア', Options{}, 2},
-		{"hangul syllable", '가', Options{}, 2},
-		{"hangul syllable", '한', Options{}, 2},
+		{"CJK ideograph", '中', defaultOptions, 2},
+		{"CJK ideograph", '文', defaultOptions, 2},
+		{"hiragana a", 'あ', defaultOptions, 2},
+		{"katakana a", 'ア', defaultOptions, 2},
+		{"hangul syllable", '가', defaultOptions, 2},
+		{"hangul syllable", '한', defaultOptions, 2},
 
 		// Fullwidth characters
-		{"fullwidth A", 'Ａ', Options{}, 2},
-		{"fullwidth Z", 'Ｚ', Options{}, 2},
-		{"fullwidth 0", '０', Options{}, 2},
-		{"fullwidth 9", '９', Options{}, 2},
-		{"fullwidth exclamation", '！', Options{}, 2},
-		{"fullwidth space", '　', Options{}, 2},
+		{"fullwidth A", 'Ａ', defaultOptions, 2},
+		{"fullwidth Z", 'Ｚ', defaultOptions, 2},
+		{"fullwidth 0", '０', defaultOptions, 2},
+		{"fullwidth 9", '９', defaultOptions, 2},
+		{"fullwidth exclamation", '！', defaultOptions, 2},
+		{"fullwidth space", '　', defaultOptions, 2},
 
 		// Ambiguous characters - default narrow
-		{"black star default", '★', Options{}, 1},
-		{"degree sign default", '°', Options{}, 1},
-		{"plus-minus default", '±', Options{}, 1},
-		{"section sign default", '§', Options{}, 1},
-		{"copyright sign default", '©', Options{}, 1},
-		{"registered sign default", '®', Options{}, 1},
+		{"black star default", '★', defaultOptions, 1},
+		{"degree sign default", '°', defaultOptions, 1},
+		{"plus-minus default", '±', defaultOptions, 1},
+		{"section sign default", '§', defaultOptions, 1},
+		{"copyright sign default", '©', defaultOptions, 1},
+		{"registered sign default", '®', defaultOptions, 1},
 
 		// Ambiguous characters - EastAsianWidth wide
-		{"black star EAW", '★', Options{EastAsianWidth: true}, 2},
-		{"degree sign EAW", '°', Options{EastAsianWidth: true}, 2},
-		{"plus-minus EAW", '±', Options{EastAsianWidth: true}, 2},
-		{"section sign EAW", '§', Options{EastAsianWidth: true}, 2},
-		{"copyright sign EAW", '©', Options{EastAsianWidth: true}, 1}, // Not in ambiguous category
-		{"registered sign EAW", '®', Options{EastAsianWidth: true}, 2},
+		{"black star EAW", '★', eawOptions, 2},
+		{"degree sign EAW", '°', eawOptions, 2},
+		{"plus-minus EAW", '±', eawOptions, 2},
+		{"section sign EAW", '§', eawOptions, 2},
+		{"copyright sign EAW", '©', eawOptions, 1}, // Not in ambiguous category
+		{"registered sign EAW", '®', eawOptions, 2},
 
 		// Emoji (width 2)
-		{"grinning face", '😀', Options{}, 2},
-		{"grinning face with smiling eyes", '😁', Options{}, 2},
-		{"smiling face with heart-eyes", '😍', Options{}, 2},
-		{"thinking face", '🤔', Options{}, 2},
-		{"rocket", '🚀', Options{}, 2},
-		{"party popper", '🎉', Options{}, 2},
-		{"fire", '🔥', Options{}, 2},
-		{"thumbs up", '👍', Options{}, 2},
-		{"red heart", '❤', Options{}, 1},      // Text presentation by default
-		{"checkered flag", '🏁', Options{}, 2}, // U+1F3C1 chequered flag
+		{"grinning face", '😀', defaultOptions, 2},
+		{"grinning face with smiling eyes", '😁', defaultOptions, 2},
+		{"smiling face with heart-eyes", '😍', defaultOptions, 2},
+		{"thinking face", '🤔', defaultOptions, 2},
+		{"rocket", '🚀', defaultOptions, 2},
+		{"party popper", '🎉', defaultOptions, 2},
+		{"fire", '🔥', defaultOptions, 2},
+		{"thumbs up", '👍', defaultOptions, 2},
+		{"red heart", '❤', defaultOptions, 1},      // Text presentation by default
+		{"checkered flag", '🏁', defaultOptions, 2}, // U+1F3C1 chequered flag
 
 		// Mathematical symbols
-		{"infinity", '∞', Options{}, 1},
-		{"summation", '∑', Options{}, 1},
-		{"integral", '∫', Options{}, 1},
-		{"square root", '√', Options{}, 1},
+		{"infinity", '∞', defaultOptions, 1},
+		{"summation", '∑', defaultOptions, 1},
+		{"integral", '∫', defaultOptions, 1},
+		{"square root", '√', defaultOptions, 1},
 
 		// Currency symbols
-		{"dollar", '$', Options{}, 1},
-		{"euro", '€', Options{}, 1},
-		{"pound", '£', Options{}, 1},
-		{"yen", '¥', Options{}, 1},
+		{"dollar", '$', defaultOptions, 1},
+		{"euro", '€', defaultOptions, 1},
+		{"pound", '£', defaultOptions, 1},
+		{"yen", '¥', defaultOptions, 1},
 
 		// Box drawing characters
-		{"box light horizontal", '─', Options{}, 1},
-		{"box light vertical", '│', Options{}, 1},
-		{"box light down and right", '┌', Options{}, 1},
+		{"box light horizontal", '─', defaultOptions, 1},
+		{"box light vertical", '│', defaultOptions, 1},
+		{"box light down and right", '┌', defaultOptions, 1},
 
 		// Special Unicode characters
-		{"bullet", '•', Options{}, 1},
-		{"ellipsis", '…', Options{}, 1},
-		{"em dash", '—', Options{}, 1},
-		{"left single quote", '\u2018', Options{}, 1},
-		{"right single quote", '\u2019', Options{}, 1},
+		{"bullet", '•', defaultOptions, 1},
+		{"ellipsis", '…', defaultOptions, 1},
+		{"em dash", '—', defaultOptions, 1},
+		{"left single quote", '\u2018', defaultOptions, 1},
+		{"right single quote", '\u2019', defaultOptions, 1},
 
 		// Test edge cases with options disabled
-		{"ambiguous EAW disabled", '★', Options{EastAsianWidth: false}, 1},
+		{"ambiguous EAW disabled", '★', defaultOptions, 1},
 
 		// Variation selectors (note: Rune() tests single runes without VS, not sequences)
-		{"☺ U+263A text default", '☺', Options{}, 1},    // Has text presentation by default
-		{"⌛ U+231B emoji default", '⌛', Options{}, 2},   // Has emoji presentation by default
-		{"❤ U+2764 text default", '❤', Options{}, 1},    // Has text presentation by default
-		{"✂ U+2702 text default", '✂', Options{}, 1},    // Has text presentation by default
-		{"VS16 U+FE0F alone", '\ufe0f', Options{}, 0},   // Variation selectors are zero-width by themselves
-		{"VS15 U+FE0E alone", '\ufe0e', Options{}, 0},   // Variation selectors are zero-width by themselves
-		{"keycap U+20E3 alone", '\u20e3', Options{}, 0}, // Combining enclosing keycap is zero-width alone
+		{"☺ U+263A text default", '☺', defaultOptions, 1},    // Has text presentation by default
+		{"⌛ U+231B emoji default", '⌛', defaultOptions, 2},   // Has emoji presentation by default
+		{"❤ U+2764 text default", '❤', defaultOptions, 1},    // Has text presentation by default
+		{"✂ U+2702 text default", '✂', defaultOptions, 1},    // Has text presentation by default
+		{"VS16 U+FE0F alone", '\ufe0f', defaultOptions, 0},   // Variation selectors are zero-width by themselves
+		{"VS15 U+FE0E alone", '\ufe0e', defaultOptions, 0},   // Variation selectors are zero-width by themselves
+		{"keycap U+20E3 alone", '\u20e3', defaultOptions, 0}, // Combining enclosing keycap is zero-width alone
 	}
 
 	for _, tt := range tests {
@@ -224,18 +226,18 @@ func TestCalculateWidth(t *testing.T) {
 		options  Options
 		expected int
 	}{ // Zero width
-		{"zero width", _ZeroWidth, Options{}, 0},
+		{"zero width", _ZeroWidth, defaultOptions, 0},
 
 		// East Asian Wide
-		{"EAW fullwidth", _East_Asian_Full_Wide, Options{}, 2},
-		{"EAW wide", _East_Asian_Full_Wide, Options{}, 2},
+		{"EAW fullwidth", _East_Asian_Full_Wide, defaultOptions, 2},
+		{"EAW wide", _East_Asian_Full_Wide, defaultOptions, 2},
 
 		// East Asian Ambiguous
-		{"EAW ambiguous default", _East_Asian_Ambiguous, Options{}, 1},
-		{"EAW ambiguous EAW", _East_Asian_Ambiguous, Options{EastAsianWidth: true}, 2},
+		{"EAW ambiguous default", _East_Asian_Ambiguous, defaultOptions, 1},
+		{"EAW ambiguous EAW", _East_Asian_Ambiguous, eawOptions, 2},
 
 		// Default (no properties set)
-		{"default", 0, Options{}, 1},
+		{"default", 0, defaultOptions, 1},
 	}
 
 	for _, tt := range tests {

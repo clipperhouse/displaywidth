@@ -70,11 +70,9 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 			name:  "Flags",
 			input: "🇺🇸🇯🇵🇬🇧",
 			expected: map[string]int{
-				"displaywidth_default":      6, // StrictEmojiNeutral=true (default)
-				"displaywidth_options{}":    3, // StrictEmojiNeutral=false (zero value)
-				"displaywidth_strict_false": 3,
-				"displaywidth_strict_true":  6,
-				"go-runewidth_default":      3, // go-runewidth default behavior
+				"displaywidth_default":      6, // flags are always width 2 (modern standard)
+				"displaywidth_options{}":    6, // same as default
+				"go-runewidth_default":      3, // go-runewidth treats flags as width 1
 				"go-runewidth_strict_false": 3,
 				"go-runewidth_strict_true":  3, // go-runewidth always returns 1 for flags
 				"uniseg_default":            6, // uniseg treats flags as width 2
@@ -111,8 +109,8 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 			input: "Hello 世界! 😀🇺🇸",
 			expected: map[string]int{
 				"displaywidth_default":   16, // 6 + 4 + 2 + 2 + 2
-				"displaywidth_options{}": 15, // 6 + 4 + 2 + 2 + 1
-				"go-runewidth_default":   15, // 6 + 4 + 2 + 2 + 1
+				"displaywidth_options{}": 16, // same as default
+				"go-runewidth_default":   15, // 6 + 4 + 2 + 2 + 1 (flags are width 1)
 				"uniseg_default":         16, // 6 + 4 + 2 + 2 + 2
 			},
 		},
@@ -140,27 +138,11 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 				}
 			}
 
-			// Test displaywidth with zero-value options (StrictEmojiNeutral=false)
-			displaywidthZero := displaywidth.Options{}.String(tc.input)
+			// Test displaywidth with zero-value options (should behave same as default)
+			displaywidthZero := displaywidth.String(tc.input)
 			if expected, ok := tc.expected["displaywidth_options{}"]; ok {
 				if displaywidthZero != expected {
-					t.Errorf("displaywidth.Options{}.String() = %d, want %d", displaywidthZero, expected)
-				}
-			}
-
-			// Test displaywidth with explicit StrictEmojiNeutral=false
-			displaywidthStrictFalse := displaywidth.Options{StrictEmojiNeutral: false}.String(tc.input)
-			if expected, ok := tc.expected["displaywidth_strict_false"]; ok {
-				if displaywidthStrictFalse != expected {
-					t.Errorf("displaywidth.Options{StrictEmojiNeutral: false}.String() = %d, want %d", displaywidthStrictFalse, expected)
-				}
-			}
-
-			// Test displaywidth with explicit StrictEmojiNeutral=true
-			displaywidthStrictTrue := displaywidth.Options{StrictEmojiNeutral: true}.String(tc.input)
-			if expected, ok := tc.expected["displaywidth_strict_true"]; ok {
-				if displaywidthStrictTrue != expected {
-					t.Errorf("displaywidth.Options{StrictEmojiNeutral: true}.String() = %d, want %d", displaywidthStrictTrue, expected)
+					t.Errorf("displaywidth.String() = %d, want %d", displaywidthZero, expected)
 				}
 			}
 
@@ -230,14 +212,12 @@ func TestFlagBehaviorDetailed(t *testing.T) {
 	flags := []string{"🇺🇸", "🇯🇵", "🇬🇧", "🇫🇷", "🇩🇪"}
 
 	t.Log("Flag behavior comparison:")
-	t.Log("Library | Default | StrictEmojiNeutral=false | StrictEmojiNeutral=true")
-	t.Log("--------|---------|-------------------------|------------------------")
+	t.Log("Library | displaywidth | go-runewidth (default) | go-runewidth (strict=false) | go-runewidth (strict=true) | uniseg")
+	t.Log("--------|--------------|------------------------|----------------------------|----------------------------|-------")
 
 	for _, flag := range flags {
-		// displaywidth
+		// displaywidth (always width 2, no StrictEmojiNeutral option)
 		displaywidthDefault := displaywidth.String(flag)
-		displaywidthStrictFalse := displaywidth.Options{StrictEmojiNeutral: false}.String(flag)
-		displaywidthStrictTrue := displaywidth.Options{StrictEmojiNeutral: true}.String(flag)
 
 		// go-runewidth
 		goRunewidthDefault := runewidth.StringWidth(flag)
@@ -247,26 +227,6 @@ func TestFlagBehaviorDetailed(t *testing.T) {
 		// uniseg
 		unisegDefault := uniseg.StringWidth(flag)
 
-		t.Logf("displaywidth | %d | %d | %d", displaywidthDefault, displaywidthStrictFalse, displaywidthStrictTrue)
-		t.Logf("go-runewidth | %d | %d | %d", goRunewidthDefault, goRunewidthStrictFalse, goRunewidthStrictTrue)
-		t.Logf("uniseg      | %d | N/A | N/A", unisegDefault)
-		t.Log("")
-	}
-}
-
-func TestEmojiNeutralBehavior(t *testing.T) {
-	// Test characters that are affected by StrictEmojiNeutral
-	neutralEmoji := []string{"❤", "✂", "☺", "⌛"}
-
-	t.Log("Emoji neutral behavior (characters that can be text or emoji):")
-	t.Log("Character | displaywidth default | displaywidth strict=false | go-runewidth default")
-	t.Log("-----------|---------------------|---------------------------|---------------------")
-
-	for _, char := range neutralEmoji {
-		displaywidthDefault := displaywidth.String(char)
-		displaywidthStrictFalse := displaywidth.Options{StrictEmojiNeutral: false}.String(char)
-		goRunewidthDefault := runewidth.StringWidth(char)
-
-		t.Logf("%s | %d | %d | %d", char, displaywidthDefault, displaywidthStrictFalse, goRunewidthDefault)
+		t.Logf("%s | %d | %d | %d | %d | %d", flag, displaywidthDefault, goRunewidthDefault, goRunewidthStrictFalse, goRunewidthStrictTrue, unisegDefault)
 	}
 }
