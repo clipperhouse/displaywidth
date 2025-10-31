@@ -1,28 +1,12 @@
-This package is for comparison of `clipperhouse/displaywidth` with the excellent
- `mattn/go-runewidth` and `rivo/uniseg` packages.
-
 ## Compatibility
 
 In real-world text, you mostly should see the same outputs from
 `clipperhouse/displaywidth`,`mattn/go-runewidth`, and `rivo/uniseg`. It's
-mostly the same data and logic. Run the various tests in this package to see
-the minor differences.
+mostly the same data and logic.
 
-All of these libraries (I believe) are based on the Unicode standards of
-[UAX #11 (East Asian Width)](https://www.unicode.org/reports/tr11/).
-`displaywidth` and `uniseg` support
-[UAX #51 (Unicode Emoji)](https://unicode.org/reports/tr51/).
-
-In each of those libraries, you almost certainly want to use the `String` or `StringWidth`
-methods. They operate on graphemes, not runes, which is what appears on your screen.
-
-`mattn/go-runewidth` has some automatic defaults based on a machine's locale and
-environment variables. `clipperhouse/displaywidth` does not, but you can set them
-manually with the `Options` struct.
-
-Some libraries choose to import both `go-runewidth` and `displaywidth`, branching
-to use `go-runewidth` where backwards compatibility is needed, and `displaywidth`
-otherwise.
+The tests in this package exercise the behaviors of the three libraries.
+Extensive details are available in the
+[compatibility analysis](COMPATIBILITY_ANALYSIS.md).
 
 ## Benchmarks
 

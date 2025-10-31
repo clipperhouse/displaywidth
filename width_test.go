@@ -59,7 +59,7 @@ func TestStringWidth(t *testing.T) {
 		{"keycap 1️⃣", "1️⃣", defaultOptions, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
 		{"keycap #️⃣", "#️⃣", defaultOptions, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
 
-		// Flags (regional indicator pairs form a single grapheme, width 1 by default, width 2 with StrictEmojiNeutral=true)
+		// Flags (regional indicator pairs form a single grapheme, always width 2 per TR51)
 		{"flag US", "🇺🇸", defaultOptions, 2},
 		{"flag JP", "🇯🇵", defaultOptions, 2},
 		{"text with flags", "Go 🇺🇸🚀", defaultOptions, 3 + 2 + 2},
