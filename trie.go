@@ -4,8 +4,7 @@ package displaywidth
 
 import "github.com/clipperhouse/stringish"
 
-// property represents the properties of a character as bit flags
-// The underlying type is uint8 since we only use 4 bits for flags.
+// property is an enum representing the properties of a character
 type property uint8
 
 const (

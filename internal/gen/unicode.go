@@ -23,7 +23,7 @@ type UnicodeData struct {
 	ZeroWidthChars       map[rune]bool   // Special zero-width characters
 }
 
-// property represents the properties of a character as bit flags
+// property represents the properties of a character
 type property uint8
 
 // PropertyDefinition describes a single character property flag
