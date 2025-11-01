@@ -11,7 +11,7 @@ import (
 // Investigate differences between displaywidth and go-runewidth.
 // Not meant to be a real test, more of a tool, but good to
 // fail if something changes in the future.
-func TestCompatibility(t *testing.T) {
+func TestAllRunes(t *testing.T) {
 	t.Skip("skipping compatibility test")
 	if unicode.Version < "15" {
 		// We only care about Unicode 15 and above,

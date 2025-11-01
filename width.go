@@ -24,13 +24,11 @@ func Rune(r rune) int {
 }
 
 type Options struct {
-	EastAsianWidth     bool
-	StrictEmojiNeutral bool
+	EastAsianWidth bool
 }
 
 var DefaultOptions = Options{
-	EastAsianWidth:     false,
-	StrictEmojiNeutral: true,
+	EastAsianWidth: false,
 }
 
 // String calculates the display width of a string
@@ -200,22 +198,27 @@ func (p property) width(options Options) int {
 	}
 
 	// Regional indicator pair (flag) grapheme cluster
-	// returns 1 under StrictEmojiNeutral=false, which
-	// is compatible with go-runewidth & uniseg.
-	if p.is(_RI_PAIR) && options.StrictEmojiNeutral {
+	// Always width 2, following modern Unicode standards (TR51)
+	if p.is(_RI_PAIR) {
 		return 2
 	}
 
-	if options.EastAsianWidth {
-		if p.is(_East_Asian_Ambiguous) {
-			return 2
-		}
-		if p.is(_East_Asian_Ambiguous|_Emoji) && !options.StrictEmojiNeutral {
-			return 2
-		}
+	// East Asian Width takes precedence when the option is enabled
+	// This ensures characters like ★ (U+2605) with EAW=Ambiguous
+	// are width 2 when EastAsianWidth=true, even if they have
+	// Extended_Pictographic without Emoji_Presentation
+	if options.EastAsianWidth && p.is(_East_Asian_Ambiguous) {
+		return 2
 	}
 
 	if p.is(_East_Asian_Full_Wide) {
+		return 2
+	}
+
+	// Extended_Pictographic characters with Emoji_Presentation have default width 2
+	// Extended_Pictographic without Emoji_Presentation have default width 1 (text presentation)
+	// This follows TR51 conformance for default emoji presentation
+	if p.is(_Extended_Pictographic) && p.is(_Emoji_Presentation) {
 		return 2
 	}
 

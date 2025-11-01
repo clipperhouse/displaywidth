@@ -36,13 +36,11 @@ For most purposes, you should use the `String` or `Bytes` methods.
 
 ### Options
 
-You can specify East Asian Width and Strict Emoji Neutral settings. If
-unspecified, the default is `EastAsianWidth: false, StrictEmojiNeutral: true`.
+You can specify East Asian Width settings. If unspecified, the default is `EastAsianWidth: false`.
 
 ```go
 options := displaywidth.Options{
-    EastAsianWidth:     true,
-    StrictEmojiNeutral: false,
+    EastAsianWidth: true,
 }
 
 width := options.String("Hello, 世界!")
@@ -55,7 +53,7 @@ This package implements the Unicode East Asian Width standard
 ([UAX #11](https://www.unicode.org/reports/tr11/)), and handles
 [version selectors](https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)),
 and [regional indicator pairs](https://en.wikipedia.org/wiki/Regional_indicator_symbol)
-(flags). It operates on bytes without decoding runes for better performance.
+(flags). We cover much of [Unicode TR51](https://unicode.org/reports/tr51/).
 
 ## Prior Art
 
@@ -79,33 +77,34 @@ goos: darwin
 goarch: arm64
 pkg: github.com/clipperhouse/displaywidth/comparison
 cpu: Apple M2
-BenchmarkStringDefault/clipperhouse/displaywidth-8           11124 ns/op	 151.66 MB/s	  0 B/op	   0 allocs/op
-BenchmarkStringDefault/mattn/go-runewidth-8                  14209 ns/op	 118.73 MB/s	  0 B/op	   0 allocs/op
-BenchmarkStringDefault/rivo/uniseg-8                         19287 ns/op	  87.47 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_EAW/clipperhouse/displaywidth-8              11134 ns/op	 151.52 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_EAW/mattn/go-runewidth-8                     23793 ns/op	  70.90 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_EAW/rivo/uniseg-8                            19593 ns/op	  86.10 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_StrictEmoji/clipperhouse/displaywidth-8      11124 ns/op	 151.65 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_StrictEmoji/mattn/go-runewidth-8             14310 ns/op	 117.89 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_StrictEmoji/rivo/uniseg-8                    19699 ns/op	  85.64 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ASCII/clipperhouse/displaywidth-8             1107 ns/op	 115.64 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ASCII/mattn/go-runewidth-8                    1174 ns/op	 109.04 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ASCII/rivo/uniseg-8                           1582 ns/op	  80.93 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Unicode/clipperhouse/displaywidth-8            959.7 ns/op	 138.59 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Unicode/mattn/go-runewidth-8                  1422 ns/op	  93.53 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Unicode/rivo/uniseg-8                         2032 ns/op	  65.47 MB/s	  0 B/op	   0 allocs/op
-BenchmarkStringWidth_Emoji/clipperhouse/displaywidth-8        3230 ns/op	 224.17 MB/s	  0 B/op	   0 allocs/op
-BenchmarkStringWidth_Emoji/mattn/go-runewidth-8               4826 ns/op	 150.03 MB/s	  0 B/op	   0 allocs/op
-BenchmarkStringWidth_Emoji/rivo/uniseg-8                      6582 ns/op	 109.99 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Mixed/clipperhouse/displaywidth-8             4094 ns/op	 123.83 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Mixed/mattn/go-runewidth-8                    4612 ns/op	 109.92 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_Mixed/rivo/uniseg-8                           6312 ns/op	  80.32 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ControlChars/clipperhouse/displaywidth-8       346.7 ns/op	  95.19 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ControlChars/mattn/go-runewidth-8              365.0 ns/op	  90.42 MB/s	  0 B/op	   0 allocs/op
-BenchmarkString_ControlChars/rivo/uniseg-8                     408.9 ns/op	  80.70 MB/s	  0 B/op	   0 allocs/op
-```
+BenchmarkString_Mixed/clipperhouse/displaywidth-8      	     11290 ns/op	   149.42 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_Mixed/mattn/go-runewidth-8             	     14439 ns/op	   116.84 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_Mixed/rivo/uniseg-8                    	     20076 ns/op	    84.03 MB/s     0 B/op	   0 allocs/op
 
-I use a similar technique in [this grapheme cluster library](https://github.com/clipperhouse/uax29).
+BenchmarkString_EastAsian/clipperhouse/displaywidth-8  	     11248 ns/op	   149.98 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_EastAsian/mattn/go-runewidth-8         	     24063 ns/op	    70.11 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_EastAsian/rivo/uniseg-8                	     20051 ns/op	    84.14 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkString_ASCII/clipperhouse/displaywidth-8      	      1116 ns/op	   114.71 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_ASCII/mattn/go-runewidth-8             	      1182 ns/op	   108.27 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_ASCII/rivo/uniseg-8                    	      1620 ns/op	    79.04 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkString_Emoji/clipperhouse/displaywidth-8      	      3264 ns/op	   221.82 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_Emoji/mattn/go-runewidth-8             	      4804 ns/op	   150.71 MB/s     0 B/op	   0 allocs/op
+BenchmarkString_Emoji/rivo/uniseg-8                    	      6783 ns/op	   106.74 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkRune_Mixed/clipperhouse/displaywidth-8        	      3759 ns/op	   448.83 MB/s     0 B/op	   0 allocs/op
+BenchmarkRune_Mixed/mattn/go-runewidth-8               	      5417 ns/op	   311.40 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkRune_EastAsian/clipperhouse/displaywidth-8    	      3678 ns/op	   458.69 MB/s     0 B/op	   0 allocs/op
+BenchmarkRune_EastAsian/mattn/go-runewidth-8           	     15908 ns/op	   106.05 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkRune_ASCII/clipperhouse/displaywidth-8        	       265.2 ns/op	   482.70 MB/s     0 B/op	   0 allocs/op
+BenchmarkRune_ASCII/mattn/go-runewidth-8               	       265.2 ns/op	   482.67 MB/s     0 B/op	   0 allocs/op
+
+BenchmarkRune_Emoji/clipperhouse/displaywidth-8        	      1522 ns/op	   475.65 MB/s     0 B/op	   0 allocs/op
+BenchmarkRune_Emoji/mattn/go-runewidth-8               	      2295 ns/op	   315.53 MB/s     0 B/op	   0 allocs/op
+```
 
 ## Compatibility
 

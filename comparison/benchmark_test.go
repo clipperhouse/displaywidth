@@ -92,8 +92,29 @@ func loadTestCases() ([]TestCase, int64, error) {
 	return testCases, int64(totalBytes), nil
 }
 
-// BenchmarkStringDefault benchmarks our displaywidth package
-func BenchmarkStringDefault(b *testing.B) {
+var (
+	// Shared test data for benchmarks
+	asciiTestStrings = []string{
+		"hello",
+		"Hello World",
+		"1234567890",
+		"!@#$%^&*()",
+		"This is a very long string with many characters to test performance of both implementations.",
+	}
+
+	emojiTestStrings = []string{
+		"😀 😁 😂 🤣 😃 😄 😅 😆 😉 😊",
+		"🚀 🎉 🎊 🎈 🎁 🎂 🎃 🎄 🎆 🎇",
+		"👨‍👩‍👧‍👦 👨‍💻 👩‍🔬 👨‍🎨 👩‍🚀",
+		"🇺🇸 🇬🇧 🇫🇷 🇩🇪 🇯🇵 🇰🇷 🇨🇳",
+		"Hello 世界! 😀",
+		"👨‍💻 working on 🚀",
+		"😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾",
+	}
+)
+
+// BenchmarkString_Mixed benchmarks our displaywidth package
+func BenchmarkString_Mixed(b *testing.B) {
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
 		testCases, n, err := loadTestCases()
 		if err != nil {
@@ -105,7 +126,7 @@ func BenchmarkStringDefault(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			for _, tc := range testCases {
-				// Test with default settings (eastAsianWidth=false, strictEmojiNeutral=false)
+				// Test with default settings (eastAsianWidth=false)
 				_ = displaywidth.String(tc.Input)
 			}
 		}
@@ -144,15 +165,13 @@ func BenchmarkStringDefault(b *testing.B) {
 	})
 }
 
-func BenchmarkString_EAW(b *testing.B) {
+func BenchmarkString_EastAsian(b *testing.B) {
 	options := displaywidth.Options{
-		EastAsianWidth:     true,
-		StrictEmojiNeutral: false,
+		EastAsianWidth: true,
 	}
 
 	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
+		EastAsianWidth: true,
 	}
 
 	// Save original value and restore after benchmark
@@ -217,82 +236,10 @@ func BenchmarkString_EAW(b *testing.B) {
 	})
 }
 
-// BenchmarkString_StrictEmoji benchmarks our package with strict emoji neutral
-func BenchmarkString_StrictEmoji(b *testing.B) {
-	options := displaywidth.Options{
-		EastAsianWidth:     false,
-		StrictEmojiNeutral: true,
-	}
-
-	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
-	}
-
-	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		testCases, n, err := loadTestCases()
-		if err != nil {
-			b.Fatalf("Failed to load test cases: %v", err)
-		}
-		b.SetBytes(n)
-		b.ReportAllocs()
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			for _, tc := range testCases {
-				// Test with strict emoji neutral enabled
-				_ = options.String(tc.Input)
-			}
-		}
-	})
-
-	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		testCases, n, err := loadTestCases()
-		if err != nil {
-			b.Fatalf("Failed to load test cases: %v", err)
-		}
-		b.SetBytes(n)
-		b.ReportAllocs()
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			for _, tc := range testCases {
-				_ = condition.StringWidth(tc.Input)
-			}
-		}
-	})
-
-	b.Run("rivo/uniseg", func(b *testing.B) {
-		// Note: rivo/uniseg doesn't have an equivalent to StrictEmojiNeutral
-		// It uses emoji presentation properties directly
-		testCases, n, err := loadTestCases()
-		if err != nil {
-			b.Fatalf("Failed to load test cases: %v", err)
-		}
-		b.SetBytes(n)
-		b.ReportAllocs()
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			for _, tc := range testCases {
-				_ = uniseg.StringWidth(tc.Input)
-			}
-		}
-	})
-}
-
 // BenchmarkString_ASCII benchmarks ASCII-only strings
 func BenchmarkString_ASCII(b *testing.B) {
-	asciiStrings := []string{
-		"hello",
-		"Hello World",
-		"1234567890",
-		"!@#$%^&*()",
-		"This is a very long string with many characters to test performance of both implementations.",
-	}
-
 	n := 0
-	for _, s := range asciiStrings {
+	for _, s := range asciiTestStrings {
 		n += len(s)
 	}
 
@@ -302,7 +249,7 @@ func BenchmarkString_ASCII(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			for _, s := range asciiStrings {
+			for _, s := range asciiTestStrings {
 				_ = displaywidth.String(s)
 			}
 		}
@@ -314,7 +261,7 @@ func BenchmarkString_ASCII(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			for _, s := range asciiStrings {
+			for _, s := range asciiTestStrings {
 				_ = runewidth.StringWidth(s)
 			}
 		}
@@ -326,32 +273,17 @@ func BenchmarkString_ASCII(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			for _, s := range asciiStrings {
+			for _, s := range asciiTestStrings {
 				_ = uniseg.StringWidth(s)
 			}
 		}
 	})
 }
 
-// BenchmarkString_Unicode benchmarks Unicode strings
-func BenchmarkString_Unicode(b *testing.B) {
-	unicodeStrings := []string{
-		"café",
-		"naïve",
-		"résumé",
-		"Zürich",
-		"São Paulo",
-		"中文",
-		"こんにちは",
-		"안녕하세요",
-		"Hello 世界",
-		"★ ☆ ♠ ♣ ♥ ♦",
-		"° ± × ÷",
-		"← → ↑ ↓",
-	}
-
+// BenchmarkString_Emoji benchmarks emoji strings
+func BenchmarkString_Emoji(b *testing.B) {
 	n := 0
-	for _, s := range unicodeStrings {
+	for _, s := range emojiTestStrings {
 		n += len(s)
 	}
 
@@ -360,7 +292,7 @@ func BenchmarkString_Unicode(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			for _, s := range unicodeStrings {
+			for _, s := range emojiTestStrings {
 				_ = displaywidth.String(s)
 			}
 		}
@@ -371,7 +303,7 @@ func BenchmarkString_Unicode(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			for _, s := range unicodeStrings {
+			for _, s := range emojiTestStrings {
 				_ = runewidth.StringWidth(s)
 			}
 		}
@@ -382,198 +314,28 @@ func BenchmarkString_Unicode(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			for _, s := range unicodeStrings {
+			for _, s := range emojiTestStrings {
 				_ = uniseg.StringWidth(s)
 			}
 		}
 	})
 }
 
-// BenchmarkStringWidth_Emoji benchmarks emoji strings
-func BenchmarkStringWidth_Emoji(b *testing.B) {
-	emojiStrings := []string{
-		"😀 😁 😂 🤣 😃 😄 😅 😆 😉 😊",
-		"🚀 🎉 🎊 🎈 🎁 🎂 🎃 🎄 🎆 🎇",
-		"👨‍👩‍👧‍👦 👨‍💻 👩‍🔬 👨‍🎨 👩‍🚀",
-		"🇺🇸 🇬🇧 🇫🇷 🇩🇪 🇯🇵 🇰🇷 🇨🇳",
-		"Hello 世界! 😀",
-		"👨‍💻 working on 🚀",
-		"😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚☺️🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙃🤑😲☹️🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😳🤪😵😡😠🤬😷🤒🤕🤢🤮🤧😇🤠🤡🥳🥴🥺🤥🤫🤭🧐🤓😈👿💀☠️👹👺🤖👽👾💩😺😸😹😻😼😽🙀😿😾",
+// BenchmarkRune_Mixed benchmarks rune width calculation using test cases
+func BenchmarkRune_Mixed(b *testing.B) {
+	testCases, _, err := loadTestCases()
+	if err != nil {
+		b.Fatalf("Failed to load test cases: %v", err)
 	}
 
+	// Convert all strings to []rune
+	var testRunes []rune
 	n := 0
-	for _, s := range emojiStrings {
-		n += len(s)
+	for _, tc := range testCases {
+		runes := []rune(tc.Input)
+		testRunes = append(testRunes, runes...)
+		n += len(tc.Input)
 	}
-
-	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range emojiStrings {
-				_ = displaywidth.String(s)
-			}
-		}
-	})
-
-	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range emojiStrings {
-				_ = runewidth.StringWidth(s)
-			}
-		}
-	})
-
-	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range emojiStrings {
-				_ = uniseg.StringWidth(s)
-			}
-		}
-	})
-}
-
-// BenchmarkString_Mixed benchmarks mixed content strings
-func BenchmarkString_Mixed(b *testing.B) {
-	mixedStrings := []string{
-		"Hello 世界! 😀",
-		"Price: $100.00 €85.50",
-		"Math: ∑(x²) = ∞",
-		"Emoji sequence: 👨‍💻 working on 🚀",
-		"Mixed script: Hello 世界 안녕하세요 こんにちは",
-		"This is a very long string with many characters to test performance of both implementations. It contains various character types including ASCII, Unicode, emoji, and special symbols. The purpose is to see how both packages handle longer strings and whether there are any performance differences or edge cases that emerge with more complex input.",
-	}
-
-	n := 0
-	for _, s := range mixedStrings {
-		n += len(s)
-	}
-	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range mixedStrings {
-				_ = displaywidth.String(s)
-			}
-		}
-	})
-
-	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range mixedStrings {
-				_ = runewidth.StringWidth(s)
-			}
-		}
-	})
-
-	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range mixedStrings {
-				_ = uniseg.StringWidth(s)
-			}
-		}
-	})
-}
-
-// BenchmarkString_ControlChars benchmarks control characters
-func BenchmarkString_ControlChars(b *testing.B) {
-	controlStrings := []string{
-		"\n",
-		"\t",
-		"\r",
-		"\b",
-		"\x00",
-		"\x7f",
-		"hello\nworld",
-		"hello\tworld",
-		" \t \n ",
-	}
-
-	n := 0
-	for _, s := range controlStrings {
-		n += len(s)
-	}
-
-	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range controlStrings {
-				_ = displaywidth.String(s)
-			}
-		}
-	})
-
-	b.Run("mattn/go-runewidth", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range controlStrings {
-				_ = runewidth.StringWidth(s)
-			}
-		}
-	})
-
-	b.Run("rivo/uniseg", func(b *testing.B) {
-		b.SetBytes(int64(n))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for _, s := range controlStrings {
-				_ = uniseg.StringWidth(s)
-			}
-		}
-	})
-}
-
-// BenchmarkRuneDefault benchmarks rune width calculation
-func BenchmarkRuneDefault(b *testing.B) {
-	testRunes := []rune{
-		// Control characters
-		'\x00', '\t', '\n', '\r', '\x7F',
-		// ASCII printable
-		' ', 'a', 'Z', '0', '9', '!', '@', '~',
-		// Latin extended
-		'é', 'ñ', 'ö',
-		// East Asian Wide
-		'中', '文', 'あ', 'ア', '가', '한',
-		// Fullwidth
-		'Ａ', 'Ｚ', '０', '９', '！', '　',
-		// Ambiguous
-		'★', '°', '±', '§', '©', '®',
-		// Emoji
-		'😀', '😁', '😍', '🤔', '🚀', '🎉', '🔥', '👍',
-		// Mathematical symbols
-		'∞', '∑', '∫', '√',
-		// Currency
-		'$', '€', '£', '¥',
-		// Box drawing
-		'─', '│', '┌',
-		// Special Unicode
-		'•', '…', '—',
-	}
-
-	n := 0
-	for _, r := range testRunes {
-		n += len(string(r))
-	}
-	b.SetBytes(int64(n))
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
 		b.SetBytes(int64(n))
@@ -598,29 +360,28 @@ func BenchmarkRuneDefault(b *testing.B) {
 	})
 }
 
-// BenchmarkRuneWidth_EAW benchmarks rune width with East Asian Width option
-func BenchmarkRuneWidth_EAW(b *testing.B) {
+// BenchmarkRune_EastAsian benchmarks rune width with East Asian Width option
+func BenchmarkRune_EastAsian(b *testing.B) {
 	options := displaywidth.Options{
-		EastAsianWidth:     true,
-		StrictEmojiNeutral: false,
+		EastAsianWidth: true,
 	}
 
 	condition := &runewidth.Condition{
-		EastAsianWidth:     options.EastAsianWidth,
-		StrictEmojiNeutral: options.StrictEmojiNeutral,
+		EastAsianWidth: true,
 	}
 
-	// Focus on ambiguous characters that are affected by EastAsianWidth
-	testRunes := []rune{
-		'★', '°', '±', '§', '©', '®',
-		'中', '文', 'あ', 'ア', '가', '한',
-		'Ａ', 'Ｚ', '０', '９',
-		'😀', '🚀', '🎉',
+	testCases, _, err := loadTestCases()
+	if err != nil {
+		b.Fatalf("Failed to load test cases: %v", err)
 	}
 
+	// Convert all strings to []rune
+	var testRunes []rune
 	n := 0
-	for _, r := range testRunes {
-		n += len(string(r))
+	for _, tc := range testCases {
+		runes := []rune(tc.Input)
+		testRunes = append(testRunes, runes...)
+		n += len(tc.Input)
 	}
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
@@ -632,7 +393,6 @@ func BenchmarkRuneWidth_EAW(b *testing.B) {
 				_ = options.Rune(r)
 			}
 		}
-
 	})
 
 	b.Run("mattn/go-runewidth", func(b *testing.B) {
@@ -647,20 +407,16 @@ func BenchmarkRuneWidth_EAW(b *testing.B) {
 	})
 }
 
-// BenchmarkRuneWidth_ASCII benchmarks ASCII rune width calculation
-func BenchmarkRuneWidth_ASCII(b *testing.B) {
-	asciiRunes := []rune{
-		' ', 'a', 'b', 'c', 'x', 'y', 'z',
-		'A', 'B', 'C', 'X', 'Y', 'Z',
-		'0', '1', '2', '3', '8', '9',
-		'!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-	}
-
+// BenchmarkRune_ASCII benchmarks ASCII rune width calculation
+func BenchmarkRune_ASCII(b *testing.B) {
+	// Convert ASCII strings to []rune
+	var asciiRunes []rune
 	n := 0
-	for _, r := range asciiRunes {
-		n += len(string(r))
+	for _, s := range asciiTestStrings {
+		runes := []rune(s)
+		asciiRunes = append(asciiRunes, runes...)
+		n += len(s)
 	}
-	b.SetBytes(int64(n))
 
 	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
 		b.SetBytes(int64(n))
@@ -679,6 +435,40 @@ func BenchmarkRuneWidth_ASCII(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			for _, r := range asciiRunes {
+				_ = runewidth.RuneWidth(r)
+			}
+		}
+	})
+}
+
+// BenchmarkRune_Emoji benchmarks emoji rune width calculation
+func BenchmarkRune_Emoji(b *testing.B) {
+	// Convert emoji strings to []rune
+	var emojiRunes []rune
+	n := 0
+	for _, s := range emojiTestStrings {
+		runes := []rune(s)
+		emojiRunes = append(emojiRunes, runes...)
+		n += len(s)
+	}
+
+	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range emojiRunes {
+				_ = displaywidth.Rune(r)
+			}
+		}
+	})
+
+	b.Run("mattn/go-runewidth", func(b *testing.B) {
+		b.SetBytes(int64(n))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			for _, r := range emojiRunes {
 				_ = runewidth.RuneWidth(r)
 			}
 		}

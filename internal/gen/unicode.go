@@ -15,11 +15,12 @@ import (
 
 // UnicodeData contains all the parsed Unicode character properties
 type UnicodeData struct {
-	EastAsianWidth map[rune]string // From EastAsianWidth.txt
-	EmojiData      map[rune]bool   // From emoji-data.txt
-	ControlChars   map[rune]bool   // From Go stdlib
-	CombiningMarks map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
-	ZeroWidthChars map[rune]bool   // Special zero-width characters
+	EastAsianWidth       map[rune]string // From EastAsianWidth.txt
+	ExtendedPictographic map[rune]bool   // From emoji-data.txt (Extended_Pictographic property)
+	EmojiPresentation    map[rune]bool   // From emoji-data.txt (Emoji_Presentation property)
+	ControlChars         map[rune]bool   // From Go stdlib
+	CombiningMarks       map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
+	ZeroWidthChars       map[rune]bool   // Special zero-width characters
 }
 
 // property represents the properties of a character as bit flags
@@ -36,7 +37,8 @@ type PropertyDefinition struct {
 var PropertyDefinitions = []PropertyDefinition{
 	{"East_Asian_Full_Wide", "Always 2 wide"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Emoji", "Width depends on EastAsianWidth and StrictEmojiNeutral options"},
+	{"Extended_Pictographic", "Extended pictographic character (from emoji-data.txt)"},
+	{"Emoji_Presentation", "Has default emoji presentation (width 2 unless overridden by VS15)"},
 	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"VS15", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 	{"VS16", "VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation (width 2); not in the trie, see [width]"},
@@ -44,20 +46,22 @@ var PropertyDefinitions = []PropertyDefinition{
 }
 
 const (
-	East_Asian_Full_Wide property = 1 << iota // F, W
-	East_Asian_Ambiguous                      // A
-	Emoji                                     // Emoji base characters
-	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
+	East_Asian_Full_Wide  property = 1 << iota // F, W
+	East_Asian_Ambiguous                       // A
+	Extended_Pictographic                      // Extended_Pictographic from emoji-data
+	Emoji_Presentation                         // Emoji_Presentation from emoji-data
+	ZeroWidth                                  // ZWSP, ZWJ, ZWNJ, etc.
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
 func ParseUnicodeData() (*UnicodeData, error) {
 	data := &UnicodeData{
-		EastAsianWidth: make(map[rune]string),
-		EmojiData:      make(map[rune]bool),
-		ControlChars:   make(map[rune]bool),
-		CombiningMarks: make(map[rune]bool),
-		ZeroWidthChars: make(map[rune]bool),
+		EastAsianWidth:       make(map[rune]string),
+		ExtendedPictographic: make(map[rune]bool),
+		EmojiPresentation:    make(map[rune]bool),
+		ControlChars:         make(map[rune]bool),
+		CombiningMarks:       make(map[rune]bool),
+		ZeroWidthChars:       make(map[rune]bool),
 	}
 
 	// Create data directory
@@ -68,16 +72,16 @@ func ParseUnicodeData() (*UnicodeData, error) {
 
 	// Download and parse EastAsianWidth.txt
 	eawFile := filepath.Join(dataDir, "EastAsianWidth.txt")
-	if err := downloadFile("https://unicode.org/Public/UCD/15.1.0/ucd/EastAsianWidth.txt", eawFile); err != nil {
+	if err := downloadFile("https://unicode.org/Public/16.0.0/ucd/EastAsianWidth.txt", eawFile); err != nil {
 		return nil, fmt.Errorf("failed to download EastAsianWidth.txt: %v", err)
 	}
 	if err := parseEastAsianWidth(eawFile, data); err != nil {
 		return nil, fmt.Errorf("failed to parse EastAsianWidth.txt: %v", err)
 	}
 
-	// Download and parse emoji-data.txt (use same version as go-runewidth for compatibility)
+	// Download and parse emoji-data.txt (Unicode 16.0.0 / Emoji 16.0)
 	emojiFile := filepath.Join(dataDir, "emoji-data.txt")
-	if err := downloadFile("https://unicode.org/Public/15.1.0/ucd/emoji/emoji-data.txt", emojiFile); err != nil {
+	if err := downloadFile("https://unicode.org/Public/16.0.0/ucd/emoji/emoji-data.txt", emojiFile); err != nil {
 		fmt.Printf("Warning: failed to download emoji-data.txt: %v\n", err)
 		fmt.Println("Continuing with basic emoji detection from Go stdlib...")
 	} else {
@@ -182,7 +186,7 @@ func parseEastAsianWidth(filename string, data *UnicodeData) error {
 	return scanner.Err()
 }
 
-// parseEmojiData parses the emoji-data.txt file using the same logic as go-runewidth
+// parseEmojiData parses the emoji-data.txt file for Extended_Pictographic and Emoji_Presentation
 func parseEmojiData(filename string, data *UnicodeData) error {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -192,42 +196,67 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 
 	scanner := bufio.NewScanner(file)
 
-	// Skip until we find the Extended_Pictographic=No line (same as go-runewidth)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, "Extended_Pictographic=No") {
-			break
-		}
-	}
-
-	if scanner.Err() != nil {
-		return scanner.Err()
-	}
-
-	// Parse the Extended_Pictographic=Yes ranges (same as go-runewidth)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		var r1, r2 rune
-		n, err := fmt.Sscanf(line, "%x..%x ", &r1, &r2)
-		if err != nil || n == 1 {
-			n, err = fmt.Sscanf(line, "%x ", &r1)
-			if err != nil || n != 1 {
-				continue
-			}
-			r2 = r1
+		// Parse line format: <codepoint(s)> ; <property> # <comments>
+		parts := strings.Split(line, ";")
+		if len(parts) < 2 {
+			continue
 		}
 
-		// Skip characters below 0xFF (same as go-runewidth)
+		rangeStr := strings.TrimSpace(parts[0])
+		propertyStr := strings.TrimSpace(parts[1])
+
+		// Remove comments from property string
+		if commentIndex := strings.Index(propertyStr, "#"); commentIndex != -1 {
+			propertyStr = strings.TrimSpace(propertyStr[:commentIndex])
+		}
+
+		// We're only interested in Extended_Pictographic and Emoji_Presentation
+		if propertyStr != "Extended_Pictographic" && propertyStr != "Emoji_Presentation" {
+			continue
+		}
+
+		var r1, r2 rune
+
+		// Parse range
+		if strings.Contains(rangeStr, "..") {
+			// Range of codepoints
+			rangeParts := strings.Split(rangeStr, "..")
+			if len(rangeParts) != 2 {
+				continue
+			}
+			start, err1 := strconv.ParseInt(rangeParts[0], 16, 32)
+			end, err2 := strconv.ParseInt(rangeParts[1], 16, 32)
+			if err1 != nil || err2 != nil {
+				continue
+			}
+			r1, r2 = rune(start), rune(end)
+		} else {
+			// Single codepoint
+			codepoint, err := strconv.ParseInt(rangeStr, 16, 32)
+			if err != nil {
+				continue
+			}
+			r1, r2 = rune(codepoint), rune(codepoint)
+		}
+
+		// Skip characters below 0xFF (ASCII range is handled specially)
 		if r2 < 0xFF {
 			continue
 		}
 
+		// Add to the appropriate map
 		for r := r1; r <= r2; r++ {
-			data.EmojiData[r] = true
+			if propertyStr == "Extended_Pictographic" {
+				data.ExtendedPictographic[r] = true
+			} else if propertyStr == "Emoji_Presentation" {
+				data.EmojiPresentation[r] = true
+			}
 		}
 	}
 
@@ -310,8 +339,12 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 		props |= ZeroWidth
 	}
 
-	if data.EmojiData[r] {
-		props |= Emoji
+	// Emoji properties
+	if data.ExtendedPictographic[r] {
+		props |= Extended_Pictographic
+	}
+	if data.EmojiPresentation[r] {
+		props |= Emoji_Presentation
 	}
 
 	return props
