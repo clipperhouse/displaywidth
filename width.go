@@ -104,7 +104,7 @@ func isRIPrefix[T stringish.Interface](s T) bool {
 }
 
 // isVSPrefix checks if the slice matches the Variation Selector prefix
-// (EF B8). It assumes len(s) >= 3.
+// (EF B8). It assumes len(s) >= 2.
 func isVSPrefix[T stringish.Interface](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8
 }

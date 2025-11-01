@@ -41,10 +41,18 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 }
 
+// these constants are used to build the property bitmap, internally.
+// the external properties are above. Keep them in the same order!
 const (
-	Zero_Width           property = iota + 1 // ZWSP, ZWJ, ZWNJ, etc.
-	Always_Wide                              // F, W
-	East_Asian_Ambiguous                     // A
+	// ZWSP, ZWJ, ZWNJ, etc.
+	zero_Width property = iota + 1
+	// F, W
+	always_Wide
+	// A
+	east_Asian_Ambiguous
+	// VS15 requests text presentation (width 1)
+	// not used in the trie, but noted here for reference
+	// always_Narrow
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -309,13 +317,13 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 // BuildPropertyBitmap creates a properties bitmap for a given rune
 func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	if data.CombiningMarks[r] {
-		return Zero_Width
+		return zero_Width
 	}
 	if data.ControlChars[r] {
-		return Zero_Width
+		return zero_Width
 	}
 	if data.ZeroWidthChars[r] {
-		return Zero_Width
+		return zero_Width
 	}
 
 	// East Asian Width
@@ -323,9 +331,9 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			return Always_Wide
+			return always_Wide
 		case "A":
-			return East_Asian_Ambiguous
+			return east_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
@@ -333,7 +341,7 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 
 	// Emoji properties
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		return Always_Wide
+		return always_Wide
 	}
 
 	return 0
