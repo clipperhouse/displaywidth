@@ -106,6 +106,10 @@ func isRIPrefix[T stringish.Interface](s T) bool {
 	return s[0] == riPrefix[0] && s[1] == riPrefix[1] && s[2] == riPrefix[2]
 }
 
+func isVSPrefix[T stringish.Interface](s T) bool {
+	return s[0] == 0xEF && s[1] == 0xB8
+}
+
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
@@ -124,7 +128,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 		if l >= 4 {
 			// Create a subslice to help the compiler eliminate bounds checks
 			vs := s[1:4]
-			if vs[0] == 0xEF && vs[1] == 0xB8 {
+			if isVSPrefix(vs) {
 				switch vs[2] {
 				case 0x8E:
 					return _Always_Narrow // VS15 requests text presentation (width 1)
@@ -160,7 +164,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if size > 0 && l >= size+3 {
 		// Create a subslice to help the compiler eliminate bounds checks
 		vs := s[size : size+3]
-		if vs[0] == 0xEF && vs[1] == 0xB8 {
+		if isVSPrefix(vs) {
 			switch vs[2] {
 			case 0x8E:
 				return _Always_Narrow
