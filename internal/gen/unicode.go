@@ -308,35 +308,33 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 
 // BuildPropertyBitmap creates a properties bitmap for a given rune
 func BuildPropertyBitmap(r rune, data *UnicodeData) property {
-	var props property
+	if data.CombiningMarks[r] {
+		return ZeroWidth
+	}
+	if data.ControlChars[r] {
+		return ZeroWidth
+	}
+	if data.ZeroWidthChars[r] {
+		return ZeroWidth
+	}
 
 	// East Asian Width
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			props |= Always_Wide
+			return Always_Wide
 		case "A":
-			props |= East_Asian_Ambiguous
+			return East_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
 	}
 
-	if data.CombiningMarks[r] {
-		props |= ZeroWidth
-	}
-	if data.ControlChars[r] {
-		props |= ZeroWidth
-	}
-	if data.ZeroWidthChars[r] {
-		props |= ZeroWidth
-	}
-
 	// Emoji properties
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		props |= Always_Wide
+		return Always_Wide
 	}
 
-	return props
+	return 0
 }
