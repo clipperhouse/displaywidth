@@ -188,7 +188,7 @@ var widthTable = [5]int{
 // width determines the display width of a character based on its properties
 // and configuration options
 func (p property) width(options Options) int {
-	if p == _East_Asian_Ambiguous && options.EastAsianWidth {
+	if options.EastAsianWidth && p == _East_Asian_Ambiguous {
 		return 2
 	}
 
