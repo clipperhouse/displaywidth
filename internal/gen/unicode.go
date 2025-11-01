@@ -37,18 +37,14 @@ type PropertyDefinition struct {
 var PropertyDefinitions = []PropertyDefinition{
 	{"Always_Wide", "Always 2 wide"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Extended_Pictographic", "Extended pictographic character (from emoji-data.txt)"},
-	{"Emoji_Presentation", "Has default emoji presentation (width 2 unless overridden by VS15)"},
 	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 }
 
 const (
-	Always_Wide           property = 1 << iota // F, W
-	East_Asian_Ambiguous                       // A
-	Extended_Pictographic                      // Extended_Pictographic from emoji-data
-	Emoji_Presentation                         // Emoji_Presentation from emoji-data
-	ZeroWidth                                  // ZWSP, ZWJ, ZWNJ, etc.
+	Always_Wide          property = 1 << iota // F, W
+	East_Asian_Ambiguous                      // A
+	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -338,11 +334,8 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	}
 
 	// Emoji properties
-	if data.ExtendedPictographic[r] {
-		props |= Extended_Pictographic
-	}
-	if data.EmojiPresentation[r] {
-		props |= Emoji_Presentation
+	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
+		props |= Always_Wide
 	}
 
 	return props

@@ -205,13 +205,6 @@ func (p property) width(options Options) int {
 		return 2
 	}
 
-	// Extended_Pictographic characters with Emoji_Presentation have default width 2
-	// Extended_Pictographic without Emoji_Presentation have default width 1 (text presentation)
-	// This follows TR51 conformance for default emoji presentation
-	if p.is(_Extended_Pictographic) && p.is(_Emoji_Presentation) {
-		return 2
-	}
-
 	// Default width for all other characters
 	return defaultWidth
 }
