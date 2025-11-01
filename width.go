@@ -151,7 +151,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 				ri[6] == 0x87 {
 				b7 := ri[7]
 				if b7 >= 0xA6 && b7 <= 0xBF {
-					return _RI_PAIR
+					return _Always_Wide
 				}
 			}
 		}
@@ -195,12 +195,6 @@ func (p property) width(options Options) int {
 	}
 	if p.is(_VS15) {
 		return 1
-	}
-
-	// Regional indicator pair (flag) grapheme cluster
-	// Always width 2, following modern Unicode standards (TR51)
-	if p.is(_RI_PAIR) {
-		return 2
 	}
 
 	// East Asian Width takes precedence when the option is enabled
