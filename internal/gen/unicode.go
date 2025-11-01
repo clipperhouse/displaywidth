@@ -23,7 +23,7 @@ type UnicodeData struct {
 	ZeroWidthChars       map[rune]bool   // Special zero-width characters
 }
 
-// property represents the properties of a character as bit flags
+// property represents the properties of a character
 type property uint8
 
 // PropertyDefinition describes a single character property flag
@@ -35,22 +35,24 @@ type PropertyDefinition struct {
 // PropertyDefinitions is the single source of truth for all character properties.
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
-	{"East_Asian_Full_Wide", "Always 2 wide"},
+	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
+	{"Always_Wide", "Always 2 wide"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Extended_Pictographic", "Extended pictographic character (from emoji-data.txt)"},
-	{"Emoji_Presentation", "Has default emoji presentation (width 2 unless overridden by VS15)"},
-	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
-	{"VS15", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
-	{"VS16", "VARIATION SELECTOR-16 (U+FE0F) requests emoji presentation (width 2); not in the trie, see [width]"},
-	{"RI_PAIR", "Regional Indicator Pair (flag) grapheme cluster; not in the trie, see [width]"},
+	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 }
 
+// these constants are used to build the property bitmap, internally.
+// the external properties are above. Keep them in the same order!
 const (
-	East_Asian_Full_Wide  property = 1 << iota // F, W
-	East_Asian_Ambiguous                       // A
-	Extended_Pictographic                      // Extended_Pictographic from emoji-data
-	Emoji_Presentation                         // Emoji_Presentation from emoji-data
-	ZeroWidth                                  // ZWSP, ZWJ, ZWNJ, etc.
+	// ZWSP, ZWJ, ZWNJ, etc.
+	zero_Width property = iota + 1
+	// F, W
+	always_Wide
+	// A
+	east_Asian_Ambiguous
+	// VS15 requests text presentation (width 1)
+	// not used in the trie, but noted here for reference
+	// always_Narrow
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -314,38 +316,33 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 
 // BuildPropertyBitmap creates a properties bitmap for a given rune
 func BuildPropertyBitmap(r rune, data *UnicodeData) property {
-	var props property
+	if data.CombiningMarks[r] {
+		return zero_Width
+	}
+	if data.ControlChars[r] {
+		return zero_Width
+	}
+	if data.ZeroWidthChars[r] {
+		return zero_Width
+	}
 
 	// East Asian Width
 	// Only store properties that affect width calculation
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			props |= East_Asian_Full_Wide
+			return always_Wide
 		case "A":
-			props |= East_Asian_Ambiguous
+			return east_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
 	}
 
-	if data.CombiningMarks[r] {
-		props |= ZeroWidth
-	}
-	if data.ControlChars[r] {
-		props |= ZeroWidth
-	}
-	if data.ZeroWidthChars[r] {
-		props |= ZeroWidth
-	}
-
 	// Emoji properties
-	if data.ExtendedPictographic[r] {
-		props |= Extended_Pictographic
-	}
-	if data.EmojiPresentation[r] {
-		props |= Emoji_Presentation
+	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
+		return always_Wide
 	}
 
-	return props
+	return 0
 }

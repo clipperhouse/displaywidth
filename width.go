@@ -97,11 +97,16 @@ func isASCIIControl(b byte) bool {
 	return b < 0x20 || b == 0x7F
 }
 
-const defaultWidth = 1
+// isRIPrefix checks if the slice matches the Regional Indicator prefix
+// (F0 9F 87). It assumes len(s) >= 3.
+func isRIPrefix[T stringish.Interface](s T) bool {
+	return s[0] == 0xF0 && s[1] == 0x9F && s[2] == 0x87
+}
 
-// is returns true if the property flag is set
-func (p property) is(flag property) bool {
-	return p&flag != 0
+// isVSPrefix checks if the slice matches the Variation Selector prefix
+// (EF B8). It assumes len(s) >= 2.
+func isVSPrefix[T stringish.Interface](s T) bool {
+	return s[0] == 0xEF && s[1] == 0xB8
 }
 
 // lookupProperties returns the properties for the first character in a string
@@ -112,27 +117,26 @@ func lookupProperties[T stringish.Interface](s T) property {
 
 	b := s[0]
 	if isASCIIControl(b) {
-		return _ZeroWidth
+		return _Zero_Width
 	}
 
 	l := len(s)
 
-	if b < utf8.RuneSelf { // Single-byte ASCII
+	if b < utf8.RuneSelf {
 		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
-		var p property
 		if l >= 4 {
 			// Create a subslice to help the compiler eliminate bounds checks
 			vs := s[1:4]
-			if vs[0] == 0xEF && vs[1] == 0xB8 {
+			if isVSPrefix(vs) {
 				switch vs[2] {
 				case 0x8E:
-					p |= _VS15
+					return _Always_Narrow // VS15 requests text presentation (width 1)
 				case 0x8F:
-					p |= _VS16
+					return _Always_Wide // VS16 requests emoji presentation (width 2)
 				}
 			}
 		}
-		return p // ASCII characters are width 1 by default, or 2 with VS16
+		return 0 // No properties means width 1 by default
 	}
 
 	// Regional indicator pair (flag) - detect early before trie lookup.
@@ -141,17 +145,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if l >= 8 {
 		// Create a subslice to help the compiler eliminate bounds checks
 		ri := s[:8]
-		if ri[0] == 0xF0 &&
-			ri[1] == 0x9F &&
-			ri[2] == 0x87 {
+		if isRIPrefix(ri[0:3]) {
 			b3 := ri[3]
-			if b3 >= 0xA6 && b3 <= 0xBF &&
-				ri[4] == 0xF0 &&
-				ri[5] == 0x9F &&
-				ri[6] == 0x87 {
+			if b3 >= 0xA6 && b3 <= 0xBF && isRIPrefix(ri[4:7]) {
 				b7 := ri[7]
 				if b7 >= 0xA6 && b7 <= 0xBF {
-					return _RI_PAIR
+					return _Always_Wide
 				}
 			}
 		}
@@ -164,12 +163,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if size > 0 && l >= size+3 {
 		// Create a subslice to help the compiler eliminate bounds checks
 		vs := s[size : size+3]
-		if vs[0] == 0xEF && vs[1] == 0xB8 {
+		if isVSPrefix(vs) {
 			switch vs[2] {
 			case 0x8E:
-				p |= _VS15
+				return _Always_Narrow // VS15 requests text presentation (width 1)
 			case 0x8F:
-				p |= _VS16
+				return _Always_Wide // VS16 requests emoji presentation (width 2)
 			}
 		}
 	}
@@ -177,51 +176,21 @@ func lookupProperties[T stringish.Interface](s T) property {
 	return p
 }
 
+// a jump table of sorts, for perf, instead of switch
+var widthTable = [5]int{
+	0:                     1,
+	_Zero_Width:           0,
+	_Always_Wide:          2,
+	_East_Asian_Ambiguous: 1,
+	_Always_Narrow:        1,
+}
+
 // width determines the display width of a character based on its properties
 // and configuration options
 func (p property) width(options Options) int {
-	if p == 0 {
-		// Character not in trie, use default behavior
-		return defaultWidth
-	}
-
-	if p.is(_ZeroWidth) {
-		return 0
-	}
-
-	// Explicit presentation overrides from VS come first.
-	if p.is(_VS16) {
-		return 2
-	}
-	if p.is(_VS15) {
-		return 1
-	}
-
-	// Regional indicator pair (flag) grapheme cluster
-	// Always width 2, following modern Unicode standards (TR51)
-	if p.is(_RI_PAIR) {
+	if options.EastAsianWidth && p == _East_Asian_Ambiguous {
 		return 2
 	}
 
-	// East Asian Width takes precedence when the option is enabled
-	// This ensures characters like ★ (U+2605) with EAW=Ambiguous
-	// are width 2 when EastAsianWidth=true, even if they have
-	// Extended_Pictographic without Emoji_Presentation
-	if options.EastAsianWidth && p.is(_East_Asian_Ambiguous) {
-		return 2
-	}
-
-	if p.is(_East_Asian_Full_Wide) {
-		return 2
-	}
-
-	// Extended_Pictographic characters with Emoji_Presentation have default width 2
-	// Extended_Pictographic without Emoji_Presentation have default width 1 (text presentation)
-	// This follows TR51 conformance for default emoji presentation
-	if p.is(_Extended_Pictographic) && p.is(_Emoji_Presentation) {
-		return 2
-	}
-
-	// Default width for all other characters
-	return defaultWidth
+	return widthTable[p]
 }

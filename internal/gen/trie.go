@@ -102,8 +102,7 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 // writeProperties writes the character properties definitions to the buffer.
 // It uses PropertyDefinitions from unicode.go as the single source of truth.
 func writeProperties(w io.Writer) {
-	fmt.Fprintf(w, "// property represents the properties of a character as bit flags\n")
-	fmt.Fprintf(w, "// The underlying type is uint8 since we only use %d bits for flags.\n", len(PropertyDefinitions))
+	fmt.Fprintf(w, "// property is an enum representing the properties of a character\n")
 	fmt.Fprintf(w, "type property uint8\n\n")
 	fmt.Fprintf(w, "const (\n")
 
@@ -112,7 +111,7 @@ func writeProperties(w io.Writer) {
 
 		constName := "_" + prop.Name
 		if i == 0 {
-			fmt.Fprintf(w, "%s property = 1 << iota\n", constName)
+			fmt.Fprintf(w, "%s property = iota + 1\n", constName)
 		} else {
 			fmt.Fprintf(w, "%s\n", constName)
 		}
