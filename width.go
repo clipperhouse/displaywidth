@@ -126,9 +126,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 			if vs[0] == 0xEF && vs[1] == 0xB8 {
 				switch vs[2] {
 				case 0x8E:
-					p |= _Always_Narrow
+					return _Always_Narrow
 				case 0x8F:
-					p |= _Always_Wide
+					return _Always_Wide
 				}
 			}
 		}
@@ -167,9 +167,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 		if vs[0] == 0xEF && vs[1] == 0xB8 {
 			switch vs[2] {
 			case 0x8E:
-				p |= _Always_Narrow
+				return _Always_Narrow
 			case 0x8F:
-				p |= _Always_Wide
+				return _Always_Wide
 			}
 		}
 	}
