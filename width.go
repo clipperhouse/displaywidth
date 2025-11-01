@@ -170,21 +170,21 @@ func lookupProperties[T stringish.Interface](s T) property {
 	return p
 }
 
+// a jump table of sorts, for perf, instead of switch
+var widthTable = [5]int{
+	0:                     1,
+	_Zero_Width:           0,
+	_Always_Wide:          2,
+	_East_Asian_Ambiguous: 1,
+	_Always_Narrow:        1,
+}
+
 // width determines the display width of a character based on its properties
 // and configuration options
 func (p property) width(options Options) int {
-	switch p {
-	case _Zero_Width:
-		return 0
-	case _Always_Narrow:
-		return 1
-	case _East_Asian_Ambiguous:
-		if options.EastAsianWidth {
-			return 2
-		}
-	case _Always_Wide:
+	if p == _East_Asian_Ambiguous && options.EastAsianWidth {
 		return 2
 	}
 
-	return 1
+	return widthTable[p]
 }
