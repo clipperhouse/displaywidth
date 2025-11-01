@@ -226,7 +226,7 @@ func TestCalculateWidth(t *testing.T) {
 		options  Options
 		expected int
 	}{ // Zero width
-		{"zero width", _ZeroWidth, defaultOptions, 0},
+		{"zero width", _Zero_Width, defaultOptions, 0},
 
 		// East Asian Wide
 		{"EAW fullwidth", _Always_Wide, defaultOptions, 2},

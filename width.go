@@ -112,7 +112,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 
 	b := s[0]
 	if isASCIIControl(b) {
-		return _ZeroWidth
+		return _Zero_Width
 	}
 
 	l := len(s)
@@ -185,7 +185,7 @@ func (p property) width(options Options) int {
 		return defaultWidth
 	}
 
-	if p.is(_ZeroWidth) {
+	if p.is(_Zero_Width) {
 		return 0
 	}
 	// Explicit presentation overrides from VS come first.

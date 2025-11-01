@@ -35,16 +35,16 @@ type PropertyDefinition struct {
 // PropertyDefinitions is the single source of truth for all character properties.
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
+	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"Always_Wide", "Always 2 wide"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 }
 
 const (
-	Always_Wide          property = 1 << iota // F, W
+	Zero_Width           property = 1 << iota // ZWSP, ZWJ, ZWNJ, etc.
+	Always_Wide                               // F, W
 	East_Asian_Ambiguous                      // A
-	ZeroWidth                                 // ZWSP, ZWJ, ZWNJ, etc.
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -309,13 +309,13 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 // BuildPropertyBitmap creates a properties bitmap for a given rune
 func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	if data.CombiningMarks[r] {
-		return ZeroWidth
+		return Zero_Width
 	}
 	if data.ControlChars[r] {
-		return ZeroWidth
+		return Zero_Width
 	}
 	if data.ZeroWidthChars[r] {
-		return ZeroWidth
+		return Zero_Width
 	}
 
 	// East Asian Width
