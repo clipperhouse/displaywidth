@@ -31,9 +31,6 @@ var DefaultOptions = Options{
 	EastAsianWidth: false,
 }
 
-// riPrefix is the UTF-8 prefix for Regional Indicator symbols (U+1F1E6–U+1F1FF)
-var riPrefix = []byte{0xF0, 0x9F, 0x87}
-
 // String calculates the display width of a string
 // for the given options
 func (options Options) String(s string) int {
@@ -100,12 +97,14 @@ func isASCIIControl(b byte) bool {
 	return b < 0x20 || b == 0x7F
 }
 
-// isRIPrefix checks if the slice matches the RI prefix.
-// Assumes len(s) >= 3.
+// isRIPrefix checks if the slice matches the Regional Indicator prefix
+// (F0 9F 87). It assumes len(s) >= 3.
 func isRIPrefix[T stringish.Interface](s T) bool {
-	return s[0] == riPrefix[0] && s[1] == riPrefix[1] && s[2] == riPrefix[2]
+	return s[0] == 0xF0 && s[1] == 0x9F && s[2] == 0x87
 }
 
+// isVSPrefix checks if the slice matches the Variation Selector prefix
+// (EF B8). It assumes len(s) >= 3.
 func isVSPrefix[T stringish.Interface](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8
 }
@@ -167,9 +166,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 		if isVSPrefix(vs) {
 			switch vs[2] {
 			case 0x8E:
-				return _Always_Narrow
+				return _Always_Narrow // VS15 requests text presentation (width 1)
 			case 0x8F:
-				return _Always_Wide
+				return _Always_Wide // VS16 requests emoji presentation (width 2)
 			}
 		}
 	}
