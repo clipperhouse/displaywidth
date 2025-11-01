@@ -20,7 +20,7 @@ const (
 	// Always 0 width, includes combining marks, control characters, non-printable, etc
 	_ZeroWidth
 	// VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]
-	_VS15
+	_Always_Narrow
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and

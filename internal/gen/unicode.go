@@ -40,7 +40,7 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"Extended_Pictographic", "Extended pictographic character (from emoji-data.txt)"},
 	{"Emoji_Presentation", "Has default emoji presentation (width 2 unless overridden by VS15)"},
 	{"ZeroWidth", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
-	{"VS15", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
+	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
 }
 
 const (
