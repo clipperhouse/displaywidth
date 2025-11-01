@@ -110,3 +110,7 @@ BenchmarkRune_Emoji/mattn/go-runewidth-8               	      2295 ns/op	   315.
 
 `clipperhouse/displaywidth`, `mattn/go-runewidth`, and `rivo/uniseg` should give the
 same outputs for real-world text. See [comparison/README.md](comparison/README.md).
+
+If you wish to investigate the core logic, see the `lookupProperties` and `width`
+functions in [width.go](width.go#L112). The core of the trie generation logic is in
+`BuildPropertyBitmap` in [unicode.go](internal/gen/unicode.go#L309).
