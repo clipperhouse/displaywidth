@@ -31,6 +31,9 @@ var DefaultOptions = Options{
 	EastAsianWidth: false,
 }
 
+// riPrefix is the UTF-8 prefix for Regional Indicator symbols (U+1F1E6–U+1F1FF)
+var riPrefix = []byte{0xF0, 0x9F, 0x87}
+
 // String calculates the display width of a string
 // for the given options
 func (options Options) String(s string) int {
@@ -97,6 +100,12 @@ func isASCIIControl(b byte) bool {
 	return b < 0x20 || b == 0x7F
 }
 
+// isRIPrefix checks if the slice matches the RI prefix.
+// Assumes len(s) >= 3.
+func isRIPrefix[T stringish.Interface](s T) bool {
+	return s[0] == riPrefix[0] && s[1] == riPrefix[1] && s[2] == riPrefix[2]
+}
+
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
@@ -110,22 +119,21 @@ func lookupProperties[T stringish.Interface](s T) property {
 
 	l := len(s)
 
-	if b < utf8.RuneSelf { // Single-byte ASCII
+	if b < utf8.RuneSelf {
 		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
-		var p property
 		if l >= 4 {
 			// Create a subslice to help the compiler eliminate bounds checks
 			vs := s[1:4]
 			if vs[0] == 0xEF && vs[1] == 0xB8 {
 				switch vs[2] {
 				case 0x8E:
-					return _Always_Narrow
+					return _Always_Narrow // VS15 requests text presentation (width 1)
 				case 0x8F:
-					return _Always_Wide
+					return _Always_Wide // VS16 requests emoji presentation (width 2)
 				}
 			}
 		}
-		return p // ASCII characters are width 1 by default, or 2 with VS16
+		return 0 // No properties means width 1 by default
 	}
 
 	// Regional indicator pair (flag) - detect early before trie lookup.
@@ -134,14 +142,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if l >= 8 {
 		// Create a subslice to help the compiler eliminate bounds checks
 		ri := s[:8]
-		if ri[0] == 0xF0 &&
-			ri[1] == 0x9F &&
-			ri[2] == 0x87 {
+		if isRIPrefix(ri[0:3]) {
 			b3 := ri[3]
-			if b3 >= 0xA6 && b3 <= 0xBF &&
-				ri[4] == 0xF0 &&
-				ri[5] == 0x9F &&
-				ri[6] == 0x87 {
+			if b3 >= 0xA6 && b3 <= 0xBF && isRIPrefix(ri[4:7]) {
 				b7 := ri[7]
 				if b7 >= 0xA6 && b7 <= 0xBF {
 					return _Always_Wide
