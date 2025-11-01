@@ -99,9 +99,9 @@ func isASCIIControl(b byte) bool {
 
 const defaultWidth = 1
 
-// is returns true if the property flag is set
+// is returns true if the property matches the flag
 func (p property) is(flag property) bool {
-	return p&flag != 0
+	return p == flag
 }
 
 // lookupProperties returns the properties for the first character in a string

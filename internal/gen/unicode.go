@@ -42,9 +42,9 @@ var PropertyDefinitions = []PropertyDefinition{
 }
 
 const (
-	Zero_Width           property = 1 << iota // ZWSP, ZWJ, ZWNJ, etc.
-	Always_Wide                               // F, W
-	East_Asian_Ambiguous                      // A
+	Zero_Width           property = iota + 1 // ZWSP, ZWJ, ZWNJ, etc.
+	Always_Wide                              // F, W
+	East_Asian_Ambiguous                     // A
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files

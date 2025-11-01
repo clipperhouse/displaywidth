@@ -112,7 +112,7 @@ func writeProperties(w io.Writer) {
 
 		constName := "_" + prop.Name
 		if i == 0 {
-			fmt.Fprintf(w, "%s property = 1 << iota\n", constName)
+			fmt.Fprintf(w, "%s property = iota + 1\n", constName)
 		} else {
 			fmt.Fprintf(w, "%s\n", constName)
 		}
