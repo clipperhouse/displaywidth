@@ -211,7 +211,7 @@ func (p property) width(options Options) int {
 		return 2
 	}
 
-	if p.is(_East_Asian_Full_Wide) {
+	if p.is(_Always_Wide) {
 		return 2
 	}
 

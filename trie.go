@@ -10,7 +10,7 @@ type property uint8
 
 const (
 	// Always 2 wide
-	_East_Asian_Full_Wide property = 1 << iota
+	_Always_Wide property = 1 << iota
 	// Width depends on EastAsianWidth option
 	_East_Asian_Ambiguous
 	// Extended pictographic character (from emoji-data.txt)
