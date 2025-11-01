@@ -128,7 +128,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 				case 0x8E:
 					p |= _VS15
 				case 0x8F:
-					p |= _VS16
+					p |= _Always_Wide
 				}
 			}
 		}
@@ -169,7 +169,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 			case 0x8E:
 				p |= _VS15
 			case 0x8F:
-				p |= _VS16
+				p |= _Always_Wide
 			}
 		}
 	}
@@ -188,11 +188,7 @@ func (p property) width(options Options) int {
 	if p.is(_ZeroWidth) {
 		return 0
 	}
-
 	// Explicit presentation overrides from VS come first.
-	if p.is(_VS16) {
-		return 2
-	}
 	if p.is(_VS15) {
 		return 1
 	}
