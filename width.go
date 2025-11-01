@@ -97,13 +97,6 @@ func isASCIIControl(b byte) bool {
 	return b < 0x20 || b == 0x7F
 }
 
-const defaultWidth = 1
-
-// is returns true if the property matches the flag
-func (p property) is(flag property) bool {
-	return p == flag
-}
-
 // lookupProperties returns the properties for the first character in a string
 func lookupProperties[T stringish.Interface](s T) property {
 	if len(s) == 0 {
@@ -180,31 +173,18 @@ func lookupProperties[T stringish.Interface](s T) property {
 // width determines the display width of a character based on its properties
 // and configuration options
 func (p property) width(options Options) int {
-	if p == 0 {
-		// Character not in trie, use default behavior
-		return defaultWidth
-	}
-
-	if p.is(_Zero_Width) {
+	switch p {
+	case _Zero_Width:
 		return 0
-	}
-	// Explicit presentation overrides from VS come first.
-	if p.is(_Always_Narrow) {
+	case _Always_Narrow:
 		return 1
-	}
-
-	// East Asian Width takes precedence when the option is enabled
-	// This ensures characters like ★ (U+2605) with EAW=Ambiguous
-	// are width 2 when EastAsianWidth=true, even if they have
-	// Extended_Pictographic without Emoji_Presentation
-	if options.EastAsianWidth && p.is(_East_Asian_Ambiguous) {
+	case _East_Asian_Ambiguous:
+		if options.EastAsianWidth {
+			return 2
+		}
+	case _Always_Wide:
 		return 2
 	}
 
-	if p.is(_Always_Wide) {
-		return 2
-	}
-
-	// Default width for all other characters
-	return defaultWidth
+	return 1
 }
