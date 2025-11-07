@@ -229,8 +229,8 @@ func TestCalculateWidth(t *testing.T) {
 		{"zero width", _Zero_Width, defaultOptions, 0},
 
 		// East Asian Wide
-		{"EAW fullwidth", _Always_Wide, defaultOptions, 2},
-		{"EAW wide", _Always_Wide, defaultOptions, 2},
+		{"EAW fullwidth", _East_Asian_Wide, defaultOptions, 2},
+		{"EAW wide", _East_Asian_Wide, defaultOptions, 2},
 
 		// East Asian Ambiguous
 		{"EAW ambiguous default", _East_Asian_Ambiguous, defaultOptions, 1},
@@ -609,6 +609,20 @@ func TestTR51Conformance(t *testing.T) {
 				t.Errorf("String(%q) with VS15 = %d, want 1 (VS15 should force text presentation)", s, got)
 			}
 		}
+
+		// VS15 with East Asian Wide characters should preserve width 2
+		// (East Asian Wide characters remain wide in text presentation)
+		eastAsianWideWithVS15 := []string{
+			"中\uFE0E", // CJK ideograph with VS15
+			"日\uFE0E", // CJK ideograph with VS15
+		}
+
+		for _, s := range eastAsianWideWithVS15 {
+			got := String(s)
+			if got != 2 {
+				t.Errorf("String(%q) with VS15 = %d, want 2 (East Asian Wide characters remain wide in text presentation)", s, got)
+			}
+		}
 	})
 
 	t.Run("C3: VS16 forces emoji presentation", func(t *testing.T) {
@@ -717,4 +731,57 @@ func TestTR51Conformance(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestVS15Debug tests VS15 handling to verify the implementation is correct
+// According to Unicode TR51:
+//   - VS15 (U+FE0E) requests text presentation
+//   - For emoji characters (Extended_Pictographic + Emoji_Presentation, not East Asian Wide),
+//     text presentation means width 1
+//   - For East Asian Wide characters, text presentation still means width 2
+func TestVS15Debug(t *testing.T) {
+	testCases := []struct {
+		name     string
+		char     string
+		charCode string
+		want     int
+		hasEAW   bool // Whether the character has East Asian Width (F/W)
+	}{
+		// These characters have Extended_Pictographic + Emoji_Presentation but NOT East Asian Width
+		// So they should be stored as _Emoji_Only and have width 1 with VS15
+		{"Watch", "⌚", "U+231A", 1, false},
+		{"Hourglass", "⌛", "U+231B", 1, false},
+		{"Soccer Ball", "⚽", "U+26BD", 1, false},
+		{"Anchor", "⚓", "U+2693", 1, false},
+		// East Asian Wide characters should remain width 2 with VS15
+		{"CJK Ideograph", "中", "U+4E2D", 2, true},
+		{"CJK Ideograph", "日", "U+65E5", 2, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Test default width (no VS15)
+			defaultWidth := String(tc.char)
+			t.Logf("Default width of %s (%s) = %d", tc.char, tc.charCode, defaultWidth)
+
+			// Test with VS15
+			withVS15 := tc.char + "\uFE0E"
+			got := String(withVS15)
+			t.Logf("Width of %s (%s) with VS15 = %d, want %d", tc.char, tc.charCode, got, tc.want)
+
+			if got != tc.want {
+				t.Errorf("String(%q + VS15) = %d, want %d", tc.char, got, tc.want)
+				t.Logf("  Character: %s (%s)", tc.char, tc.charCode)
+				t.Logf("  With VS15: %+q", withVS15)
+				t.Logf("  Default width: %d", defaultWidth)
+				t.Logf("  Has East Asian Width: %v", tc.hasEAW)
+				t.Logf("  Width with VS15: %d (expected %d)", got, tc.want)
+				if tc.hasEAW {
+					t.Logf("  NOTE: East Asian Wide characters should remain width 2 with VS15")
+				} else {
+					t.Logf("  NOTE: Emoji-only characters should have width 1 with VS15")
+				}
+			}
+		})
+	}
 }

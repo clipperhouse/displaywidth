@@ -36,9 +36,9 @@ type PropertyDefinition struct {
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
 	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
-	{"Always_Wide", "Always 2 wide"},
+	{"East_Asian_Wide", "Always 2 wide (East Asian Wide F/W)"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Always_Narrow", "VARIATION SELECTOR-15 (U+FE0E) requests text presentation (width 1); not in the trie, see [width]"},
+	{"Emoji_Only", "Emoji (Extended_Pictographic + Emoji_Presentation) but not East Asian Wide; VS15 makes width 1"},
 }
 
 // these constants are used to build the property bitmap, internally.
@@ -46,13 +46,12 @@ var PropertyDefinitions = []PropertyDefinition{
 const (
 	// ZWSP, ZWJ, ZWNJ, etc.
 	zero_Width property = iota + 1
-	// F, W
-	always_Wide
-	// A
+	// F, W (East Asian Wide)
+	east_Asian_Wide
+	// A (East Asian Ambiguous)
 	east_Asian_Ambiguous
-	// VS15 requests text presentation (width 1)
-	// not used in the trie, but noted here for reference
-	// always_Narrow
+	// Extended_Pictographic + Emoji_Presentation but not East Asian Wide
+	emoji_Only
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -326,22 +325,28 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 		return zero_Width
 	}
 
+	// Check emoji properties first so we can distinguish emoji-only characters
+	// from East Asian Wide characters for VS15 handling.
+	// If a character has both Extended_Pictographic + Emoji_Presentation AND
+	// East Asian Width (F/W), it will be stored as emoji_Only, and VS15 will
+	// make it width 1 (text presentation). This is correct per TR51.
+	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
+		return emoji_Only
+	}
+
 	// East Asian Width
 	// Only store properties that affect width calculation
+	// Check after emoji so that emoji-only characters are stored as emoji_Only
+	// even if they also have East Asian Width properties.
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			return always_Wide
+			return east_Asian_Wide
 		case "A":
 			return east_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
-	}
-
-	// Emoji properties
-	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		return always_Wide
 	}
 
 	return 0
