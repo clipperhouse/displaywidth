@@ -38,7 +38,7 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"East_Asian_Wide", "Always 2 wide (East Asian Wide F/W)"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Emoji_Only", "Emoji (Extended_Pictographic + Emoji_Presentation) but not East Asian Wide; VS15 makes width 1"},
+	{"Emoji", "Extended_Pictographic + Emoji_Presentation; VS15 makes width 1"},
 }
 
 // these constants are used to build the property bitmap, internally.
@@ -51,7 +51,7 @@ const (
 	// A (East Asian Ambiguous)
 	east_Asian_Ambiguous
 	// Extended_Pictographic + Emoji_Presentation but not East Asian Wide
-	emoji_Only
+	emoji
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -331,7 +331,7 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 	// East Asian Width (F/W), it will be stored as emoji_Only, and VS15 will
 	// make it width 1 (text presentation). This is correct per TR51.
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		return emoji_Only
+		return emoji
 	}
 
 	// East Asian Width

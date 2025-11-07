@@ -14,8 +14,8 @@ const (
 	_East_Asian_Wide
 	// Width depends on EastAsianWidth option
 	_East_Asian_Ambiguous
-	// Emoji (Extended_Pictographic + Emoji_Presentation) but not East Asian Wide; VS15 makes width 1
-	_Emoji_Only
+	// Extended_Pictographic + Emoji_Presentation; VS15 makes width 1
+	_Emoji
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and

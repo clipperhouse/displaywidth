@@ -128,14 +128,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 			// Subslice may help eliminate bounds checks
 			vs := s[1:4]
 			if isVSPrefix(vs) {
-				switch vs[2] {
-				case 0x8E:
+				if vs[2] == 0x8E {
 					// VS15 requests text presentation (width 1)
 					return _Default
-				case 0x8F:
-					// VS16 requests emoji presentation (width 2)
-					return _East_Asian_Wide
 				}
+				// VS16 requests emoji presentation (width 2)
+				return _Emoji
 			}
 		}
 		return _Default
@@ -150,7 +148,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 			if b3 >= 0xA6 && b3 <= 0xBF && isRIPrefix(ri[4:7]) {
 				b7 := ri[7]
 				if b7 >= 0xA6 && b7 <= 0xBF {
-					return _East_Asian_Wide
+					return _Emoji
 				}
 			}
 		}
@@ -167,10 +165,10 @@ func lookupProperties[T stringish.Interface](s T) property {
 			switch vs[2] {
 			case 0x8E:
 				// VS15 requests text presentation.
-				// For emoji-only characters (Extended_Pictographic +
-				// Emoji_Presentation, but not East Asian Wide), text
-				// presentation means width 1
-				if p == _Emoji_Only {
+				if p == _Emoji {
+					// For emoji-only characters (Extended_Pictographic +
+					// Emoji_Presentation, but not East Asian Wide), text
+					// presentation means width 1
 					return _Default
 				}
 				// Otherwise, preserve the base character's width:
@@ -179,7 +177,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 				return p
 			case 0x8F:
 				// VS16 requests emoji presentation (width 2)
-				return _East_Asian_Wide
+				return _Emoji
 			}
 		}
 	}
@@ -190,12 +188,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 const _Default property = 0
 
 // a jump table of sorts, instead of a switch
-var widthTable = [6]int{
+var widthTable = [5]int{
 	_Default:              1,
 	_Zero_Width:           0,
+	_Emoji:                2,
 	_East_Asian_Wide:      2,
 	_East_Asian_Ambiguous: 1,
-	_Emoji_Only:           2,
 }
 
 // width determines the display width of a character based on its properties
