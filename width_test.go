@@ -51,7 +51,7 @@ func TestStringWidth(t *testing.T) {
 		{"☺ text default", "☺", defaultOptions, 1},      // U+263A has text presentation by default
 		{"☺️ emoji with VS16", "☺️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
 		{"⌛ emoji default", "⌛", defaultOptions, 2},     // U+231B has emoji presentation by default
-		{"⌛︎ with VS15", "⌛︎", defaultOptions, 2},  // VS15 is a no-op, width remains 2
+		{"⌛︎ with VS15", "⌛︎", defaultOptions, 2},       // VS15 is a no-op, width remains 2
 		{"❤ text default", "❤", defaultOptions, 1},      // U+2764 has text presentation by default
 		{"❤️ emoji with VS16", "❤️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
 		{"✂ text default", "✂", defaultOptions, 1},      // U+2702 has text presentation by default

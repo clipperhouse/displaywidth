@@ -7,32 +7,46 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// String calculates the display width of a string
-// using the [DefaultOptions]
+// String calculates the display width of a string,
+// by iterating over grapheme clusters in the string
+// and summing their widths.
 func String(s string) int {
 	return DefaultOptions.String(s)
 }
 
-// Bytes calculates the display width of a []byte
-// using the [DefaultOptions]
+// Bytes calculates the display width of a []byte,
+// by iterating over grapheme clusters in the byte slice
+// and summing their widths.
 func Bytes(s []byte) int {
 	return DefaultOptions.Bytes(s)
 }
 
+// Rune calculates the display width of a rune. You
+// should almost certainly use [String] or [Bytes] for
+// most purposes.
+//
+// The smallest unit of display width is a grapheme
+// cluster, not a rune. Iterating over runes to measure
+// width is incorrect in most cases.
 func Rune(r rune) int {
 	return DefaultOptions.Rune(r)
 }
 
+// Options allows you to specify the treatment of ambiguous East Asian
+// characters. When EastAsianWidth is false (default), ambiguous East Asian
+// characters are treated as width 1. When EastAsianWidth is true, ambiguous
+// East Asian characters are treated as width 2.
 type Options struct {
 	EastAsianWidth bool
 }
 
-var DefaultOptions = Options{
-	EastAsianWidth: false,
-}
+// DefaultOptions is the default options for the display width
+// calculation, which is EastAsianWidth: false.
+var DefaultOptions = Options{EastAsianWidth: false}
 
-// String calculates the display width of a string
-// for the given options
+// String calculates the display width of a string,
+// for the given options, by iterating over grapheme clusters
+// and summing their widths.
 func (options Options) String(s string) int {
 	if len(s) == 0 {
 		return 0
@@ -49,8 +63,9 @@ func (options Options) String(s string) int {
 	return total
 }
 
-// BytesOptions calculates the display width of a []byte
-// for the given options
+// Bytes calculates the display width of a []byte,
+// for the given options, by iterating over grapheme
+// clusters in the byte slice and summing their widths.
 func (options Options) Bytes(s []byte) int {
 	if len(s) == 0 {
 		return 0
@@ -67,6 +82,12 @@ func (options Options) Bytes(s []byte) int {
 	return total
 }
 
+// Rune calculates the display width of a rune,
+// for the given options.
+//
+// The smallest unit of display width is a grapheme
+// cluster, not a rune. Iterating over runes to measure
+// width is incorrect in most cases.
 func (options Options) Rune(r rune) int {
 	// Fast path for ASCII
 	if r < utf8.RuneSelf {
@@ -131,8 +152,8 @@ func lookupProperties[T stringish.Interface](s T) property {
 				// VS16 requests emoji presentation (width 2)
 				return _Emoji
 			}
-			// VS15 (0x8E) just means text presentation, no width change
-			// Falls through to return _Default
+			// VS15 (0x8E) requests text presentation but does not affect width,
+			// in my reading of Unicode TR51. Falls through to _Default.
 		}
 		return _Default
 	}
@@ -163,8 +184,9 @@ func lookupProperties[T stringish.Interface](s T) property {
 			// VS16 requests emoji presentation (width 2)
 			return _Emoji
 		}
-		// VS15 (0x8E) just means text presentation, no width change
-		// Falls through to return p at the end.
+		// VS15 (0x8E) requests text presentation but does not affect width,
+		// in my reading of Unicode TR51. Falls through to return the base
+		// character's property (p).
 	}
 
 	return p
