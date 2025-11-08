@@ -194,9 +194,9 @@ const _Default property = 0
 var widthTable = [5]int{
 	_Default:              1,
 	_Zero_Width:           0,
-	_Emoji:                2,
 	_East_Asian_Wide:      2,
 	_East_Asian_Ambiguous: 1,
+	_Emoji:                2,
 }
 
 // width determines the display width of a character based on its properties
