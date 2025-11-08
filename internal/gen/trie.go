@@ -29,7 +29,7 @@ func GenerateTrie(data *UnicodeData) (*triegen.Trie, error) {
 			continue
 		}
 
-		props := BuildPropertyBitmap(r, data)
+		props := buildPropertyBitmap(r, data)
 
 		// Only insert characters with non-default properties
 		if props != 0 {

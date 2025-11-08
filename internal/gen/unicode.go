@@ -313,8 +313,7 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 	}
 }
 
-// BuildPropertyBitmap creates a properties bitmap for a given rune
-func BuildPropertyBitmap(r rune, data *UnicodeData) property {
+func buildPropertyBitmap(r rune, data *UnicodeData) property {
 	if data.CombiningMarks[r] {
 		return zero_Width
 	}
@@ -325,18 +324,10 @@ func BuildPropertyBitmap(r rune, data *UnicodeData) property {
 		return zero_Width
 	}
 
-	// Check emoji properties first so we can distinguish emoji-only characters
-	// from East Asian Wide characters for VS15 handling.
-	// If a character has both Extended_Pictographic + Emoji_Presentation AND
-	// East Asian Width (F/W), it will be stored as emoji_Only.
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
 		return emoji
 	}
 
-	// East Asian Width
-	// Only store properties that affect width calculation
-	// Check after emoji so that emoji-only characters are stored as emoji_Only
-	// even if they also have East Asian Width properties.
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
