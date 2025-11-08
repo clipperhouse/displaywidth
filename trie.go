@@ -14,7 +14,7 @@ const (
 	_East_Asian_Wide
 	// Width depends on EastAsianWidth option
 	_East_Asian_Ambiguous
-	// Extended_Pictographic + Emoji_Presentation; VS15 makes width 1
+	// Extended_Pictographic + Emoji_Presentation
 	_Emoji
 )
 

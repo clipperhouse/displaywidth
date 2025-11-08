@@ -47,11 +47,11 @@ func TestStringWidth(t *testing.T) {
 		{"invalid UTF-8", "\xff", defaultOptions, 1},
 		{"partial UTF-8", "\xc2", defaultOptions, 1},
 
-		// Variation selectors - VS16 (U+FE0F) requests emoji, VS15 (U+FE0E) requests text
+		// Variation selectors - VS16 (U+FE0F) requests emoji, VS15 (U+FE0E) is a no-op per Unicode TR51
 		{"☺ text default", "☺", defaultOptions, 1},      // U+263A has text presentation by default
 		{"☺️ emoji with VS16", "☺️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
 		{"⌛ emoji default", "⌛", defaultOptions, 2},     // U+231B has emoji presentation by default
-		{"⌛︎ text with VS15", "⌛︎", defaultOptions, 1},  // VS15 forces text presentation (width 1)
+		{"⌛︎ with VS15", "⌛︎", defaultOptions, 2},  // VS15 is a no-op, width remains 2
 		{"❤ text default", "❤", defaultOptions, 1},      // U+2764 has text presentation by default
 		{"❤️ emoji with VS16", "❤️", defaultOptions, 2}, // VS16 forces emoji presentation (width 2)
 		{"✂ text default", "✂", defaultOptions, 1},      // U+2702 has text presentation by default
@@ -264,12 +264,13 @@ func TestEmojiPresentation(t *testing.T) {
 	}{
 		// Characters with Extended_Pictographic=Yes AND Emoji_Presentation=Yes
 		// Should have width 2 by default (emoji presentation)
+		// VS15 is a no-op per Unicode TR51 - it requests text presentation but doesn't change width
 		{
 			name:         "Watch (EP=Yes, EmojiPres=Yes)",
 			input:        "\u231A",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⌚ U+231A has default emoji presentation",
 		},
 		{
@@ -277,7 +278,7 @@ func TestEmojiPresentation(t *testing.T) {
 			input:        "\u231B",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⌛ U+231B has default emoji presentation",
 		},
 		{
@@ -285,7 +286,7 @@ func TestEmojiPresentation(t *testing.T) {
 			input:        "\u23E9",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⏩ U+23E9 has default emoji presentation",
 		},
 		{
@@ -293,7 +294,7 @@ func TestEmojiPresentation(t *testing.T) {
 			input:        "\u23F0",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⏰ U+23F0 has default emoji presentation",
 		},
 		{
@@ -301,7 +302,7 @@ func TestEmojiPresentation(t *testing.T) {
 			input:        "\u26BD",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⚽ U+26BD has default emoji presentation",
 		},
 		{
@@ -309,7 +310,7 @@ func TestEmojiPresentation(t *testing.T) {
 			input:        "\u2693",
 			wantDefault:  2,
 			wantWithVS16: 2,
-			wantWithVS15: 1,
+			wantWithVS15: 2, // VS15 is a no-op, width remains 2
 			description:  "⚓ U+2693 has default emoji presentation",
 		},
 
@@ -409,7 +410,8 @@ func TestEmojiPresentation(t *testing.T) {
 					tt.input, gotWithVS16, tt.wantWithVS16, tt.description)
 			}
 
-			// Test with VS15 (U+FE0E) for text presentation
+			// Test with VS15 (U+FE0E) - VS15 is a no-op per Unicode TR51
+			// It requests text presentation but does not affect width calculation
 			inputWithVS15 := tt.input + "\uFE0E"
 			gotWithVS15 := String(inputWithVS15)
 			if gotWithVS15 != tt.wantWithVS15 {
@@ -595,32 +597,40 @@ func TestTR51Conformance(t *testing.T) {
 		}
 	})
 
-	t.Run("C2: VS15 forces text presentation", func(t *testing.T) {
-		// VS15 (U+FE0E) should force text presentation (width 1) even for emoji-presentation characters
-		emojiWithVS15 := []string{
-			"\u231A\uFE0E", // ⌚︎ watch with VS15
-			"\u26BD\uFE0E", // ⚽︎ soccer ball with VS15
-			"\u2693\uFE0E", // ⚓︎ anchor with VS15
+	t.Run("C2: VS15 is a no-op for width calculation", func(t *testing.T) {
+		// VS15 (U+FE0E) requests text presentation but does not affect width per Unicode TR51.
+		// The width should be the same as the base character.
+		emojiWithVS15 := []struct {
+			char string
+			base string
+		}{
+			{"\u231A\uFE0E", "\u231A"}, // ⌚︎ watch with VS15
+			{"\u26BD\uFE0E", "\u26BD"}, // ⚽︎ soccer ball with VS15
+			{"\u2693\uFE0E", "\u2693"}, // ⚓︎ anchor with VS15
 		}
 
-		for _, s := range emojiWithVS15 {
-			got := String(s)
-			if got != 1 {
-				t.Errorf("String(%q) with VS15 = %d, want 1 (VS15 should force text presentation)", s, got)
+		for _, tc := range emojiWithVS15 {
+			baseWidth := String(tc.base)
+			vs15Width := String(tc.char)
+			if vs15Width != baseWidth {
+				t.Errorf("String(%q) with VS15 = %d, want %d (VS15 is a no-op, width should match base)", tc.char, vs15Width, baseWidth)
 			}
 		}
 
-		// VS15 with East Asian Wide characters should preserve width 2
-		// (East Asian Wide characters remain wide in text presentation)
-		eastAsianWideWithVS15 := []string{
-			"中\uFE0E", // CJK ideograph with VS15
-			"日\uFE0E", // CJK ideograph with VS15
+		// VS15 with East Asian Wide characters should preserve width 2 (no-op)
+		eastAsianWideWithVS15 := []struct {
+			char string
+			base string
+		}{
+			{"中\uFE0E", "中"}, // CJK ideograph with VS15
+			{"日\uFE0E", "日"}, // CJK ideograph with VS15
 		}
 
-		for _, s := range eastAsianWideWithVS15 {
-			got := String(s)
-			if got != 2 {
-				t.Errorf("String(%q) with VS15 = %d, want 2 (East Asian Wide characters remain wide in text presentation)", s, got)
+		for _, tc := range eastAsianWideWithVS15 {
+			baseWidth := String(tc.base)
+			vs15Width := String(tc.char)
+			if vs15Width != baseWidth {
+				t.Errorf("String(%q) with VS15 = %d, want %d (VS15 is a no-op, width should match base)", tc.char, vs15Width, baseWidth)
 			}
 		}
 	})

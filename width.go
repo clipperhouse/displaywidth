@@ -103,10 +103,10 @@ func isRIPrefix[T stringish.Interface](s T) bool {
 	return s[0] == 0xF0 && s[1] == 0x9F && s[2] == 0x87
 }
 
-// isVSPrefix checks if the slice matches the Variation Selector prefix
-// (EF B8). It assumes len(s) >= 2.
-func isVSPrefix[T stringish.Interface](s T) bool {
-	return s[0] == 0xEF && s[1] == 0xB8
+// isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
+// (EF B8 8F). It assumes len(s) >= 3.
+func isVS16[T stringish.Interface](s T) bool {
+	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
 // lookupProperties returns the properties for the first character in a string
@@ -127,14 +127,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 		if l >= 4 {
 			// Subslice may help eliminate bounds checks
 			vs := s[1:4]
-			if isVSPrefix(vs) {
-				if vs[2] == 0x8E {
-					// VS15 requests text presentation (width 1)
-					return _Default
-				}
+			if isVS16(vs) {
 				// VS16 requests emoji presentation (width 2)
 				return _Emoji
 			}
+			// VS15 (0x8E) just means text presentation, no width change
+			// Falls through to return _Default
 		}
 		return _Default
 	}
@@ -161,25 +159,12 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if size > 0 && l >= size+3 {
 		// Subslice may help eliminate bounds checks
 		vs := s[size : size+3]
-		if isVSPrefix(vs) {
-			switch vs[2] {
-			case 0x8E:
-				// VS15 requests text presentation.
-				if p == _Emoji {
-					// For emoji-only characters (Extended_Pictographic +
-					// Emoji_Presentation, but not East Asian Wide), text
-					// presentation means width 1
-					return _Default
-				}
-				// Otherwise, preserve the base character's width:
-				// East Asian Wide remains wide, East Asian Ambiguous remains
-				// ambiguous.
-				return p
-			case 0x8F:
-				// VS16 requests emoji presentation (width 2)
-				return _Emoji
-			}
+		if isVS16(vs) {
+			// VS16 requests emoji presentation (width 2)
+			return _Emoji
 		}
+		// VS15 (0x8E) just means text presentation, no width change
+		// Falls through to return p at the end.
 	}
 
 	return p
