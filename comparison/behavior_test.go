@@ -73,7 +73,7 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 				"displaywidth_default":   14, // 2 per emoji (properly handles Unicode 16.0)
 				"displaywidth_options{}": 14,
 				"go-runewidth_default":   7, // go-runewidth may not fully support Unicode 16.0 yet (treats as width 1)
-				"uniseg_default":         7,  // uniseg may not fully support Unicode 16.0 yet (treats as width 1)
+				"uniseg_default":         7, // uniseg may not fully support Unicode 16.0 yet (treats as width 1)
 			},
 		},
 
@@ -92,14 +92,15 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 		},
 
 		// Variation selectors
+		// ☺️ (U+263A + VS16) = width 2, ⌛︎ (U+231B + VS15) = width 2 (VS15 is no-op), ❤️ (U+2764 + VS16) = width 2
 		{
 			name:  "Variation selectors",
 			input: "☺️⌛︎❤️",
 			expected: map[string]int{
-				"displaywidth_default":   5,
-				"displaywidth_options{}": 5,
+				"displaywidth_default":   6, // 2 + 2 + 2 (VS15 is no-op per Unicode TR51)
+				"displaywidth_options{}": 6,
 				"go-runewidth_default":   4,
-				"uniseg_default":         5,
+				"uniseg_default":         5, // uniseg still treats VS15 as width 1
 			},
 		},
 

@@ -5,6 +5,7 @@ A high-performance Go package for measuring the monospace display width of strin
 [![Documentation](https://pkg.go.dev/badge/github.com/clipperhouse/displaywidth.svg)](https://pkg.go.dev/github.com/clipperhouse/displaywidth)
 [![Test](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gotest.yml)
 [![Fuzz](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml/badge.svg)](https://github.com/clipperhouse/displaywidth/actions/workflows/gofuzz.yml)
+
 ## Install
 ```bash
 go get github.com/clipperhouse/displaywidth
@@ -34,26 +35,40 @@ func main() {
 
 For most purposes, you should use the `String` or `Bytes` methods.
 
+
 ### Options
 
-You can specify East Asian Width settings. If unspecified, the default is `EastAsianWidth: false`.
+You can specify East Asian Width settings. When false (default),
+[East Asian Ambiguous characters](https://www.unicode.org/reports/tr11/#Ambiguous)
+are treated as width 1. When true, East Asian Ambiguous characters are treated
+as width 2.
 
 ```go
-options := displaywidth.Options{
+myOptions := displaywidth.Options{
     EastAsianWidth: true,
 }
 
-width := options.String("Hello, 世界!")
+width := myOptions.String("Hello, 世界!")
 fmt.Println(width)
 ```
 
-## Details
+## Technical details
 
 This package implements the Unicode East Asian Width standard
 ([UAX #11](https://www.unicode.org/reports/tr11/)), and handles
 [version selectors](https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)),
 and [regional indicator pairs](https://en.wikipedia.org/wiki/Regional_indicator_symbol)
-(flags). We cover much of [Unicode TR51](https://unicode.org/reports/tr51/).
+(flags). We implement [Unicode TR51](https://unicode.org/reports/tr51/).
+
+`clipperhouse/displaywidth`, `mattn/go-runewidth`, and `rivo/uniseg` will
+give the same outputs for most real-world text. See extensive details in the
+[compatibility analysis](comparison/COMPATIBILITY_ANALYSIS.md).
+
+If you wish to investigate the core logic, see the `lookupProperties` and `width`
+functions in [width.go](width.go#L135). The essential trie generation logic is in
+`buildPropertyBitmap` in [unicode.go](internal/gen/unicode.go#L317).
+
+I (@clipperhouse) am keeping an eye on [emerging standards and test suites](https://www.jeffquast.com/post/state-of-terminal-emulation-2025/).
 
 ## Prior Art
 
@@ -106,12 +121,3 @@ BenchmarkRune_ASCII/mattn/go-runewidth-8                    266.4 ns/op	    480.
 BenchmarkRune_Emoji/clipperhouse/displaywidth-8            1384 ns/op	    523.02 MB/s	      0 B/op     0 allocs/op
 BenchmarkRune_Emoji/mattn/go-runewidth-8                   2273 ns/op	    318.45 MB/s	      0 B/op     0 allocs/op
 ```
-
-## Compatibility
-
-`clipperhouse/displaywidth`, `mattn/go-runewidth`, and `rivo/uniseg` should give the
-same outputs for real-world text. See [comparison/README.md](comparison/README.md).
-
-If you wish to investigate the core logic, see the `lookupProperties` and `width`
-functions in [width.go](width.go#L112). The core of the trie generation logic is in
-`BuildPropertyBitmap` in [unicode.go](internal/gen/unicode.go#L309).
