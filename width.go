@@ -55,8 +55,6 @@ func (options Options) String(s string) int {
 	total := 0
 	g := graphemes.FromString(s)
 	for g.Next() {
-		// The first character in the grapheme cluster determines the width;
-		// we use lookupProperties which can consider immediate VS15/VS16.
 		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}
@@ -74,8 +72,6 @@ func (options Options) Bytes(s []byte) int {
 	total := 0
 	g := graphemes.FromBytes(s)
 	for g.Next() {
-		// The first character in the grapheme cluster determines the width;
-		// we use lookupProperties which can consider immediate VS15/VS16.
 		props := lookupProperties(g.Value())
 		total += props.width(options)
 	}

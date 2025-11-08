@@ -324,6 +324,12 @@ func buildPropertyBitmap(r rune, data *UnicodeData) property {
 		return zero_Width
 	}
 
+	// As a practical matter, we probably don't need separate properties for
+	// Emoji and East Asian Wide, as I believe they lead to the same
+	// result. I made this distinction for VS15 handling. However,
+	// eventually I came to the conclusion that VS15 is a no-op for width
+	// calculation. Keeping the distinction for now.
+
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
 		return emoji
 	}

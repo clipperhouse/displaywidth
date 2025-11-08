@@ -238,6 +238,9 @@ func TestCalculateWidth(t *testing.T) {
 
 		// Default (no properties set)
 		{"default", 0, defaultOptions, 1},
+
+		// Emoji
+		{"emoji", _Emoji, defaultOptions, 2},
 	}
 
 	for _, tt := range tests {
