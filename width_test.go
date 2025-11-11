@@ -745,3 +745,87 @@ func TestTR51Conformance(t *testing.T) {
 		}
 	})
 }
+
+func TestStringGraphemes(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		options Options
+	}{
+		{"empty string", "", defaultOptions},
+		{"single ASCII", "a", defaultOptions},
+		{"multiple ASCII", "hello", defaultOptions},
+		{"ASCII with spaces", "hello world", defaultOptions},
+		{"ASCII with newline", "hello\nworld", defaultOptions},
+		{"CJK ideograph", "中", defaultOptions},
+		{"CJK with ASCII", "hello中", defaultOptions},
+		{"ambiguous character", "★", defaultOptions},
+		{"ambiguous character EAW", "★", eawOptions},
+		{"emoji", "😀", defaultOptions},
+		{"flag US", "🇺🇸", defaultOptions},
+		{"text with flags", "Go 🇺🇸🚀", defaultOptions},
+		{"keycap 1️⃣", "1️⃣", defaultOptions},
+		{"mixed content", "Hi⌚⚙⚓", defaultOptions},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Get expected width using String
+			expected := tt.options.String(tt.input)
+
+			// Iterate over graphemes and sum widths
+			iter := tt.options.StringGraphemes(tt.input)
+			got := 0
+			for iter.Next() {
+				got += iter.Width()
+			}
+
+			if got != expected {
+				t.Errorf("StringGraphemes(%q) sum = %d, want %d (from String)",
+					tt.input, got, expected)
+			}
+		})
+	}
+}
+
+func TestBytesGraphemes(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		options Options
+	}{
+		{"empty bytes", []byte(""), defaultOptions},
+		{"single ASCII", []byte("a"), defaultOptions},
+		{"multiple ASCII", []byte("hello"), defaultOptions},
+		{"ASCII with spaces", []byte("hello world"), defaultOptions},
+		{"ASCII with newline", []byte("hello\nworld"), defaultOptions},
+		{"CJK ideograph", []byte("中"), defaultOptions},
+		{"CJK with ASCII", []byte("hello中"), defaultOptions},
+		{"ambiguous character", []byte("★"), defaultOptions},
+		{"ambiguous character EAW", []byte("★"), eawOptions},
+		{"emoji", []byte("😀"), defaultOptions},
+		{"flag US", []byte("🇺🇸"), defaultOptions},
+		{"text with flags", []byte("Go 🇺🇸🚀"), defaultOptions},
+		{"keycap 1️⃣", []byte("1️⃣"), defaultOptions},
+		{"mixed content", []byte("Hi⌚⚙⚓"), defaultOptions},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Get expected width using Bytes
+			expected := tt.options.Bytes(tt.input)
+
+			// Iterate over graphemes and sum widths
+			iter := tt.options.BytesGraphemes(tt.input)
+			got := 0
+			for iter.Next() {
+				got += iter.Width()
+			}
+
+			if got != expected {
+				t.Errorf("BytesGraphemes(%q) sum = %d, want %d (from Bytes)",
+					tt.input, got, expected)
+			}
+		})
+	}
+}

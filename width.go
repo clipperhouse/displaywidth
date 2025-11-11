@@ -27,7 +27,7 @@ func Bytes(s []byte) int {
 //
 // The smallest unit of display width is a grapheme
 // cluster, not a rune. Iterating over runes to measure
-// width is incorrect in most cases.
+// width is incorrect in many cases.
 func Rune(r rune) int {
 	return DefaultOptions.Rune(r)
 }
@@ -44,70 +44,138 @@ type Options struct {
 // calculation, which is EastAsianWidth: false.
 var DefaultOptions = Options{EastAsianWidth: false}
 
-// String calculates the display width of a string,
-// for the given options, by iterating over grapheme clusters
-// and summing their widths.
+// graphemeWidth returns the display width of a grapheme cluster.
+// The passed string must be a single grapheme cluster.
+func graphemeWidth[T stringish.Interface](s T, options Options) int {
+	return lookupProperties(s).width(options)
+}
+
+// Graphemes is a iterator over grapheme clusters.
+//
+// Iterate using the Next method, and get the width of the current grapheme
+// using the Width method.
+type Graphemes[T stringish.Interface] struct {
+	iter    graphemes.Iterator[T]
+	options Options
+}
+
+// Next advances the iterator to the next grapheme cluster.
+func (g *Graphemes[T]) Next() bool {
+	return g.iter.Next()
+}
+
+// Value returns the current grapheme cluster.
+func (g *Graphemes[T]) Value() T {
+	return g.iter.Value()
+}
+
+// Width returns the display width of the current grapheme cluster.
+func (g *Graphemes[T]) Width() int {
+	return graphemeWidth(g.Value(), g.options)
+}
+
+// StringGraphemes returns an iterator over grapheme clusters for the given
+// string.
+//
+// Iterate using the Next method, and get the width of the current grapheme
+// using the Width method.
+func StringGraphemes(s string) Graphemes[string] {
+	return DefaultOptions.StringGraphemes(s)
+}
+
+// StringGraphemes returns an iterator over grapheme clusters for the given
+// string, with the given options.
+//
+// Iterate using the Next method, and get the width of the current grapheme
+// using the Width method.
+func (options Options) StringGraphemes(s string) Graphemes[string] {
+	return Graphemes[string]{
+		iter:    graphemes.FromString(s),
+		options: options,
+	}
+}
+
+// BytesGraphemes returns an iterator over grapheme clusters for the given
+// []byte.
+//
+// Iterate using the Next method, and get the width of the current grapheme
+// using the Width method.
+func BytesGraphemes(s []byte) Graphemes[[]byte] {
+	return DefaultOptions.BytesGraphemes(s)
+}
+
+// BytesGraphemes returns an iterator over grapheme clusters for the given
+// []byte, with the given options.
+//
+// Iterate using the Next method, and get the width of the current grapheme
+// using the Width method.
+func (options Options) BytesGraphemes(s []byte) Graphemes[[]byte] {
+	return Graphemes[[]byte]{
+		iter:    graphemes.FromBytes(s),
+		options: options,
+	}
+}
+
+// String calculates the display width of a string, for the given options, by
+// iterating over grapheme clusters in the string and summing their widths.
 func (options Options) String(s string) int {
-	if len(s) == 0 {
+	switch len(s) {
+	case 0:
 		return 0
+	case 1:
+		return graphemeWidth(s, options)
 	}
 
-	total := 0
+	width := 0
 	g := graphemes.FromString(s)
 	for g.Next() {
-		props := lookupProperties(g.Value())
-		total += props.width(options)
+		width += graphemeWidth(g.Value(), options)
 	}
-	return total
+	return width
 }
 
-// Bytes calculates the display width of a []byte,
-// for the given options, by iterating over grapheme
-// clusters in the byte slice and summing their widths.
+// Bytes calculates the display width of a []byte, for the given options, by
+// iterating over grapheme clusters in the slice and summing their widths.
 func (options Options) Bytes(s []byte) int {
-	if len(s) == 0 {
+	switch len(s) {
+	case 0:
 		return 0
+	case 1:
+		return graphemeWidth(s, options)
 	}
 
-	total := 0
+	width := 0
 	g := graphemes.FromBytes(s)
 	for g.Next() {
-		props := lookupProperties(g.Value())
-		total += props.width(options)
+		width += graphemeWidth(g.Value(), options)
 	}
-	return total
+	return width
 }
 
-// Rune calculates the display width of a rune,
-// for the given options.
+// Rune calculates the display width of a rune, for the given options.
 //
-// The smallest unit of display width is a grapheme
-// cluster, not a rune. Iterating over runes to measure
-// width is incorrect in most cases.
+// You should almost certainly use [String] or [Bytes] for most purposes.
+//
+// The smallest unit of display width is a grapheme cluster, not a rune.
+// Iterating over runes to measure width is incorrect in many cases.
 func (options Options) Rune(r rune) int {
-	// Fast path for ASCII
 	if r < utf8.RuneSelf {
 		if isASCIIControl(byte(r)) {
-			// Control (0x00-0x1F) and DEL (0x7F)
 			return 0
 		}
-		// ASCII printable (0x20-0x7E)
 		return 1
 	}
 
-	// Surrogates (U+D800-U+DFFF) are invalid UTF-8 and have zero width
-	// Other packages might turn them into the replacement character (U+FFFD)
-	// in which case, we won't see it.
+	// Surrogates (U+D800-U+DFFF) are invalid UTF-8.
 	if r >= 0xD800 && r <= 0xDFFF {
 		return 0
 	}
 
-	// Stack-allocated to avoid heap allocation
-	var buf [4]byte // UTF-8 is at most 4 bytes
+	var buf [4]byte
 	n := utf8.EncodeRune(buf[:], r)
-	// Skip the grapheme iterator and directly lookup properties
-	props := lookupProperties(buf[:n])
-	return props.width(options)
+
+	// Skip the grapheme iterator
+	return lookupProperties(buf[:n]).width(options)
 }
 
 func isASCIIControl(b byte) bool {
@@ -158,34 +226,37 @@ func lookupProperties[T stringish.Interface](s T) property {
 	if l >= 8 {
 		// Subslice may help eliminate bounds checks
 		ri := s[:8]
+		// First rune
 		if isRIPrefix(ri[0:3]) {
 			b3 := ri[3]
-			if b3 >= 0xA6 && b3 <= 0xBF && isRIPrefix(ri[4:7]) {
-				b7 := ri[7]
-				if b7 >= 0xA6 && b7 <= 0xBF {
-					return _Emoji
+			if b3 >= 0xA6 && b3 <= 0xBF {
+				// Second rune
+				if isRIPrefix(ri[4:7]) {
+					b7 := ri[7]
+					if b7 >= 0xA6 && b7 <= 0xBF {
+						return _Emoji
+					}
 				}
 			}
 		}
 	}
 
-	props, size := lookup(s)
-	p := property(props)
+	p, sz := lookup(s)
 
 	// Variation Selectors
-	if size > 0 && l >= size+3 {
+	if sz > 0 && l >= sz+3 {
 		// Subslice may help eliminate bounds checks
-		vs := s[size : size+3]
+		vs := s[sz : sz+3]
 		if isVS16(vs) {
 			// VS16 requests emoji presentation (width 2)
 			return _Emoji
 		}
 		// VS15 (0x8E) requests text presentation but does not affect width,
 		// in my reading of Unicode TR51. Falls through to return the base
-		// character's property (p).
+		// character's property.
 	}
 
-	return p
+	return property(p)
 }
 
 const _Default property = 0
