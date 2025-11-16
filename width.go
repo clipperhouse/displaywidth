@@ -192,12 +192,19 @@ func lookupProperties[T stringish.Interface](s T) property {
 }
 
 const _Default property = 0
+const boundsCheck = property(len(propertyWidths) - 1)
 
-// width determines the display width of a character based on its properties
+// width determines the display width of a character based on its properties,
 // and configuration options
 func (p property) width(options Options) int {
 	if options.EastAsianWidth && p == _East_Asian_Ambiguous {
 		return 2
+	}
+
+	// Bounds check may help the compiler eliminate its bounds check,
+	// and safety of course.
+	if p > boundsCheck {
+		return 1 // default width
 	}
 
 	return propertyWidths[p]
