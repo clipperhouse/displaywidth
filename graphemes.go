@@ -5,7 +5,7 @@ import (
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
-// Graphemes is a iterator over grapheme clusters.
+// Graphemes is an iterator over grapheme clusters.
 //
 // Iterate using the Next method, and get the width of the current grapheme
 // using the Width method.
