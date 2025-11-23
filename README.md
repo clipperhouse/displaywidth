@@ -37,7 +37,7 @@ For most purposes, you should use the `String` or `Bytes` methods. They sum
 the widths of grapheme clusters in the string or byte slice.
 
 > Note: in your application, iterating over runes to measure width is likely incorrect;
-the smallest unit of display width is a grapheme, not a rune.
+the smallest unit of display is a grapheme, not a rune.
 
 ### Iterating over graphemes
 
@@ -72,7 +72,7 @@ You may wish to configure this based on environment variables or locale.
  `go-runewidth`, for example, does so
  [during package initialization](https://github.com/mattn/go-runewidth/blob/master/runewidth.go#L26C1-L45C2).
 
-`displaywidth` does not do this automatically, we prefer you to leave it to you.
+`displaywidth` does not do this automatically, we prefer to leave it to you.
 You might do something like:
 
 ```go
@@ -161,3 +161,5 @@ BenchmarkRune_ASCII/mattn/go-runewidth-8              	       264.3 ns/op	   484
 BenchmarkRune_Emoji/clipperhouse/displaywidth-8       	      1374 ns/op	   527.02 MB/s      0 B/op      0 allocs/op
 BenchmarkRune_Emoji/mattn/go-runewidth-8              	      2210 ns/op	   327.66 MB/s      0 B/op      0 allocs/op
 ```
+
+Here are some notes on [how to make Unicode things fast](https://clipperhouse.com/go-unicode/).
