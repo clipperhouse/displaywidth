@@ -34,7 +34,7 @@ func (options Options) String(s string) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
 	width := 0
@@ -60,7 +60,7 @@ func (options Options) Bytes(s []byte) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
 	width := 0
@@ -90,7 +90,7 @@ func Rune(r rune) int {
 // Iterating over runes to measure width is incorrect in many cases.
 func (options Options) Rune(r rune) int {
 	if r < utf8.RuneSelf {
-		return int(asciiWidths[byte(r)])
+		return asciiWidth(byte(r))
 	}
 
 	// Surrogates (U+D800-U+DFFF) are invalid UTF-8.
@@ -113,7 +113,7 @@ func graphemeWidth[T stringish.Interface](s T, options Options) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
 	return lookupProperties(s).width(options)
