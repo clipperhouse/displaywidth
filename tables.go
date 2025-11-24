@@ -38,7 +38,7 @@ var asciiWidths = [4]uint64{
 	0xFFFFFFFFFFFFFFFF, // all bits set
 }
 
-// asciiWidth returns the width for a byte value using the bitmask
+// asciiWidth returns the width for a byte
 func asciiWidth(b byte) int {
 	// determine the uint64 mask for the byte
 	mask := asciiWidths[b>>6]
@@ -47,48 +47,15 @@ func asciiWidth(b byte) int {
 	return int((mask >> pos) & 1)
 }
 
-// asciiProperties is a lookup table for single-byte character properties.
-// It is intended for valid single-byte UTF-8, which means <128.
-//
-// If you look up an index >= 128, that is either:
-//   - invalid UTF-8, or
-//   - a multi-byte UTF-8 sequence, in which case you should be operating on
-//     the grapheme cluster, and not using this table
-//
-// We will return a default value of _Default in those cases, so as not to
-// panic.
-var asciiProperties = [256]property{
-	// Control characters (0x00-0x1F): _Zero_Width
-	_Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width,
-	_Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width,
-	_Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width,
-	_Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width, _Zero_Width,
-	// Printable ASCII (0x20-0x7E): _Default
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	// DEL (0x7F): _Zero_Width
-	_Zero_Width,
-	// >= 128
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
-	_Default, _Default, _Default, _Default, _Default, _Default, _Default, _Default,
+// asciiProperty returns the property for a byte
+func asciiProperty(b byte) property {
+	// We can reuse (invert) asciiWidth because _Default happens to be 0,
+	// and _Zero_Width happens to be 1.
+
+	// determine the uint64 mask for the byte
+	mask := asciiWidths[b>>6]
+	// determine which bit within the uint64 to use
+	pos := b & 0x3F
+	// invert the mask and extract the bit
+	return property((^mask >> pos) & 1)
 }

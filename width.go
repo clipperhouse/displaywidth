@@ -138,8 +138,9 @@ func isVS16[T stringish.Interface](s T) bool {
 // optimization, and to reduce the scope of this function.
 func lookupProperties[T stringish.Interface](s T) property {
 	l := len(s)
+	b := s[0]
 
-	if s[0] < utf8.RuneSelf {
+	if b < utf8.RuneSelf {
 		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
 		if l >= 4 {
 			// Subslice may help eliminate bounds checks
@@ -151,7 +152,7 @@ func lookupProperties[T stringish.Interface](s T) property {
 			// VS15 (0x8E) requests text presentation but does not affect width,
 			// in my reading of Unicode TR51. Falls through to _Default.
 		}
-		return asciiProperties[s[0]]
+		return asciiProperty(b)
 	}
 
 	// Regional indicator pair (flag)
