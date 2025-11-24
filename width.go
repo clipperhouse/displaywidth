@@ -34,7 +34,7 @@ func (options Options) String(s string) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
 	width := 0
@@ -60,7 +60,7 @@ func (options Options) Bytes(s []byte) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
 	width := 0
@@ -90,7 +90,7 @@ func Rune(r rune) int {
 // Iterating over runes to measure width is incorrect in many cases.
 func (options Options) Rune(r rune) int {
 	if r < utf8.RuneSelf {
-		return int(asciiWidths[byte(r)])
+		return asciiWidth(byte(r))
 	}
 
 	// Surrogates (U+D800-U+DFFF) are invalid UTF-8.
@@ -102,7 +102,7 @@ func (options Options) Rune(r rune) int {
 	n := utf8.EncodeRune(buf[:], r)
 
 	// Skip the grapheme iterator
-	return lookupProperties(buf[:n]).width(options)
+	return lookupProperty(buf[:n]).width(options)
 }
 
 // graphemeWidth returns the display width of a grapheme cluster.
@@ -113,16 +113,17 @@ func graphemeWidth[T stringish.Interface](s T, options Options) int {
 	case 0:
 		return 0
 	case 1:
-		return int(asciiWidths[s[0]])
+		return asciiWidth(s[0])
 	}
 
-	return lookupProperties(s).width(options)
+	return lookupProperty(s).width(options)
 }
 
-// isRIPrefix checks if the slice matches the Regional Indicator prefix
-// (F0 9F 87). It assumes len(s) >= 3.
-func isRIPrefix[T stringish.Interface](s T) bool {
-	return s[0] == 0xF0 && s[1] == 0x9F && s[2] == 0x87
+func asciiWidth(b byte) int {
+	if b <= 0x1F || b == 0x7F {
+		return 0
+	}
+	return 1
 }
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
@@ -131,56 +132,36 @@ func isVS16[T stringish.Interface](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
-// lookupProperties returns the properties for a grapheme.
+const _Default property = 0
+
+// lookupProperty returns the properties for a grapheme.
 // The passed string must be at least one byte long.
 //
 // Callers must handle zero and single-byte strings upstream, both as an
 // optimization, and to reduce the scope of this function.
-func lookupProperties[T stringish.Interface](s T) property {
-	l := len(s)
+func lookupProperty[T stringish.Interface](s T) property {
+	p, sz := lookup(s)
+	prop := property(p)
 
-	if s[0] < utf8.RuneSelf {
-		// Check for variation selector after ASCII (e.g., keycap sequences like 1️⃣)
-		if l >= 4 {
-			// Subslice may help eliminate bounds checks
-			vs := s[1:4]
-			if isVS16(vs) {
-				// VS16 requests emoji presentation (width 2)
+	if prop == _Regional_Indicator {
+		// Regional indicator *pairs* (flags) are treated as emoji,
+		// single ones are treated like anything else.
+		//
+		// Per Unicode, regional indicator pairs must be contiguous. The
+		// grapheme tokenizer will split them if anything is inserted between.
+		if len(s) >= 8 {
+			// Look for second Regional Indicator
+			p2, _ := lookup(s[4:8])
+			if property(p2) == _Regional_Indicator {
 				return _Emoji
 			}
-			// VS15 (0x8E) requests text presentation but does not affect width,
-			// in my reading of Unicode TR51. Falls through to _Default.
-		}
-		return asciiProperties[s[0]]
-	}
-
-	// Regional indicator pair (flag)
-	if l >= 8 {
-		// Subslice may help eliminate bounds checks
-		ri := s[:8]
-		// First rune
-		if isRIPrefix(ri[0:3]) {
-			b3 := ri[3]
-			if b3 >= 0xA6 && b3 <= 0xBF {
-				// Second rune
-				if isRIPrefix(ri[4:7]) {
-					b7 := ri[7]
-					if b7 >= 0xA6 && b7 <= 0xBF {
-						return _Emoji
-					}
-				}
-			}
 		}
 	}
 
-	p, sz := lookup(s)
-
-	// Variation Selectors
-	if sz > 0 && l >= sz+3 {
-		// Subslice may help eliminate bounds checks
+	// Variation Selector 16 (VS16) requests emoji presentation
+	if sz > 0 && len(s) >= sz+3 {
 		vs := s[sz : sz+3]
 		if isVS16(vs) {
-			// VS16 requests emoji presentation (width 2)
 			return _Emoji
 		}
 		// VS15 (0x8E) requests text presentation but does not affect width,
@@ -188,11 +169,20 @@ func lookupProperties[T stringish.Interface](s T) property {
 		// character's property.
 	}
 
-	return property(p)
+	return prop
 }
 
-const _Default property = 0
-const boundsCheck = property(len(propertyWidths) - 1)
+// propertyWidths is a jump table of sorts, instead of a switch
+var propertyWidths = [6]int{
+	_Default:              1,
+	_Zero_Width:           0,
+	_East_Asian_Wide:      2,
+	_East_Asian_Ambiguous: 1,
+	_Emoji:                2,
+	_Regional_Indicator:   1, // pairs have width 2, individual ones are default
+}
+
+const upperBound = property(len(propertyWidths) - 1)
 
 // width determines the display width of a character based on its properties,
 // and configuration options
@@ -201,10 +191,8 @@ func (p property) width(options Options) int {
 		return 2
 	}
 
-	// Bounds check may help the compiler eliminate its bounds check,
-	// and safety of course.
-	if p > boundsCheck {
-		return 1 // default width
+	if p > upperBound {
+		return 1
 	}
 
 	return propertyWidths[p]
