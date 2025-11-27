@@ -59,3 +59,16 @@ func asciiProperty(b byte) property {
 	// invert the mask and extract the bit
 	return property((^mask >> pos) & 1)
 }
+
+var (
+	// asciiProperty depends on _Default being 0 and _Zero_Width being 1.
+	// Some compile-time checks.
+
+	// If _Default != 0, out of bounds.
+	_ = [1]int{}[_Default]
+
+	// If _Zero_Width is 0, index is -1, out of bounds
+	// If _Zero_Width is 1, index is 0, correct
+	// If _Zero_Width is > 1, out of bounds
+	_ = [1]int{}[_Zero_Width-1]
+)
