@@ -52,7 +52,8 @@ func main() {
 	fmt.Println("=== Visual Alignment Tests ===")
 	fmt.Println("Check if the markers align correctly with the characters.")
 	fmt.Println("If aligned: terminal width matches package calculation.")
-	fmt.Println("If misaligned: terminal rendering differs from package.\n")
+	fmt.Println("If misaligned: terminal rendering differs from package.")
+	fmt.Println()
 
 	for _, tc := range testCases {
 		visualTest(tc.char, tc.name, tc.width)
