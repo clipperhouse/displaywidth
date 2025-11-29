@@ -143,20 +143,15 @@ func lookupProperty[T stringish.Interface](s T) property {
 	p, sz := lookup(s)
 	prop := property(p)
 
-	if prop == _Regional_Indicator {
-		// Regional indicator *pairs* (flags) are treated as emoji,
-		// single ones are treated like anything else.
-		//
-		// Per Unicode, regional indicator pairs must be contiguous. The
-		// grapheme tokenizer will split them if anything is inserted between.
-		if len(s) >= 8 {
-			// Look for second Regional Indicator
-			p2, _ := lookup(s[4:8])
-			if property(p2) == _Regional_Indicator {
-				return _Emoji
-			}
-		}
-	}
+	/*
+		Note: we previously had some regional indicator handling here,
+		intending to treat single RI's as width 1 and pairs as width 2.
+		We think that's what the Unicode #11 indicates?
+
+		Then we looked at what actual terminals do, and they seem to treat
+		single and paired RI's as width 2, regardless. See terminal-test/.
+		Looks like VS Code does the same FWIW.
+	*/
 
 	// Variation Selector 16 (VS16) requests emoji presentation
 	if sz > 0 && len(s) >= sz+3 {
@@ -179,7 +174,7 @@ var propertyWidths = [6]int{
 	_East_Asian_Wide:      2,
 	_East_Asian_Ambiguous: 1,
 	_Emoji:                2,
-	_Regional_Indicator:   1, // pairs have width 2, individual ones are default
+	_Regional_Indicator:   2,
 }
 
 const upperBound = property(len(propertyWidths) - 1)

@@ -481,7 +481,7 @@ func TestComplexEmojiSequences(t *testing.T) {
 			desc:  "0 + VS16 + combining enclosing keycap",
 		},
 		{
-			name:  "Flag sequence 🇺🇸",
+			name:  "Flag sequence 🇺🇸 (Regional Indicator pair)",
 			input: "\U0001F1FA\U0001F1F8",
 			want:  2,
 			desc:  "US flag (RI pair)",
@@ -489,7 +489,7 @@ func TestComplexEmojiSequences(t *testing.T) {
 		{
 			name:  "Single Regional Indicator 🇺",
 			input: "\U0001F1FA",
-			want:  1,
+			want:  2,
 			desc:  "U (RI)",
 		},
 		{

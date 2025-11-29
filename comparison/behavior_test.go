@@ -91,6 +91,18 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 			},
 		},
 
+		// Single Regional Indicator
+		{
+			name:  "Single Regional Indicator",
+			input: "🇺",
+			expected: map[string]int{
+				"displaywidth_default":   2,
+				"displaywidth_options{}": 2,
+				"go-runewidth_default":   1,
+				"uniseg_default":         2,
+			},
+		},
+
 		// Variation selectors
 		// ☺️ (U+263A + VS16) = width 2, ⌛︎ (U+231B + VS15) = width 2 (VS15 is no-op), ❤️ (U+2764 + VS16) = width 2
 		{
