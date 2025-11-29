@@ -18,6 +18,7 @@ type UnicodeData struct {
 	EastAsianWidth       map[rune]string // From EastAsianWidth.txt
 	ExtendedPictographic map[rune]bool   // From emoji-data.txt (Extended_Pictographic property)
 	EmojiPresentation    map[rune]bool   // From emoji-data.txt (Emoji_Presentation property)
+	RegionalIndicator    map[rune]bool   // From emoji-data.txt (Regional Indicator symbols, range 1F1E6..1F1FF)
 	ControlChars         map[rune]bool   // From Go stdlib
 	CombiningMarks       map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
 	ZeroWidthChars       map[rune]bool   // Special zero-width characters
@@ -39,6 +40,7 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"East_Asian_Wide", "Always 2 wide (East Asian Wide F/W)"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
 	{"Emoji", "Extended_Pictographic + Emoji_Presentation"},
+	{"Regional_Indicator", "Regional Indicator symbols (used in flag emoji pairs)"},
 }
 
 // these constants are used to build the property bitmap, internally.
@@ -52,6 +54,8 @@ const (
 	east_Asian_Ambiguous
 	// Extended_Pictographic + Emoji_Presentation but not East Asian Wide
 	emoji
+	// Regional Indicator symbols (1F1E6..1F1FF)
+	regional_Indicator
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -60,6 +64,7 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		EastAsianWidth:       make(map[rune]string),
 		ExtendedPictographic: make(map[rune]bool),
 		EmojiPresentation:    make(map[rune]bool),
+		RegionalIndicator:    make(map[rune]bool),
 		ControlChars:         make(map[rune]bool),
 		CombiningMarks:       make(map[rune]bool),
 		ZeroWidthChars:       make(map[rune]bool),
@@ -217,11 +222,6 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 			propertyStr = strings.TrimSpace(propertyStr[:commentIndex])
 		}
 
-		// We're only interested in Extended_Pictographic and Emoji_Presentation
-		if propertyStr != "Extended_Pictographic" && propertyStr != "Emoji_Presentation" {
-			continue
-		}
-
 		var r1, r2 rune
 
 		// Parse range
@@ -251,11 +251,30 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 			continue
 		}
 
+		// Check if this is a Regional Indicator character (range 1F1E6..1F1FF)
+		// Regional Indicator characters can appear with any property, but we identify them by range
+		const regionalIndicatorStart = 0x1F1E6
+		const regionalIndicatorEnd = 0x1F1FF
+		if r1 >= regionalIndicatorStart && r2 <= regionalIndicatorEnd {
+			// Add all Regional Indicator characters to the RegionalIndicator map
+			for r := r1; r <= r2; r++ {
+				data.RegionalIndicator[r] = true
+			}
+			// Don't add them to ExtendedPictographic or EmojiPresentation maps
+			continue
+		}
+
+		// We're only interested in Extended_Pictographic and Emoji_Presentation for non-Regional Indicator characters
+		if propertyStr != "Extended_Pictographic" && propertyStr != "Emoji_Presentation" {
+			continue
+		}
+
 		// Add to the appropriate map
 		for r := r1; r <= r2; r++ {
-			if propertyStr == "Extended_Pictographic" {
+			switch propertyStr {
+			case "Extended_Pictographic":
 				data.ExtendedPictographic[r] = true
-			} else if propertyStr == "Emoji_Presentation" {
+			case "Emoji_Presentation":
 				data.EmojiPresentation[r] = true
 			}
 		}
@@ -329,6 +348,11 @@ func buildPropertyBitmap(r rune, data *UnicodeData) property {
 	// result. I made this distinction for VS15 handling. However,
 	// eventually I came to the conclusion that VS15 is a no-op for width
 	// calculation. Keeping the distinction for now.
+
+	// Check for Regional Indicator before emoji
+	if data.RegionalIndicator[r] {
+		return regional_Indicator
+	}
 
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
 		return emoji
