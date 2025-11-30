@@ -219,41 +219,6 @@ func TestRuneWidth(t *testing.T) {
 	}
 }
 
-func TestCalculateWidth(t *testing.T) {
-	tests := []struct {
-		name     string
-		props    property
-		options  Options
-		expected int
-	}{ // Zero width
-		{"zero width", _Zero_Width, defaultOptions, 0},
-
-		// East Asian Wide
-		{"EAW fullwidth", _East_Asian_Wide, defaultOptions, 2},
-		{"EAW wide", _East_Asian_Wide, defaultOptions, 2},
-
-		// East Asian Ambiguous
-		{"EAW ambiguous default", _East_Asian_Ambiguous, defaultOptions, 1},
-		{"EAW ambiguous EAW", _East_Asian_Ambiguous, eawOptions, 2},
-
-		// Default (no properties set)
-		{"default", 0, defaultOptions, 1},
-
-		// Emoji
-		{"emoji", _Emoji, defaultOptions, 2},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.props.width(tt.options)
-			if result != tt.expected {
-				t.Errorf("calculateWidth(%d, %v) = %d, want %d",
-					tt.props, tt.options, result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestEmojiPresentation verifies correct width behavior for characters with different
 // Emoji_Presentation property values according to TR51 conformance
 func TestEmojiPresentation(t *testing.T) {

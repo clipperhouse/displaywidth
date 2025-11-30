@@ -102,8 +102,10 @@ func (options Options) Rune(r rune) int {
 	n := utf8.EncodeRune(buf[:], r)
 
 	// Skip the grapheme iterator
-	return lookupProperty(buf[:n]).width(options)
+	return graphemeWidth(buf[:n], options)
 }
+
+const _Default property = 0
 
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
@@ -116,7 +118,39 @@ func graphemeWidth[T stringish.Interface](s T, options Options) int {
 		return asciiWidth(s[0])
 	}
 
-	return lookupProperty(s).width(options)
+	p, sz := lookup(s)
+	prop := property(p)
+
+	// Variation Selector 16 (VS16) requests emoji presentation
+	if sz > 0 && len(s) >= sz+3 {
+		vs := s[sz : sz+3]
+		if isVS16(vs) {
+			prop = _Emoji
+		}
+		// VS15 (0x8E) requests text presentation but does not affect width,
+		// in my reading of Unicode TR51. Falls through to return the base
+		// character's property.
+	}
+
+	/*
+		Note: we previously had some regional indicator handling here,
+		intending to treat single RI's as width 1 and pairs as width 2.
+		We think that's what the Unicode #11 indicates?
+
+		Then we looked at what actual terminals do, and they seem to treat
+		single and paired RI's as width 2, regardless. See terminal-test/.
+		Looks like VS Code does the same FWIW.
+	*/
+
+	if options.EastAsianWidth && prop == _East_Asian_Ambiguous {
+		prop = _East_Asian_Wide
+	}
+
+	if prop > upperBound {
+		prop = _Default
+	}
+
+	return propertyWidths[prop]
 }
 
 func asciiWidth(b byte) int {
@@ -132,41 +166,6 @@ func isVS16[T stringish.Interface](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
-const _Default property = 0
-
-// lookupProperty returns the properties for a grapheme.
-// The passed string must be at least one byte long.
-//
-// Callers must handle zero and single-byte strings upstream, both as an
-// optimization, and to reduce the scope of this function.
-func lookupProperty[T stringish.Interface](s T) property {
-	p, sz := lookup(s)
-	prop := property(p)
-
-	/*
-		Note: we previously had some regional indicator handling here,
-		intending to treat single RI's as width 1 and pairs as width 2.
-		We think that's what the Unicode #11 indicates?
-
-		Then we looked at what actual terminals do, and they seem to treat
-		single and paired RI's as width 2, regardless. See terminal-test/.
-		Looks like VS Code does the same FWIW.
-	*/
-
-	// Variation Selector 16 (VS16) requests emoji presentation
-	if sz > 0 && len(s) >= sz+3 {
-		vs := s[sz : sz+3]
-		if isVS16(vs) {
-			return _Emoji
-		}
-		// VS15 (0x8E) requests text presentation but does not affect width,
-		// in my reading of Unicode TR51. Falls through to return the base
-		// character's property.
-	}
-
-	return prop
-}
-
 // propertyWidths is a jump table of sorts, instead of a switch
 var propertyWidths = [6]int{
 	_Default:              1,
@@ -178,17 +177,3 @@ var propertyWidths = [6]int{
 }
 
 const upperBound = property(len(propertyWidths) - 1)
-
-// width determines the display width of a character based on its properties,
-// and configuration options
-func (p property) width(options Options) int {
-	if options.EastAsianWidth && p == _East_Asian_Ambiguous {
-		return 2
-	}
-
-	if p > upperBound {
-		return 1
-	}
-
-	return propertyWidths[p]
-}
