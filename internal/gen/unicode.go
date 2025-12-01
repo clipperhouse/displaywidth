@@ -37,10 +37,8 @@ type PropertyDefinition struct {
 // The order matters - it defines the bit positions (via iota).
 var PropertyDefinitions = []PropertyDefinition{
 	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
-	{"East_Asian_Wide", "Always 2 wide (East Asian Wide F/W)"},
+	{"Wide", "Always 2 wide (East Asian Wide F/W, Emoji, Regional Indicator)"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
-	{"Emoji", "Extended_Pictographic + Emoji_Presentation"},
-	{"Regional_Indicator", "Regional Indicator symbols (used in flag emoji pairs)"},
 }
 
 // these constants are used to build the property bitmap, internally.
@@ -48,14 +46,10 @@ var PropertyDefinitions = []PropertyDefinition{
 const (
 	// ZWSP, ZWJ, ZWNJ, etc.
 	zero_Width property = iota + 1
-	// F, W (East Asian Wide)
-	east_Asian_Wide
+	// F, W (East Asian Wide), Emoji, Regional Indicator
+	wide
 	// A (East Asian Ambiguous)
 	east_Asian_Ambiguous
-	// Extended_Pictographic + Emoji_Presentation but not East Asian Wide
-	emoji
-	// Regional Indicator symbols (1F1E6..1F1FF)
-	regional_Indicator
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -351,17 +345,17 @@ func buildPropertyBitmap(r rune, data *UnicodeData) property {
 
 	// Check for Regional Indicator before emoji
 	if data.RegionalIndicator[r] {
-		return regional_Indicator
+		return wide
 	}
 
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		return emoji
+		return wide
 	}
 
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			return east_Asian_Wide
+			return wide
 		case "A":
 			return east_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
