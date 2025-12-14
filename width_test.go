@@ -847,3 +847,118 @@ func TestAsciiWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncateString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxWidth int
+		tail     string
+		options  Options
+		expected string
+	}{
+		// Empty string cases
+		{"empty string", "", 0, "", defaultOptions, ""},
+		{"empty string with tail", "", 5, "...", defaultOptions, ""},
+		{"empty string large maxWidth", "", 100, "...", defaultOptions, ""},
+
+		// No truncation needed
+		{"fits exactly", "hello", 5, "...", defaultOptions, "hello"},
+		{"fits with room", "hi", 10, "...", defaultOptions, "hi"},
+		{"single char fits", "a", 1, "...", defaultOptions, "a"},
+
+		// Basic truncation - ASCII
+		{"truncate ASCII", "hello world", 5, "...", defaultOptions, "he..."},
+		{"truncate ASCII at start", "hello", 0, "...", defaultOptions, "..."},
+		{"truncate ASCII single char", "hello", 1, "...", defaultOptions, "..."},
+		{"truncate ASCII with empty tail", "hello world", 5, "", defaultOptions, "hello"},
+
+		// Truncation with wide characters (CJK)
+		{"CJK fits", "中", 2, "...", defaultOptions, "中"},
+		{"CJK truncate", "中", 1, "...", defaultOptions, "..."},
+		{"CJK with ASCII", "hello中", 5, "...", defaultOptions, "he..."},
+		{"CJK with ASCII fits", "hello中", 7, "...", defaultOptions, "hello中"},
+		{"CJK with ASCII partial", "hello中", 6, "...", defaultOptions, "hel..."},
+		{"multiple CJK", "中文", 2, "...", defaultOptions, "..."},
+		{"multiple CJK fits", "中文", 4, "...", defaultOptions, "中文"},
+
+		// Truncation with emoji
+		{"emoji fits", "😀", 2, "...", defaultOptions, "😀"},
+		{"emoji truncate", "😀", 1, "...", defaultOptions, "..."},
+		{"emoji with ASCII", "hello😀", 5, "...", defaultOptions, "he..."},
+		{"emoji with ASCII fits", "hello😀", 7, "...", defaultOptions, "hello😀"},
+		{"multiple emoji", "😀😁", 2, "...", defaultOptions, "..."},
+		{"multiple emoji fits", "😀😁", 4, "...", defaultOptions, "😀😁"},
+
+		// Truncation with control characters (zero width)
+		// Control characters have width 0 but are preserved in the string structure
+		{"with newline", "hello\nworld", 5, "...", defaultOptions, "he..."},
+		{"with tab", "hello\tworld", 5, "...", defaultOptions, "he..."},
+		{"newline at start", "\nhello", 5, "...", defaultOptions, "\nhello"},
+		{"multiple newlines", "a\n\nb", 1, "...", defaultOptions, "..."},
+
+		// Mixed content
+		{"ASCII CJK emoji", "hi中😀", 2, "...", defaultOptions, "..."},
+		{"ASCII CJK emoji fits", "hi中😀", 6, "...", defaultOptions, "hi中😀"},
+		{"ASCII CJK emoji partial", "hi中😀", 4, "...", defaultOptions, "h..."},
+		{"complex mixed", "Go 🇺🇸🚀", 3, "...", defaultOptions, "..."},
+		{"complex mixed fits", "Go 🇺🇸🚀", 7, "...", defaultOptions, "Go 🇺🇸🚀"},
+
+		// East Asian Width option
+		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},
+		{"ambiguous EAW truncate", "★", 1, "...", eawOptions, "..."},
+		{"ambiguous default fits", "★", 1, "...", defaultOptions, "★"},
+		{"ambiguous mixed", "a★b", 2, "...", eawOptions, "..."},
+		{"ambiguous mixed default", "a★b", 2, "...", defaultOptions, "..."},
+
+		// Edge cases
+		{"negative maxWidth", "hello", -1, "...", defaultOptions, "..."},
+		{"zero maxWidth", "hello", 0, "...", defaultOptions, "..."},
+		{"very long string", "a very long string that will definitely be truncated", 10, "...", defaultOptions, "a very ..."},
+
+		// Tail variations
+		{"custom tail", "hello world", 5, "…", defaultOptions, "hell…"},
+		{"long tail", "hello", 3, ">>>", defaultOptions, ">>>"},
+		{"tail with wide char", "hello", 3, "中", defaultOptions, "h中"},
+		{"tail with emoji", "hello", 3, "😀", defaultOptions, "h😀"},
+
+		// Grapheme boundary tests (ensuring truncation happens at grapheme boundaries)
+		{"keycap sequence", "1️⃣2️⃣", 2, "...", defaultOptions, "..."},
+		{"flag sequence", "🇺🇸🇯🇵", 2, "...", defaultOptions, "..."},
+		{"ZWJ sequence", "👨‍👩‍👧", 2, "...", defaultOptions, "👨‍👩‍👧"},
+		{"ZWJ sequence truncate", "👨‍👩‍👧👨‍👩‍👧", 2, "...", defaultOptions, "..."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.options.TruncateString(tt.input, tt.maxWidth, tt.tail)
+			if got != tt.expected {
+				t.Errorf("TruncateString(%q, %d, %q) with options %v = %q, want %q",
+					tt.input, tt.maxWidth, tt.tail, tt.options, got, tt.expected)
+				// Show width information for debugging
+				inputWidth := tt.options.String(tt.input)
+				gotWidth := tt.options.String(got)
+				t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
+			}
+
+			// Verify the core behavior: the truncated part (without tail) should have width <= maxWidth
+			// The tail's width is not considered when truncating, so the final result may exceed maxWidth
+			// Skip validation for edge cases like negative maxWidth
+			if tt.maxWidth >= 0 {
+				if len(got) >= len(tt.tail) && tt.tail != "" {
+					truncatedPart := got[:len(got)-len(tt.tail)]
+					truncatedWidth := tt.options.String(truncatedPart)
+					if truncatedWidth > tt.maxWidth {
+						t.Errorf("Truncated part width (%d) exceeds maxWidth (%d)", truncatedWidth, tt.maxWidth)
+					}
+				} else if tt.tail == "" {
+					// If no tail, the result itself should fit within maxWidth
+					gotWidth := tt.options.String(got)
+					if gotWidth > tt.maxWidth {
+						t.Errorf("Result width (%d) exceeds maxWidth (%d) when tail is empty", gotWidth, tt.maxWidth)
+					}
+				}
+			}
+		})
+	}
+}
