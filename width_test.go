@@ -1,6 +1,7 @@
 package displaywidth
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -912,7 +913,6 @@ func TestTruncateString(t *testing.T) {
 		{"ambiguous mixed default", "a★b", 2, "...", defaultOptions, "..."},
 
 		// Edge cases
-		{"negative maxWidth", "hello", -1, "...", defaultOptions, "..."},
 		{"zero maxWidth", "hello", 0, "...", defaultOptions, "..."},
 		{"very long string", "a very long string that will definitely be truncated", 10, "...", defaultOptions, "a very ..."},
 
@@ -931,20 +931,17 @@ func TestTruncateString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.options.TruncateString(tt.input, tt.maxWidth, tt.tail)
-			if got != tt.expected {
-				t.Errorf("TruncateString(%q, %d, %q) with options %v = %q, want %q",
-					tt.input, tt.maxWidth, tt.tail, tt.options, got, tt.expected)
-				// Show width information for debugging
-				inputWidth := tt.options.String(tt.input)
-				gotWidth := tt.options.String(got)
-				t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
-			}
+			{
+				got := tt.options.TruncateString(tt.input, tt.maxWidth, tt.tail)
+				if got != tt.expected {
+					t.Errorf("TruncateString(%q, %d, %q) with options %v = %q, want %q",
+						tt.input, tt.maxWidth, tt.tail, tt.options, got, tt.expected)
+					// Show width information for debugging
+					inputWidth := tt.options.String(tt.input)
+					gotWidth := tt.options.String(got)
+					t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
+				}
 
-			// Verify the core behavior: the truncated part (without tail) should have width <= maxWidth
-			// The tail's width is not considered when truncating, so the final result may exceed maxWidth
-			// Skip validation for edge cases like negative maxWidth
-			if tt.maxWidth >= 0 {
 				if len(got) >= len(tt.tail) && tt.tail != "" {
 					truncatedPart := got[:len(got)-len(tt.tail)]
 					truncatedWidth := tt.options.String(truncatedPart)
@@ -954,6 +951,35 @@ func TestTruncateString(t *testing.T) {
 				} else if tt.tail == "" {
 					// If no tail, the result itself should fit within maxWidth
 					gotWidth := tt.options.String(got)
+					if gotWidth > tt.maxWidth {
+						t.Errorf("Result width (%d) exceeds maxWidth (%d) when tail is empty", gotWidth, tt.maxWidth)
+					}
+				}
+
+			}
+			{
+				input := []byte(tt.input)
+				tail := []byte(tt.tail)
+				expected := []byte(tt.expected)
+				got := tt.options.TruncateBytes(input, tt.maxWidth, tail)
+				if !bytes.Equal(got, expected) {
+					t.Errorf("TruncateBytes(%q, %d, %q) with options %v = %q, want %q",
+						input, tt.maxWidth, tail, tt.options, got, expected)
+					// Show width information for debugging
+					inputWidth := tt.options.Bytes(input)
+					gotWidth := tt.options.Bytes(got)
+					t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
+				}
+
+				if len(got) >= len(tt.tail) && tt.tail != "" {
+					truncatedPart := got[:len(got)-len(tt.tail)]
+					truncatedWidth := tt.options.Bytes(truncatedPart)
+					if truncatedWidth > tt.maxWidth {
+						t.Errorf("Truncated part width (%d) exceeds maxWidth (%d)", truncatedWidth, tt.maxWidth)
+					}
+				} else if tt.tail == "" {
+					// If no tail, the result itself should fit within maxWidth
+					gotWidth := tt.options.Bytes(got)
 					if gotWidth > tt.maxWidth {
 						t.Errorf("Result width (%d) exceeds maxWidth (%d) when tail is empty", gotWidth, tt.maxWidth)
 					}
