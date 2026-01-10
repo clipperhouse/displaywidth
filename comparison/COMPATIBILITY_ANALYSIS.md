@@ -46,6 +46,20 @@ Regional indicator pairs (flags like 🇺🇸) are composed of two Regional Indi
 - go-runewidth: 3 columns (1+1+1)
 - uniseg: 6 columns (2+2+2)
 
+I (@clipperhouse) believe that 2 is the correct width, they are emojis. Ghostty and iTerm display
+regional flags as width 2, as does VS Code. Mac Terminal (Tahoe macOS 26) displays them as 1. Sigh.
+
+To repro in you terminal of choice:
+
+```
+echo "🇺🇸🇯🇵🇬🇧abc\n123456"
+```
+
+I have considered detecting the terminal (like a user agent) and using width 1 for
+Mac Terminal as a special case. I kinda hate that, because if Apple corrects it, then
+the behavior changes. OTOH, I assume Mac Terminal is the most popular terminal and
+so it might be better for end-users.
+
 ## Variation Selectors
 
 VS15 and VS16 from [Unicode TR51](https://unicode.org/reports/tr51/#Emoji_Variation_Sequences)
