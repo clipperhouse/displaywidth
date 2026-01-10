@@ -119,8 +119,8 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 	g := graphemes.FromString(s)
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
-		if total <= maxWidthWithoutTail {
-			pos = g.Start()
+		if total+gw <= maxWidthWithoutTail {
+			pos = g.End()
 		}
 		total += gw
 		if total > maxWidth {
@@ -152,8 +152,8 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 	g := graphemes.FromBytes(s)
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
-		if total <= maxWidthWithoutTail {
-			pos = g.Start()
+		if total+gw <= maxWidthWithoutTail {
+			pos = g.End()
 		}
 		total += gw
 		if total > maxWidth {

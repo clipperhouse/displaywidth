@@ -915,6 +915,9 @@ func TestTruncateString(t *testing.T) {
 		// Edge cases
 		{"zero maxWidth", "hello", 0, "...", defaultOptions, "..."},
 		{"very long string", "a very long string that will definitely be truncated", 10, "...", defaultOptions, "a very ..."},
+		// Bug fix: wide char at boundary with narrow chars - ensures truncation position is correct
+		// Input "中cde" (width 5), maxWidth 4, tail "ab" (width 2) -> should return "中ab" (width 4)
+		{"wide char boundary bug fix", "中cde", 4, "ab", defaultOptions, "中ab"},
 
 		// Tail variations
 		{"custom tail", "hello world", 5, "…", defaultOptions, "hell…"},
