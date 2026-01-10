@@ -991,3 +991,17 @@ func TestTruncateString(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncateBytesDoesNotMutateInput(t *testing.T) {
+	// Test that TruncateBytes does not mutate the caller's slice
+	original := []byte("hello world")
+	originalCopy := make([]byte, len(original))
+	copy(originalCopy, original)
+	
+	tail := []byte("...")
+	_ = TruncateBytes(original, 5, tail)
+	
+	if !bytes.Equal(original, originalCopy) {
+		t.Errorf("TruncateBytes mutated the input slice: got %q, want %q", original, originalCopy)
+	}
+}

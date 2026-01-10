@@ -157,7 +157,10 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 		}
 		total += gw
 		if total > maxWidth {
-			return append(s[:pos], tail...)
+			result := make([]byte, 0, pos+len(tail))
+			result = append(result, s[:pos]...)
+			result = append(result, tail...)
+			return result
 		}
 	}
 	// No truncation
