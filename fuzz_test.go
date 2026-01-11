@@ -2,14 +2,15 @@ package displaywidth
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/displaywidth/testdata"
 )
 
-// FuzzBytes fuzzes the Bytes function with valid and invalid UTF-8.
-func FuzzBytes(f *testing.F) {
+// FuzzBytesAndString fuzzes the Bytes function with valid and invalid UTF-8.
+func FuzzBytesAndString(f *testing.F) {
 	if testing.Short() {
 		f.Skip("skipping fuzz test in short mode")
 	}
@@ -114,12 +115,9 @@ func FuzzBytes(f *testing.F) {
 				t.Errorf("Bytes() with options %+v returned non-zero width %d for empty input", option, wb)
 			}
 
-			// Consistency check with String() for valid UTF-8
-			if utf8.Valid(text) {
-				ws := option.String(string(text))
-				if wb != ws {
-					t.Errorf("Bytes() returned %d but String() returned %d with options %+v for %q", wb, ws, option, text)
-				}
+			ws := option.String(string(text))
+			if wb != ws {
+				t.Errorf("Bytes() returned %d but String() returned %d with options %+v for %q", wb, ws, option, text)
 			}
 		}
 	})
@@ -218,6 +216,113 @@ func FuzzRune(f *testing.F) {
 				if wr != ws {
 					t.Errorf("Rune() returned %d but String() returned %d with options %+v for %U (%c)", wr, ws, option, r, r)
 				}
+			}
+		}
+	})
+}
+
+func FuzzTruncateStringAndBytes(f *testing.F) {
+	if testing.Short() {
+		f.Skip("skipping fuzz test in short mode")
+	}
+
+	// Seed with multi-lingual text (paragraph-sized chunks)
+	file, err := testdata.Sample()
+	if err != nil {
+		f.Fatal(err)
+	}
+	fs := string(file)
+	chunks := strings.Split(fs, "\n")
+	for _, chunk := range chunks {
+		f.Add(chunk)
+	}
+
+	// Seed with invalid UTF-8
+	invalid, err := testdata.InvalidUTF8()
+	if err != nil {
+		f.Fatal(err)
+	}
+	fs = string(invalid)
+	chunks = strings.Split(fs, "\n")
+	for _, chunk := range chunks {
+		f.Add(chunk)
+	}
+
+	// Seed with test cases
+	testCases, err := testdata.TestCases()
+	if err != nil {
+		f.Fatal(err)
+	}
+	fs = string(testCases)
+	chunks = strings.Split(fs, "\n")
+	for _, chunk := range chunks {
+		f.Add(chunk)
+	}
+
+	// Seed with random bytes
+	for i := 0; i < 10; i++ {
+		b, err := testdata.RandomBytes()
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(string(b))
+	}
+
+	// Seed with edge cases
+	f.Add("")             // empty
+	f.Add("a")            // single ASCII
+	f.Add("\t\n\r")       // whitespace
+	f.Add("🌍")            // emoji
+	f.Add("\u0301")       // combining mark
+	f.Add("\xff\xfe\xfd") // invalid UTF-8
+
+	f.Fuzz(func(t *testing.T, text string) {
+		// Test with default options
+		ts := TruncateString(text, 10, "...")
+
+		// Invariant: truncated string should be less than or equal to maxWidth
+		if String(ts) > 10 {
+			t.Errorf("TruncateString() returned string longer than maxWidth for %q: %q", text, ts)
+		}
+
+		// Invariant: truncated string should be less than or equal to maxWidth
+		if len(ts) > len(text) {
+			t.Errorf("TruncateString() returned string longer than original for %q: %q", text, ts)
+		}
+
+		tb := TruncateBytes([]byte(text), 10, []byte("..."))
+
+		// Invariant: truncated bytes should be less than or equal to maxWidth
+		if Bytes(tb) > 10 {
+			t.Errorf("TruncateBytes() returned bytes longer than maxWidth for %q: %q", text, tb)
+		}
+
+		// Invariant: truncated bytes should be less than or equal to original
+		if len(tb) > len(text) {
+			t.Errorf("TruncateBytes() returned bytes longer than original for %q: %q", text, tb)
+		}
+
+		if !bytes.Equal(tb, []byte(ts)) {
+			t.Errorf("TruncateBytes() returned bytes different from TruncateString() for %q: %q != %q", text, tb, ts)
+		}
+
+		// Test with different options
+		options := []Options{
+			{EastAsianWidth: false}, // default
+			{EastAsianWidth: true},
+		}
+
+		for _, option := range options {
+			ts := option.TruncateString(text, 10, "...")
+
+			// Invariant: truncated string should be less than or equal to maxWidth
+			if option.String(ts) > 10 {
+				t.Errorf("TruncateString() returned string longer than maxWidth for %q: %q", text, ts)
+			}
+
+			tb := option.TruncateBytes([]byte(text), 10, []byte("..."))
+			if !bytes.Equal(tb, []byte(ts)) {
+				t.Errorf("TruncateBytes() returned bytes different from TruncateString() for %q: %q != %q", text, tb, ts)
 			}
 		}
 	})

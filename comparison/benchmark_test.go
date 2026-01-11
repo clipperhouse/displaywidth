@@ -474,3 +474,99 @@ func BenchmarkRune_Emoji(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkTruncateWithTail(b *testing.B) {
+	testStrings := []string{
+		"hello world",
+		"This is a very long string that will definitely be truncated",
+		"Hello 世界! 😀",
+		"👨‍💻 working on 🚀",
+		"中文字符串测试",
+		"😀😁😂🤣😃😄😅😆😉😊",
+	}
+
+	n := int64(0)
+	for _, s := range testStrings {
+		n += int64(len(s))
+	}
+
+	maxWidths := []int{5, 10, 20, 30}
+	tail := "..."
+
+	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
+		options := displaywidth.Options{}
+		b.SetBytes(n)
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, s := range testStrings {
+				for _, w := range maxWidths {
+					_ = options.TruncateString(s, w, tail)
+				}
+			}
+		}
+	})
+
+	b.Run("mattn/go-runewidth", func(b *testing.B) {
+		b.SetBytes(n)
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, s := range testStrings {
+				for _, w := range maxWidths {
+					_ = runewidth.Truncate(s, w, tail)
+				}
+			}
+		}
+	})
+}
+
+func BenchmarkTruncateWithoutTail(b *testing.B) {
+	testStrings := []string{
+		"hello world",
+		"This is a very long string that will definitely be truncated",
+		"Hello 世界! 😀",
+		"👨‍💻 working on 🚀",
+		"a very long string that will definitely be truncated",
+		"中文字符串测试",
+		"😀😁😂🤣😃😄😅😆😉😊",
+	}
+
+	n := int64(0)
+	for _, s := range testStrings {
+		n += int64(len(s))
+	}
+
+	maxWidths := []int{5, 10, 20, 30}
+
+	b.Run("clipperhouse/displaywidth", func(b *testing.B) {
+		options := displaywidth.Options{}
+		b.SetBytes(n)
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, s := range testStrings {
+				for _, w := range maxWidths {
+					_ = options.TruncateString(s, w, "")
+				}
+			}
+		}
+	})
+
+	b.Run("mattn/go-runewidth", func(b *testing.B) {
+		b.SetBytes(n)
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			for _, s := range testStrings {
+				for _, w := range maxWidths {
+					_ = runewidth.Truncate(s, w, "")
+				}
+			}
+		}
+	})
+}

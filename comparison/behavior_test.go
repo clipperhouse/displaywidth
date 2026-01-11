@@ -78,6 +78,9 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 		},
 
 		// Regional Indicator Pairs (flags) - the key difference
+		// TODO: 2 is the correct width, that's what Ghostty and iTerm do.
+		// Sadly, Mac Terminal displays width 1. Perhaps we should special-case
+		// it, not sure.
 		{
 			name:  "Flags",
 			input: "🇺🇸🇯🇵🇬🇧",
@@ -253,5 +256,155 @@ func TestFlagBehaviorDetailed(t *testing.T) {
 		unisegDefault := uniseg.StringWidth(flag)
 
 		t.Logf("%s | %d | %d | %d | %d | %d", flag, displaywidthDefault, goRunewidthDefault, goRunewidthStrictFalse, goRunewidthStrictTrue, unisegDefault)
+	}
+}
+
+func TestTruncateComparison(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		maxWidth int
+		tail     string
+	}{
+		{
+			name:     "ASCII truncation",
+			input:    "Hello World",
+			maxWidth: 5,
+			tail:     "...",
+		},
+		{
+			name:     "CJK truncation",
+			input:    "中文测试",
+			maxWidth: 4,
+			tail:     "...",
+		},
+		{
+			name:     "Emoji truncation",
+			input:    "😀🚀🎉",
+			maxWidth: 4,
+			tail:     "...",
+		},
+		{
+			name:     "Flags truncation",
+			input:    "🇺🇸🇯🇵🇬🇧", // known difference
+			maxWidth: 4,
+			tail:     "...",
+		},
+		{
+			name:     "Mixed content truncation",
+			input:    "Hello 世界! 😀🇺🇸",
+			maxWidth: 10,
+			tail:     "...",
+		},
+		{
+			name:     "No truncation needed",
+			input:    "Hi",
+			maxWidth: 10,
+			tail:     "...",
+		},
+		{
+			name:     "Empty tail",
+			input:    "Hello World",
+			maxWidth: 5,
+			tail:     "",
+		},
+		{
+			name:     "Width exactly equal to string width",
+			input:    "Hello",
+			maxWidth: 5,
+			tail:     "...",
+		},
+		{
+			name:     "Width exactly equal to string width with emoji",
+			input:    "😀🚀",
+			maxWidth: 4,
+			tail:     "...",
+		},
+		{
+			name:     "Width exactly equal to string width with CJK",
+			input:    "中文",
+			maxWidth: 4,
+			tail:     "...",
+		},
+		{
+			name:     "MaxWidth is 0",
+			input:    "Hello",
+			maxWidth: 0,
+			tail:     "...",
+		},
+		{
+			name:     "MaxWidth is 1",
+			input:    "Hello",
+			maxWidth: 1,
+			tail:     "...",
+		},
+		{
+			name:     "MaxWidth is 2",
+			input:    "Hello",
+			maxWidth: 2,
+			tail:     "...",
+		},
+		{
+			name:     "Empty string input",
+			input:    "",
+			maxWidth: 5,
+			tail:     "...",
+		},
+		{
+			name:     "Tail wider than maxWidth",
+			input:    "Hello",
+			maxWidth: 2,
+			tail:     "中文", // width 4, wider than maxWidth
+		},
+		{
+			name:     "Tail with emoji",
+			input:    "Hello",
+			maxWidth: 5,
+			tail:     "😀",
+		},
+		{
+			name:     "MaxWidth exactly equal to tail width",
+			input:    "Hello World",
+			maxWidth: 3, // exactly width of "..."
+			tail:     "...",
+		},
+		{
+			name:     "Input with control characters",
+			input:    "hello\nworld",
+			maxWidth: 8,
+			tail:     "...",
+		},
+		{
+			name:     "Single wide character truncation",
+			input:    "中",
+			maxWidth: 1,
+			tail:     "...",
+		},
+		{
+			name:     "Single emoji truncation",
+			input:    "😀",
+			maxWidth: 1,
+			tail:     "...",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// displaywidth
+			displaywidthResult := displaywidth.TruncateString(tc.input, tc.maxWidth, tc.tail)
+			displaywidthWidth := displaywidth.String(displaywidthResult)
+
+			// go-runewidth
+			goRunewidthResult := runewidth.Truncate(tc.input, tc.maxWidth, tc.tail)
+			goRunewidthWidth := runewidth.StringWidth(goRunewidthResult)
+
+			if displaywidthWidth != goRunewidthWidth {
+				t.Logf("displaywidth and go-runewidth results differ for %q: %d != %d", tc.input, displaywidthWidth, goRunewidthWidth)
+			}
+
+			if displaywidthResult != goRunewidthResult {
+				t.Logf("displaywidth and go-runewidth results differ for %s : %s != %s", tc.input, displaywidthResult, goRunewidthResult)
+			}
+		})
 	}
 }
