@@ -49,7 +49,7 @@ Regional indicator pairs (flags like 🇺🇸) are composed of two Regional Indi
 I (@clipperhouse) believe that 2 is the correct width, they are emojis. Ghostty and iTerm display
 regional flags as width 2, as does VS Code. Mac Terminal (Tahoe macOS 26) displays them as 1. Sigh.
 
-To repro in you terminal of choice:
+To repro in your terminal of choice:
 
 ```
 echo "🇺🇸🇯🇵🇬🇧abc\n123456"
