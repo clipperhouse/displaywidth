@@ -36,7 +36,7 @@ func (options Options) String(s string) int {
 	for pos < len(s) {
 		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
 		asciiLen := printableASCIILength(s[pos:])
-		if asciiLen >= 0 {
+		if asciiLen > 0 {
 			width += asciiLen
 			pos += asciiLen
 			continue
@@ -83,7 +83,7 @@ func (options Options) Bytes(s []byte) int {
 	for pos < len(s) {
 		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
 		asciiLen := printableASCIILengthBytes(s[pos:])
-		if asciiLen >= 0 {
+		if asciiLen > 0 {
 			width += asciiLen
 			pos += asciiLen
 			continue
