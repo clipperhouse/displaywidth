@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        fuzzer: [FuzzBytes, FuzzRune]
+        fuzzer: [FuzzBytesAndString, FuzzRune, FuzzTruncateStringAndBytes]
     steps:
     - name: Check out code
       uses: actions/checkout@v4
