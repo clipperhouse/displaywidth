@@ -71,8 +71,8 @@ func TestStringWidth(t *testing.T) {
 		{"emoji then ASCII 8 bytes", "😀12345678", defaultOptions, 2 + 8},
 		{"CJK then ASCII 16 bytes", "中1234567890abcdef", defaultOptions, 2 + 16},
 		{"ASCII-emoji-ASCII sandwich", "12345678😀abcdefgh", defaultOptions, 8 + 2 + 8},
-		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},       // < 8 bytes, no optimization
-		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2}, // < 8 bytes in middle
+		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},                // < 8 bytes, no optimization
+		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2},            // < 8 bytes in middle
 		{"long mixed", "Hello World! 你好世界 12345678 emoji: 🎉🎊", defaultOptions, 42}, // 13 + 9 + 9 + 7 + 4
 	}
 
@@ -1045,35 +1045,40 @@ func TestPrintableASCIILength(t *testing.T) {
 		{"8 bytes with control in middle", "hel\x00o123", -1, "Control char in first 8 bytes"},
 		{"8 bytes with DEL in middle", "hel\x7Fo123", -1, "DEL in first 8 bytes"},
 
-		// Just after 8 bytes (9 bytes)
-		{"9 bytes all printable", "123456789", 9, "9 bytes all printable"},
+		// Just after 8 bytes (9 bytes) - block-aligned, returns 8
+		{"9 bytes all printable", "123456789", 8, "Block-aligned: 9 bytes returns 8"},
 		{"9 bytes with control at end", "12345678\x00", 8, "Returns 8, stops at control"},
 		{"9 bytes with DEL at end", "12345678\x7F", 8, "Returns 8, stops at DEL"},
-		{"9 bytes with non-ASCII at end", "12345678\x80", 8, "Returns 8, stops at non-ASCII"},
+		{"9 bytes with non-ASCII at end", "12345678\x80", -1, "Backs off before non-ASCII, leaving <8 bytes"},
 
 		// Exactly 16 bytes (two SWAR chunks)
 		{"16 bytes all printable", "1234567890123456", 16, "16 bytes all printable"},
-		{"16 bytes control at pos 15", "123456789012345\x00", 15, "Stops at control in tail"},
+		{"16 bytes control at pos 15", "123456789012345\x00", 8, "Block-aligned: control at 15 means second chunk fails, returns 8"},
 		{"16 bytes control at pos 8", "12345678\x00234567", 8, "Stops at control after first chunk"},
 
-		// Just before 16 bytes (15 bytes)
-		{"15 bytes all printable", "123456789012345", 15, "15 bytes all printable"},
+		// Just before 16 bytes (15 bytes) - block-aligned, returns 8
+		{"15 bytes all printable", "123456789012345", 8, "Block-aligned: 15 bytes returns 8"},
 
-		// Just after 16 bytes (17 bytes)
-		{"17 bytes all printable", "12345678901234567", 17, "17 bytes all printable"},
+		// Just after 16 bytes (17 bytes) - block-aligned, returns 16
+		{"17 bytes all printable", "12345678901234567", 16, "Block-aligned: 17 bytes returns 16"},
 		{"17 bytes control at end", "1234567890123456\x00", 16, "Stops at control in tail"},
 
 		// Exactly 24 bytes (three SWAR chunks)
 		{"24 bytes all printable", "123456789012345678901234", 24, "24 bytes all printable"},
 
-		// Long strings
-		{"long all printable", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()", 72, "Long string all printable"},
-		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 95, "All printable ASCII (0x20-0x7E)"},
+		// Long strings - block-aligned
+		{"long all printable", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()", 72, "72 bytes (multiple of 8) all printable"},
+		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 88, "Block-aligned: 95 bytes returns 88 (11*8)"},
 
-		// ASCII followed by non-ASCII (partial runs)
-		{"ASCII then emoji", "12345678\xF0\x9F\x98\x80", 8, "8 ASCII then emoji"},
-		{"16 ASCII then emoji", "1234567890123456\xF0\x9F\x98\x80", 16, "16 ASCII then emoji"},
-		{"ASCII then UTF-8", "hello world!\xC2\xA0", 12, "12 ASCII then UTF-8"},
+		// ASCII followed by non-ASCII (partial runs) - backs off before non-ASCII
+		{"ASCII then emoji", "12345678\xF0\x9F\x98\x80", -1, "Backs off before emoji, leaving <8 bytes"},
+		{"16 ASCII then emoji", "1234567890123456\xF0\x9F\x98\x80", 15, "Backs off 1 before emoji"},
+		{"ASCII then UTF-8", "hello world!\xC2\xA0", 8, "No backoff needed: next byte after block 8 is 'r' (ASCII)"},
+
+		// ASCII followed by combining marks - backoff needed because combining mark modifies preceding char
+		{"8 ASCII then combining acute", "12345678\u0301", -1, "Backs off before combining mark, leaving <8 bytes"},
+		{"16 ASCII then combining acute", "1234567890123456\u0301", 15, "Backs off 1 before combining mark"},
+		{"16 ASCII then combining grave", "1234567890123456\u0300", 15, "Backs off 1 before combining mark"},
 
 		// Non-printable at start -> -1
 		{"control at start", "\x00hello world", -1, "Control char at start"},
@@ -1140,35 +1145,40 @@ func TestPrintableASCIILengthBytes(t *testing.T) {
 		{"8 bytes with control in middle", []byte("hel\x00o123"), -1, "Control char in first 8 bytes"},
 		{"8 bytes with DEL in middle", []byte("hel\x7Fo123"), -1, "DEL in first 8 bytes"},
 
-		// Just after 8 bytes (9 bytes)
-		{"9 bytes all printable", []byte("123456789"), 9, "9 bytes all printable"},
+		// Just after 8 bytes (9 bytes) - block-aligned, returns 8
+		{"9 bytes all printable", []byte("123456789"), 8, "Block-aligned: 9 bytes returns 8"},
 		{"9 bytes with control at end", []byte("12345678\x00"), 8, "Returns 8, stops at control"},
 		{"9 bytes with DEL at end", []byte("12345678\x7F"), 8, "Returns 8, stops at DEL"},
-		{"9 bytes with non-ASCII at end", []byte("12345678\x80"), 8, "Returns 8, stops at non-ASCII"},
+		{"9 bytes with non-ASCII at end", []byte("12345678\x80"), -1, "Backs off before non-ASCII, leaving <8 bytes"},
 
 		// Exactly 16 bytes (two SWAR chunks)
 		{"16 bytes all printable", []byte("1234567890123456"), 16, "16 bytes all printable"},
-		{"16 bytes control at pos 15", []byte("123456789012345\x00"), 15, "Stops at control in tail"},
+		{"16 bytes control at pos 15", []byte("123456789012345\x00"), 8, "Block-aligned: control at 15 means second chunk fails, returns 8"},
 		{"16 bytes control at pos 8", []byte("12345678\x00234567"), 8, "Stops at control after first chunk"},
 
-		// Just before 16 bytes (15 bytes)
-		{"15 bytes all printable", []byte("123456789012345"), 15, "15 bytes all printable"},
+		// Just before 16 bytes (15 bytes) - block-aligned, returns 8
+		{"15 bytes all printable", []byte("123456789012345"), 8, "Block-aligned: 15 bytes returns 8"},
 
-		// Just after 16 bytes (17 bytes)
-		{"17 bytes all printable", []byte("12345678901234567"), 17, "17 bytes all printable"},
+		// Just after 16 bytes (17 bytes) - block-aligned, returns 16
+		{"17 bytes all printable", []byte("12345678901234567"), 16, "Block-aligned: 17 bytes returns 16"},
 		{"17 bytes control at end", []byte("1234567890123456\x00"), 16, "Stops at control in tail"},
 
 		// Exactly 24 bytes (three SWAR chunks)
 		{"24 bytes all printable", []byte("123456789012345678901234"), 24, "24 bytes all printable"},
 
-		// Long slices
-		{"long all printable", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"), 72, "Long slice all printable"},
-		{"all printable range", []byte(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"), 95, "All printable ASCII (0x20-0x7E)"},
+		// Long slices - block-aligned
+		{"long all printable", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"), 72, "72 bytes (multiple of 8) all printable"},
+		{"all printable range", []byte(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"), 88, "Block-aligned: 95 bytes returns 88 (11*8)"},
 
-		// ASCII followed by non-ASCII (partial runs)
-		{"ASCII then emoji", []byte("12345678\xF0\x9F\x98\x80"), 8, "8 ASCII then emoji"},
-		{"16 ASCII then emoji", []byte("1234567890123456\xF0\x9F\x98\x80"), 16, "16 ASCII then emoji"},
-		{"ASCII then UTF-8", []byte("hello world!\xC2\xA0"), 12, "12 ASCII then UTF-8"},
+		// ASCII followed by non-ASCII (partial runs) - backs off before non-ASCII
+		{"ASCII then emoji", []byte("12345678\xF0\x9F\x98\x80"), -1, "Backs off before emoji, leaving <8 bytes"},
+		{"16 ASCII then emoji", []byte("1234567890123456\xF0\x9F\x98\x80"), 15, "Backs off 1 before emoji"},
+		{"ASCII then UTF-8", []byte("hello world!\xC2\xA0"), 8, "No backoff needed: next byte after block 8 is 'r' (ASCII)"},
+
+		// ASCII followed by combining marks - backoff needed because combining mark modifies preceding char
+		{"8 ASCII then combining acute", []byte("12345678\u0301"), -1, "Backs off before combining mark, leaving <8 bytes"},
+		{"16 ASCII then combining acute", []byte("1234567890123456\u0301"), 15, "Backs off 1 before combining mark"},
+		{"16 ASCII then combining grave", []byte("1234567890123456\u0300"), 15, "Backs off 1 before combining mark"},
 
 		// Non-printable at start -> -1
 		{"control at start", []byte("\x00hello world"), -1, "Control char at start"},

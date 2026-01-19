@@ -294,10 +294,13 @@ func printableASCIILength(s string) int {
 		return -1
 	}
 
-	// Check remaining bytes individually to extend the run
-	for ; i < len(s); i++ {
-		if b := s[i]; b < 0x20 || b > 0x7E {
-			break
+	// If the next byte is non-ASCII (>= 0x80), back off by 1. The grapheme
+	// parser may group the last ASCII byte with subsequent non-ASCII bytes,
+	// such as combining marks.
+	if i < len(s) && s[i] >= 0x80 {
+		i--
+		if i < 8 {
+			return -1
 		}
 	}
 
@@ -336,10 +339,13 @@ func printableASCIILengthBytes(s []byte) int {
 		return -1
 	}
 
-	// Check remaining bytes individually to extend the run
-	for ; i < len(s); i++ {
-		if b := s[i]; b < 0x20 || b > 0x7E {
-			break
+	// If the next byte is non-ASCII (>= 0x80), back off by 1. The grapheme
+	// parser may group the last ASCII byte with subsequent non-ASCII bytes,
+	// such as combining marks.
+	if i < len(s) && s[i] >= 0x80 {
+		i--
+		if i < 8 {
+			return -1
 		}
 	}
 
