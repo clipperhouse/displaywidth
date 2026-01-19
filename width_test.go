@@ -64,6 +64,16 @@ func TestStringWidth(t *testing.T) {
 		{"flag US", "🇺🇸", defaultOptions, 2},
 		{"flag JP", "🇯🇵", defaultOptions, 2},
 		{"text with flags", "Go 🇺🇸🚀", defaultOptions, 3 + 2 + 2},
+
+		// Partial ASCII optimization tests (8+ byte ASCII runs)
+		{"ASCII 8 bytes then emoji", "12345678😀", defaultOptions, 8 + 2},
+		{"ASCII 16 bytes then CJK", "1234567890abcdef中", defaultOptions, 16 + 2},
+		{"emoji then ASCII 8 bytes", "😀12345678", defaultOptions, 2 + 8},
+		{"CJK then ASCII 16 bytes", "中1234567890abcdef", defaultOptions, 2 + 16},
+		{"ASCII-emoji-ASCII sandwich", "12345678😀abcdefgh", defaultOptions, 8 + 2 + 8},
+		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},                // < 8 bytes, no optimization
+		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2},            // < 8 bytes in middle
+		{"long mixed", "Hello World! 你好世界 12345678 emoji: 🎉🎊", defaultOptions, 42}, // 13 + 9 + 9 + 7 + 4
 	}
 
 	for _, tt := range tests {
@@ -997,11 +1007,252 @@ func TestTruncateBytesDoesNotMutateInput(t *testing.T) {
 	original := []byte("hello world")
 	originalCopy := make([]byte, len(original))
 	copy(originalCopy, original)
-	
+
 	tail := []byte("...")
 	_ = TruncateBytes(original, 5, tail)
-	
+
 	if !bytes.Equal(original, originalCopy) {
 		t.Errorf("TruncateBytes mutated the input slice: got %q, want %q", original, originalCopy)
+	}
+}
+
+func TestPrintableASCIILength(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+		desc     string
+	}{
+		// Too short to optimize (< 8 bytes) -> returns -1
+		{"empty string", "", -1, "Empty string is too short"},
+		{"single space", " ", -1, "Single byte is too short"},
+		{"single char", "a", -1, "Single byte is too short"},
+		{"7 bytes", "1234567", -1, "7 bytes is too short"},
+		{"7 bytes all printable", "abcdefg", -1, "7 bytes is too short even if printable"},
+
+		// Exactly 8 bytes (SWAR boundary)
+		{"8 bytes all printable", "12345678", 8, "8 bytes all printable"},
+		{"8 bytes with space", "hello wo", 8, "8 bytes with space"},
+		{"8 bytes all spaces", "        ", 8, "8 spaces"},
+		{"8 bytes all tildes", "~~~~~~~~", 8, "8 tildes"},
+		{"8 bytes boundary low", "\x20\x20\x20\x20\x20\x20\x20\x20", 8, "8 spaces (0x20)"},
+		{"8 bytes boundary high", "\x7E\x7E\x7E\x7E\x7E\x7E\x7E\x7E", 8, "8 tildes (0x7E)"},
+
+		// 8 bytes with non-printable in first chunk -> -1
+		{"8 bytes with control at start", "\x00hello12", -1, "Control char breaks first chunk"},
+		{"8 bytes with DEL at start", "\x7Fhello12", -1, "DEL breaks first chunk"},
+		{"8 bytes with non-ASCII at start", "\x80hello12", -1, "Non-ASCII breaks first chunk"},
+		{"8 bytes with control in middle", "hel\x00o123", -1, "Control char in first 8 bytes"},
+		{"8 bytes with DEL in middle", "hel\x7Fo123", -1, "DEL in first 8 bytes"},
+
+		// Just after 8 bytes (9 bytes) - block-aligned, returns 8
+		{"9 bytes all printable", "123456789", 8, "Block-aligned: 9 bytes returns 8"},
+		{"9 bytes with control at end", "12345678\x00", 8, "Returns 8, stops at control"},
+		{"9 bytes with DEL at end", "12345678\x7F", 8, "Returns 8, stops at DEL"},
+		{"9 bytes with non-ASCII at end", "12345678\x80", -1, "Backs off before non-ASCII, leaving <8 bytes"},
+
+		// Exactly 16 bytes (two SWAR chunks)
+		{"16 bytes all printable", "1234567890123456", 16, "16 bytes all printable"},
+		{"16 bytes control at pos 15", "123456789012345\x00", 8, "Block-aligned: control at 15 means second chunk fails, returns 8"},
+		{"16 bytes control at pos 8", "12345678\x00234567", 8, "Stops at control after first chunk"},
+
+		// Just before 16 bytes (15 bytes) - block-aligned, returns 8
+		{"15 bytes all printable", "123456789012345", 8, "Block-aligned: 15 bytes returns 8"},
+
+		// Just after 16 bytes (17 bytes) - block-aligned, returns 16
+		{"17 bytes all printable", "12345678901234567", 16, "Block-aligned: 17 bytes returns 16"},
+		{"17 bytes control at end", "1234567890123456\x00", 16, "Stops at control in tail"},
+
+		// Exactly 24 bytes (three SWAR chunks)
+		{"24 bytes all printable", "123456789012345678901234", 24, "24 bytes all printable"},
+
+		// Long strings - block-aligned
+		{"long all printable", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()", 72, "72 bytes (multiple of 8) all printable"},
+		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 88, "Block-aligned: 95 bytes returns 88 (11*8)"},
+
+		// ASCII followed by non-ASCII (partial runs) - backs off before non-ASCII
+		{"ASCII then emoji", "12345678\xF0\x9F\x98\x80", -1, "Backs off before emoji, leaving <8 bytes"},
+		{"16 ASCII then emoji", "1234567890123456\xF0\x9F\x98\x80", 15, "Backs off 1 before emoji"},
+		{"ASCII then UTF-8", "hello world!\xC2\xA0", 8, "No backoff needed: next byte after block 8 is 'r' (ASCII)"},
+
+		// ASCII followed by combining marks - backoff needed because combining mark modifies preceding char
+		{"8 ASCII then combining acute", "12345678\u0301", -1, "Backs off before combining mark, leaving <8 bytes"},
+		{"16 ASCII then combining acute", "1234567890123456\u0301", 15, "Backs off 1 before combining mark"},
+		{"16 ASCII then combining grave", "1234567890123456\u0300", 15, "Backs off 1 before combining mark"},
+
+		// Non-printable at start -> -1
+		{"control at start", "\x00hello world", -1, "Control char at start"},
+		{"DEL at start", "\x7Fhello world", -1, "DEL at start"},
+		{"non-ASCII at start", "\x80hello world", -1, "Non-ASCII at start"},
+		{"UTF-8 at start", "\xC2\xA0hello world", -1, "UTF-8 at start"},
+		{"emoji at start", "\xF0\x9F\x98\x80hello123", -1, "Emoji at start"},
+
+		// Control characters at various positions in first 8 bytes
+		{"control at pos 0", "\x00234567890", -1, "Control at position 0"},
+		{"control at pos 3", "123\x00567890", -1, "Control at position 3"},
+		{"control at pos 7", "1234567\x000", -1, "Control at position 7"},
+
+		// DEL at various positions in first 8 bytes
+		{"DEL at pos 0", "\x7F234567890", -1, "DEL at position 0"},
+		{"DEL at pos 3", "123\x7F567890", -1, "DEL at position 3"},
+		{"DEL at pos 7", "1234567\x7F0", -1, "DEL at position 7"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := printableASCIILength(tt.input)
+			if got != tt.expected {
+				t.Errorf("printableASCIILength(%q) = %d, want %d (%s)",
+					tt.input, got, tt.expected, tt.desc)
+				if len(tt.input) > 0 {
+					t.Logf("  String length: %d bytes", len(tt.input))
+					for i, b := range []byte(tt.input) {
+						isPrintable := b >= 0x20 && b <= 0x7E
+						t.Logf("    [%d]: 0x%02X printable=%v", i, b, isPrintable)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestPrintableASCIILengthBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected int
+		desc     string
+	}{
+		// Too short to optimize (< 8 bytes) -> returns -1
+		{"empty slice", []byte{}, -1, "Empty slice is too short"},
+		{"single space", []byte{0x20}, -1, "Single byte is too short"},
+		{"single char", []byte("a"), -1, "Single byte is too short"},
+		{"7 bytes", []byte("1234567"), -1, "7 bytes is too short"},
+		{"7 bytes all printable", []byte("abcdefg"), -1, "7 bytes is too short even if printable"},
+
+		// Exactly 8 bytes (SWAR boundary)
+		{"8 bytes all printable", []byte("12345678"), 8, "8 bytes all printable"},
+		{"8 bytes with space", []byte("hello wo"), 8, "8 bytes with space"},
+		{"8 bytes all spaces", []byte("        "), 8, "8 spaces"},
+		{"8 bytes all tildes", []byte("~~~~~~~~"), 8, "8 tildes"},
+		{"8 bytes boundary low", []byte{0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20}, 8, "8 spaces (0x20)"},
+		{"8 bytes boundary high", []byte{0x7E, 0x7E, 0x7E, 0x7E, 0x7E, 0x7E, 0x7E, 0x7E}, 8, "8 tildes (0x7E)"},
+
+		// 8 bytes with non-printable in first chunk -> -1
+		{"8 bytes with control at start", []byte("\x00hello12"), -1, "Control char breaks first chunk"},
+		{"8 bytes with DEL at start", []byte("\x7Fhello12"), -1, "DEL breaks first chunk"},
+		{"8 bytes with non-ASCII at start", []byte("\x80hello12"), -1, "Non-ASCII breaks first chunk"},
+		{"8 bytes with control in middle", []byte("hel\x00o123"), -1, "Control char in first 8 bytes"},
+		{"8 bytes with DEL in middle", []byte("hel\x7Fo123"), -1, "DEL in first 8 bytes"},
+
+		// Just after 8 bytes (9 bytes) - block-aligned, returns 8
+		{"9 bytes all printable", []byte("123456789"), 8, "Block-aligned: 9 bytes returns 8"},
+		{"9 bytes with control at end", []byte("12345678\x00"), 8, "Returns 8, stops at control"},
+		{"9 bytes with DEL at end", []byte("12345678\x7F"), 8, "Returns 8, stops at DEL"},
+		{"9 bytes with non-ASCII at end", []byte("12345678\x80"), -1, "Backs off before non-ASCII, leaving <8 bytes"},
+
+		// Exactly 16 bytes (two SWAR chunks)
+		{"16 bytes all printable", []byte("1234567890123456"), 16, "16 bytes all printable"},
+		{"16 bytes control at pos 15", []byte("123456789012345\x00"), 8, "Block-aligned: control at 15 means second chunk fails, returns 8"},
+		{"16 bytes control at pos 8", []byte("12345678\x00234567"), 8, "Stops at control after first chunk"},
+
+		// Just before 16 bytes (15 bytes) - block-aligned, returns 8
+		{"15 bytes all printable", []byte("123456789012345"), 8, "Block-aligned: 15 bytes returns 8"},
+
+		// Just after 16 bytes (17 bytes) - block-aligned, returns 16
+		{"17 bytes all printable", []byte("12345678901234567"), 16, "Block-aligned: 17 bytes returns 16"},
+		{"17 bytes control at end", []byte("1234567890123456\x00"), 16, "Stops at control in tail"},
+
+		// Exactly 24 bytes (three SWAR chunks)
+		{"24 bytes all printable", []byte("123456789012345678901234"), 24, "24 bytes all printable"},
+
+		// Long slices - block-aligned
+		{"long all printable", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"), 72, "72 bytes (multiple of 8) all printable"},
+		{"all printable range", []byte(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"), 88, "Block-aligned: 95 bytes returns 88 (11*8)"},
+
+		// ASCII followed by non-ASCII (partial runs) - backs off before non-ASCII
+		{"ASCII then emoji", []byte("12345678\xF0\x9F\x98\x80"), -1, "Backs off before emoji, leaving <8 bytes"},
+		{"16 ASCII then emoji", []byte("1234567890123456\xF0\x9F\x98\x80"), 15, "Backs off 1 before emoji"},
+		{"ASCII then UTF-8", []byte("hello world!\xC2\xA0"), 8, "No backoff needed: next byte after block 8 is 'r' (ASCII)"},
+
+		// ASCII followed by combining marks - backoff needed because combining mark modifies preceding char
+		{"8 ASCII then combining acute", []byte("12345678\u0301"), -1, "Backs off before combining mark, leaving <8 bytes"},
+		{"16 ASCII then combining acute", []byte("1234567890123456\u0301"), 15, "Backs off 1 before combining mark"},
+		{"16 ASCII then combining grave", []byte("1234567890123456\u0300"), 15, "Backs off 1 before combining mark"},
+
+		// Non-printable at start -> -1
+		{"control at start", []byte("\x00hello world"), -1, "Control char at start"},
+		{"DEL at start", []byte("\x7Fhello world"), -1, "DEL at start"},
+		{"non-ASCII at start", []byte("\x80hello world"), -1, "Non-ASCII at start"},
+		{"UTF-8 at start", []byte("\xC2\xA0hello world"), -1, "UTF-8 at start"},
+		{"emoji at start", []byte("\xF0\x9F\x98\x80hello123"), -1, "Emoji at start"},
+
+		// Control characters at various positions in first 8 bytes
+		{"control at pos 0", []byte("\x00234567890"), -1, "Control at position 0"},
+		{"control at pos 3", []byte("123\x00567890"), -1, "Control at position 3"},
+		{"control at pos 7", []byte("1234567\x000"), -1, "Control at position 7"},
+
+		// DEL at various positions in first 8 bytes
+		{"DEL at pos 0", []byte("\x7F234567890"), -1, "DEL at position 0"},
+		{"DEL at pos 3", []byte("123\x7F567890"), -1, "DEL at position 3"},
+		{"DEL at pos 7", []byte("1234567\x7F0"), -1, "DEL at position 7"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := printableASCIILengthBytes(tt.input)
+			if got != tt.expected {
+				t.Errorf("printableASCIILengthBytes(%v) = %d, want %d (%s)",
+					tt.input, got, tt.expected, tt.desc)
+				if len(tt.input) > 0 {
+					t.Logf("  Slice length: %d bytes", len(tt.input))
+					for i, b := range tt.input {
+						isPrintable := b >= 0x20 && b <= 0x7E
+						t.Logf("    [%d]: 0x%02X printable=%v", i, b, isPrintable)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestPrintableASCIIOptimization verifies that the partial ASCII optimization
+// in String() and Bytes() works correctly for printable ASCII content.
+func TestPrintableASCIIOptimization(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"single char", "a"},
+		{"short ASCII", "hello"},
+		{"long ASCII", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"},
+		{"with spaces", "hello world"},
+		{"with punctuation", "Hello, World!"},
+		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"},
+		{"exactly 8 bytes", "12345678"},
+		{"exactly 16 bytes", "1234567890123456"},
+		{"exactly 24 bytes", "123456789012345678901234"},
+		{"7 bytes", "1234567"},
+		{"9 bytes", "123456789"},
+		{"15 bytes", "123456789012345"},
+		{"17 bytes", "12345678901234567"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// For printable ASCII, width should equal length
+			width := String(tt.input)
+			expected := len(tt.input)
+			if width != expected {
+				t.Errorf("String(%q) = %d, want %d", tt.input, width, expected)
+			}
+
+			// Same for Bytes
+			widthBytes := Bytes([]byte(tt.input))
+			if widthBytes != expected {
+				t.Errorf("Bytes(%q) = %d, want %d", tt.input, widthBytes, expected)
+			}
+		})
 	}
 }
