@@ -30,16 +30,40 @@ func String(s string) int {
 // String calculates the display width of a string, for the given options, by
 // iterating over grapheme clusters in the string and summing their widths.
 func (options Options) String(s string) int {
-	// Optimization: if all bytes are printable ASCII, width equals length.
-	if isPrintableASCIIString(s) {
-		return len(s)
+	width := 0
+	pos := 0
+
+	for pos < len(s) {
+		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
+		asciiLen := printableASCIILength(s[pos:])
+		if asciiLen >= 0 {
+			width += asciiLen
+			pos += asciiLen
+			continue
+		}
+
+		// Not ASCII (or < 8 bytes), use grapheme parsing
+		g := graphemes.FromString(s[pos:])
+
+		hitASCII := false
+		for g.Next() {
+			width += graphemeWidth(g.Value(), options)
+			absEnd := pos + g.End()
+
+			// Quick check: if remaining might be an ASCII run, break to outer loop
+			if len(s)-absEnd >= 8 && s[absEnd] >= 0x20 && s[absEnd] <= 0x7E {
+				pos = absEnd
+				hitASCII = true
+				break
+			}
+		}
+
+		if !hitASCII {
+			// Consumed all remaining via graphemes
+			break
+		}
 	}
 
-	width := 0
-	g := graphemes.FromString(s)
-	for g.Next() {
-		width += graphemeWidth(g.Value(), options)
-	}
 	return width
 }
 
@@ -53,16 +77,40 @@ func Bytes(s []byte) int {
 // Bytes calculates the display width of a []byte, for the given options, by
 // iterating over grapheme clusters in the slice and summing their widths.
 func (options Options) Bytes(s []byte) int {
-	// Optimization: if all bytes are printable ASCII, width equals length.
-	if isPrintableASCIIBytes(s) {
-		return len(s)
+	width := 0
+	pos := 0
+
+	for pos < len(s) {
+		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
+		asciiLen := printableASCIILengthBytes(s[pos:])
+		if asciiLen >= 0 {
+			width += asciiLen
+			pos += asciiLen
+			continue
+		}
+
+		// Not ASCII (or < 8 bytes), use grapheme parsing
+		g := graphemes.FromBytes(s[pos:])
+
+		hitASCII := false
+		for g.Next() {
+			width += graphemeWidth(g.Value(), options)
+			absEnd := pos + g.End()
+
+			// Quick check: if remaining might be an ASCII run, break to outer loop
+			if len(s)-absEnd >= 8 && s[absEnd] >= 0x20 && s[absEnd] <= 0x7E {
+				pos = absEnd
+				hitASCII = true
+				break
+			}
+		}
+
+		if !hitASCII {
+			// Consumed all remaining via graphemes
+			break
+		}
 	}
 
-	width := 0
-	g := graphemes.FromBytes(s)
-	for g.Next() {
-		width += graphemeWidth(g.Value(), options)
-	}
 	return width
 }
 
@@ -214,62 +262,88 @@ func asciiWidth(b byte) int {
 	return 1
 }
 
-// isPrintableASCIIString returns true if all bytes are printable ASCII (0x20-0x7E).
-// Uses SWAR to check 8 bytes at a time.
-func isPrintableASCIIString(s string) bool {
+// printableASCIILength returns the length of consecutive printable ASCII bytes
+// starting at the beginning of s. Returns -1 if fewer than 8 consecutive
+// printable ASCII bytes are found (not worth optimizing). Uses SWAR to check
+// 8 bytes at a time.
+func printableASCIILength(s string) int {
+	if len(s) < 8 {
+		return -1
+	}
+
 	i := 0
 	for ; i+8 <= len(s); i += 8 {
 		x := *(*uint64)(unsafe.Add(unsafe.Pointer(unsafe.StringData(s)), i))
 		// Check for non-ASCII (high bit set)
 		if x&0x8080808080808080 != 0 {
-			return false
+			break
 		}
 		// Check for control chars (< 0x20): add 0x60, printable bytes overflow to set high bit
 		if (x+0x6060606060606060)&0x8080808080808080 != 0x8080808080808080 {
-			return false
+			break
 		}
 		// Check for DEL (0x7F) using zero-byte detection
 		xored := x ^ 0x7F7F7F7F7F7F7F7F
 		if ((xored - 0x0101010101010101) & ^xored & 0x8080808080808080) != 0 {
-			return false
+			break
 		}
 	}
-	// Handle remaining bytes
+
+	// If we didn't get at least 8 bytes, not worth optimizing
+	if i == 0 {
+		return -1
+	}
+
+	// Check remaining bytes individually to extend the run
 	for ; i < len(s); i++ {
 		if b := s[i]; b < 0x20 || b > 0x7E {
-			return false
+			break
 		}
 	}
-	return true
+
+	return i
 }
 
-// isPrintableASCIIBytes returns true if all bytes are printable ASCII (0x20-0x7E).
-// Uses SWAR to check 8 bytes at a time.
-func isPrintableASCIIBytes(s []byte) bool {
+// printableASCIILengthBytes returns the length of consecutive printable ASCII bytes
+// starting at the beginning of s. Returns -1 if fewer than 8 consecutive
+// printable ASCII bytes are found (not worth optimizing). Uses SWAR to check
+// 8 bytes at a time.
+func printableASCIILengthBytes(s []byte) int {
+	if len(s) < 8 {
+		return -1
+	}
+
 	i := 0
 	for ; i+8 <= len(s); i += 8 {
 		x := *(*uint64)(unsafe.Pointer(&s[i]))
 		// Check for non-ASCII (high bit set)
 		if x&0x8080808080808080 != 0 {
-			return false
+			break
 		}
 		// Check for control chars (< 0x20): add 0x60, printable bytes overflow to set high bit
 		if (x+0x6060606060606060)&0x8080808080808080 != 0x8080808080808080 {
-			return false
+			break
 		}
 		// Check for DEL (0x7F) using zero-byte detection
 		xored := x ^ 0x7F7F7F7F7F7F7F7F
 		if ((xored - 0x0101010101010101) & ^xored & 0x8080808080808080) != 0 {
-			return false
+			break
 		}
 	}
-	// Handle remaining bytes
+
+	// If we didn't get at least 8 bytes, not worth optimizing
+	if i == 0 {
+		return -1
+	}
+
+	// Check remaining bytes individually to extend the run
 	for ; i < len(s); i++ {
 		if b := s[i]; b < 0x20 || b > 0x7E {
-			return false
+			break
 		}
 	}
-	return true
+
+	return i
 }
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
