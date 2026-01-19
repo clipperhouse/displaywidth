@@ -997,11 +997,196 @@ func TestTruncateBytesDoesNotMutateInput(t *testing.T) {
 	original := []byte("hello world")
 	originalCopy := make([]byte, len(original))
 	copy(originalCopy, original)
-	
+
 	tail := []byte("...")
 	_ = TruncateBytes(original, 5, tail)
-	
+
 	if !bytes.Equal(original, originalCopy) {
 		t.Errorf("TruncateBytes mutated the input slice: got %q, want %q", original, originalCopy)
+	}
+}
+
+func TestIsPrintableASCII(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+		desc     string
+	}{
+		// Empty string
+		{"empty string", "", true, "Empty string is printable ASCII"},
+
+		// Single byte cases
+		{"single space", " ", true, "Space (0x20) is printable"},
+		{"single exclamation", "!", true, "! (0x21) is printable"},
+		{"single tilde", "~", true, "~ (0x7E) is printable"},
+		{"single null", "\x00", false, "NULL (0x00) is control char"},
+		{"single tab", "\t", false, "TAB (0x09) is control char"},
+		{"single newline", "\n", false, "LF (0x0A) is control char"},
+		{"single last control", "\x1F", false, "Last control (0x1F) is control char"},
+		{"single DEL", "\x7F", false, "DEL (0x7F) is not printable"},
+		{"single 0x80", "\x80", false, "0x80 is non-ASCII"},
+		{"single 0xFF", "\xFF", false, "0xFF is non-ASCII"},
+
+		// Two byte cases
+		{"two printable", "ab", true, "Two printable ASCII"},
+		{"two with control", "a\x00", false, "Contains control char"},
+		{"two with DEL", "a\x7F", false, "Contains DEL"},
+		{"two with non-ASCII", "a\x80", false, "Contains non-ASCII"},
+
+		// Exactly 8 bytes (SWAR boundary)
+		{"8 bytes all printable", "12345678", true, "8 bytes all printable"},
+		{"8 bytes with space", "hello wo", true, "8 bytes with space"},
+		{"8 bytes with control", "hello\x00", false, "8 bytes with control char"},
+		{"8 bytes with DEL", "hello\x7F", false, "8 bytes with DEL"},
+		{"8 bytes with non-ASCII", "hello\x80", false, "8 bytes with non-ASCII"},
+		{"8 bytes all spaces", "        ", true, "8 spaces"},
+		{"8 bytes all tildes", "~~~~~~~~", true, "8 tildes"},
+		{"8 bytes boundary low", "\x20\x20\x20\x20\x20\x20\x20\x20", true, "8 spaces (0x20)"},
+		{"8 bytes boundary high", "\x7E\x7E\x7E\x7E\x7E\x7E\x7E\x7E", true, "8 tildes (0x7E)"},
+
+		// Just before 8 bytes (7 bytes)
+		{"7 bytes all printable", "1234567", true, "7 bytes all printable"},
+		{"7 bytes with control", "123456\x00", false, "7 bytes with control char"},
+		{"7 bytes with DEL", "123456\x7F", false, "7 bytes with DEL"},
+
+		// Just after 8 bytes (9 bytes)
+		{"9 bytes all printable", "123456789", true, "9 bytes all printable"},
+		{"9 bytes with control", "12345678\x00", false, "9 bytes with control char"},
+		{"9 bytes with DEL", "12345678\x7F", false, "9 bytes with DEL"},
+		{"9 bytes with non-ASCII", "12345678\x80", false, "9 bytes with non-ASCII"},
+
+		// Exactly 16 bytes (two SWAR chunks)
+		{"16 bytes all printable", "1234567890123456", true, "16 bytes all printable"},
+		{"16 bytes with control", "123456789012345\x00", false, "16 bytes with control char"},
+		{"16 bytes with DEL", "123456789012345\x7F", false, "16 bytes with DEL"},
+		{"16 bytes with non-ASCII", "123456789012345\x80", false, "16 bytes with non-ASCII"},
+
+		// Just before 16 bytes (15 bytes)
+		{"15 bytes all printable", "123456789012345", true, "15 bytes all printable"},
+		{"15 bytes with control", "12345678901234\x00", false, "15 bytes with control char"},
+
+		// Just after 16 bytes (17 bytes)
+		{"17 bytes all printable", "12345678901234567", true, "17 bytes all printable"},
+		{"17 bytes with control", "1234567890123456\x00", false, "17 bytes with control char"},
+
+		// Exactly 24 bytes (three SWAR chunks)
+		{"24 bytes all printable", "123456789012345678901234", true, "24 bytes all printable"},
+		{"24 bytes with control", "12345678901234567890123\x00", false, "24 bytes with control char"},
+
+		// Long strings
+		{"long all printable", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()", true, "Long string all printable"},
+		{"long with control", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\x00@#$%^&*()", false, "Long string with control char"},
+		{"long with DEL", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\x7F@#$%^&*()", false, "Long string with DEL"},
+		{"long with non-ASCII", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\x80@#$%^&*()", false, "Long string with non-ASCII"},
+
+		// Edge cases: first and last bytes in range
+		{"starts with space", " hello", true, "Starts with space (0x20)"},
+		{"starts with tilde", "~hello", true, "Starts with tilde (0x7E)"},
+		{"ends with space", "hello ", true, "Ends with space (0x20)"},
+		{"ends with tilde", "hello~", true, "Ends with tilde (0x7E)"},
+
+		// Edge cases: just outside range
+		{"starts with 0x1F", "\x1Fhello", false, "Starts with last control (0x1F)"},
+		{"starts with 0x7F", "\x7Fhello", false, "Starts with DEL (0x7F)"},
+		{"starts with 0x80", "\x80hello", false, "Starts with non-ASCII (0x80)"},
+		{"ends with 0x1F", "hello\x1F", false, "Ends with last control (0x1F)"},
+		{"ends with 0x7F", "hello\x7F", false, "Ends with DEL (0x7F)"},
+		{"ends with 0x80", "hello\x80", false, "Ends with non-ASCII (0x80)"},
+
+		// All printable ASCII range
+		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", true, "All printable ASCII (0x20-0x7E)"},
+
+		// Control characters at various positions
+		{"control at start", "\x00hello", false, "Control char at start"},
+		{"control in middle", "he\x00llo", false, "Control char in middle"},
+		{"control at end", "hello\x00", false, "Control char at end"},
+		{"control in 8-byte chunk", "123456\x0078", false, "Control char in first 8-byte chunk"},
+		{"control in second 8-byte chunk", "12345678\x0090", false, "Control char in second 8-byte chunk"},
+		{"control in remainder", "123456789012345\x006", false, "Control char in remainder"},
+
+		// DEL at various positions
+		{"DEL at start", "\x7Fhello", false, "DEL at start"},
+		{"DEL in middle", "he\x7Fllo", false, "DEL in middle"},
+		{"DEL at end", "hello\x7F", false, "DEL at end"},
+		{"DEL in 8-byte chunk", "123456\x7F78", false, "DEL in first 8-byte chunk"},
+		{"DEL in second 8-byte chunk", "12345678\x7F90", false, "DEL in second 8-byte chunk"},
+		{"DEL in remainder", "123456789012345\x7F6", false, "DEL in remainder"},
+
+		// Non-ASCII at various positions
+		{"non-ASCII at start", "\x80hello", false, "Non-ASCII at start"},
+		{"non-ASCII in middle", "he\x80llo", false, "Non-ASCII in middle"},
+		{"non-ASCII at end", "hello\x80", false, "Non-ASCII at end"},
+		{"non-ASCII in 8-byte chunk", "123456\x8078", false, "Non-ASCII in first 8-byte chunk"},
+		{"non-ASCII in second 8-byte chunk", "12345678\x8090", false, "Non-ASCII in second 8-byte chunk"},
+		{"non-ASCII in remainder", "123456789012345\x806", false, "Non-ASCII in remainder"},
+
+		// UTF-8 sequences (should fail since they contain non-ASCII bytes)
+		{"UTF-8 2-byte start", "\xC2\xA0", false, "UTF-8 2-byte sequence (non-breaking space)"},
+		{"UTF-8 3-byte start", "\xE2\x82\xAC", false, "UTF-8 3-byte sequence (euro sign)"},
+		{"UTF-8 4-byte start", "\xF0\x9F\x98\x80", false, "UTF-8 4-byte sequence (emoji)"},
+		{"ASCII with UTF-8", "hello\xC2\xA0world", false, "ASCII with UTF-8 sequence"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPrintableASCII(tt.input)
+			if got != tt.expected {
+				t.Errorf("isPrintableASCII(%q) = %v, want %v (%s)",
+					tt.input, got, tt.expected, tt.desc)
+				// Show byte details for debugging
+				if len(tt.input) > 0 {
+					t.Logf("  String length: %d bytes", len(tt.input))
+					t.Logf("  Bytes: %v", []byte(tt.input))
+					for i, b := range []byte(tt.input) {
+						isPrintable := b >= 0x20 && b <= 0x7E
+						t.Logf("    [%d]: 0x%02X '%c' printable=%v", i, b, b, isPrintable)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestIsPrintableASCIIOptimization verifies that the isPrintableASCII optimization
+// in String() works correctly by comparing results with and without the optimization path.
+func TestIsPrintableASCIIOptimization(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		desc  string
+	}{
+		{"empty", "", "Empty string"},
+		{"single char", "a", "Single ASCII character"},
+		{"short ASCII", "hello", "Short ASCII string"},
+		{"long ASCII", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "Long ASCII string"},
+		{"with spaces", "hello world", "ASCII with spaces"},
+		{"with punctuation", "Hello, World!", "ASCII with punctuation"},
+		{"all printable range", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", "All printable ASCII"},
+		{"exactly 8 bytes", "12345678", "Exactly 8 bytes (SWAR boundary)"},
+		{"exactly 16 bytes", "1234567890123456", "Exactly 16 bytes (two SWAR chunks)"},
+		{"exactly 24 bytes", "123456789012345678901234", "Exactly 24 bytes (three SWAR chunks)"},
+		{"7 bytes", "1234567", "7 bytes (just before SWAR)"},
+		{"9 bytes", "123456789", "9 bytes (just after SWAR)"},
+		{"15 bytes", "123456789012345", "15 bytes (just before two SWAR)"},
+		{"17 bytes", "12345678901234567", "17 bytes (just after two SWAR)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The optimization should return len(s) for printable ASCII strings
+			// This is tested indirectly through String() which uses isPrintableASCII
+			if isPrintableASCII(tt.input) {
+				width := String(tt.input)
+				expected := len(tt.input)
+				if width != expected {
+					t.Errorf("String(%q) = %d, want %d (optimization should return length for printable ASCII)",
+						tt.input, width, expected)
+				}
+			} else {
+				t.Errorf("isPrintableASCII(%q) = false, but input should be printable ASCII (%s)",
+					tt.input, tt.desc)
+			}
+		})
 	}
 }

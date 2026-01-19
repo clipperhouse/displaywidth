@@ -2,6 +2,7 @@ package displaywidth
 
 import (
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/clipperhouse/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
@@ -29,12 +30,9 @@ func String(s string) int {
 // String calculates the display width of a string, for the given options, by
 // iterating over grapheme clusters in the string and summing their widths.
 func (options Options) String(s string) int {
-	// Optimization: no need to parse grapheme
-	switch len(s) {
-	case 0:
-		return 0
-	case 1:
-		return asciiWidth(s[0])
+	// Optimization: if all bytes are printable ASCII, width equals length.
+	if isPrintableASCII(s) {
+		return len(s)
 	}
 
 	width := 0
@@ -217,6 +215,35 @@ func asciiWidth(b byte) int {
 		return 0
 	}
 	return 1
+}
+
+// isPrintableASCII returns true if all bytes are printable ASCII (0x20-0x7E).
+// Uses SWAR to check 8 bytes at a time.
+func isPrintableASCII(s string) bool {
+	i := 0
+	for ; i+8 <= len(s); i += 8 {
+		x := *(*uint64)(unsafe.Add(unsafe.Pointer(unsafe.StringData(s)), i))
+		// Check for non-ASCII (high bit set)
+		if x&0x8080808080808080 != 0 {
+			return false
+		}
+		// Check for control chars (< 0x20): add 0x60, printable bytes overflow to set high bit
+		if (x+0x6060606060606060)&0x8080808080808080 != 0x8080808080808080 {
+			return false
+		}
+		// Check for DEL (0x7F) using zero-byte detection
+		xored := x ^ 0x7F7F7F7F7F7F7F7F
+		if ((xored - 0x0101010101010101) & ^xored & 0x8080808080808080) != 0 {
+			return false
+		}
+	}
+	// Handle remaining bytes
+	for ; i < len(s); i++ {
+		if b := s[i]; b < 0x20 || b > 0x7E {
+			return false
+		}
+	}
+	return true
 }
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding

@@ -1,6 +1,6 @@
 module github.com/clipperhouse/displaywidth
 
-go 1.18
+go 1.20
 
 require github.com/clipperhouse/uax29/v2 v2.3.0
 
