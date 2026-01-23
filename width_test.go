@@ -74,6 +74,17 @@ func TestStringWidth(t *testing.T) {
 		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},                // < 8 bytes, no optimization
 		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2},            // < 8 bytes in middle
 		{"long mixed", "Hello World! 你好世界 12345678 emoji: 🎉🎊", defaultOptions, 42}, // 13 + 9 + 9 + 7 + 4
+
+		// ASCII with embedded control characters
+		{"ASCII with null in middle", "hello\x00world", defaultOptions, 10},   // 5 + 0 + 5
+		{"ASCII with DEL in middle", "hello\x7Fworld", defaultOptions, 10},    // 5 + 0 + 5
+		{"ASCII with multiple controls", "a\x00b\tc\nd", defaultOptions, 4},   // 1 + 0 + 1 + 0 + 1 + 0 + 1
+
+		// Alternating short ASCII/non-ASCII sequences
+		{"alternating ASCII-CJK", "a中b文c", defaultOptions, 7},       // 1 + 2 + 1 + 2 + 1
+		{"alternating CJK-ASCII", "中a文b字c", defaultOptions, 9},     // 2 + 1 + 2 + 1 + 2 + 1
+		{"single char alternating", "a😀b🎉c", defaultOptions, 7},     // 1 + 2 + 1 + 2 + 1
+		{"rapid alternation", "aあbいcうd", defaultOptions, 10},       // 1 + 2 + 1 + 2 + 1 + 2 + 1
 	}
 
 	for _, tt := range tests {
