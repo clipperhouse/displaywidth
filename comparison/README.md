@@ -1,7 +1,7 @@
 ## Compatibility
 
 In real-world text, you should see the same outputs from
-`clipperhouse/displaywidth`,`mattn/go-runewidth`, and `rivo/uniseg`.
+`clipperhouse/displaywidth`, `mattn/go-runewidth`, and `rivo/uniseg`.
 
 The tests in this `comparison` package exercise the behaviors of the three
 libraries. Extensive details are available in the
