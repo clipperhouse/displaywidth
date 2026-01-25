@@ -43,6 +43,7 @@ func (options Options) String(s string) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromString(s[pos:])
+		start := pos
 
 		for g.Next() {
 			v := g.Value()
@@ -53,6 +54,13 @@ func (options Options) String(s string) int {
 			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
 				break
 			}
+		}
+
+		// Defensive, should not happen: if no progress was made,
+		// skip a byte to prevent infinite loop. Only applies if
+		// the grapheme parser misbehaves.
+		if pos == start {
+			pos++
 		}
 	}
 
@@ -83,6 +91,7 @@ func (options Options) Bytes(s []byte) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromBytes(s[pos:])
+		start := pos
 
 		for g.Next() {
 			v := g.Value()
@@ -93,6 +102,13 @@ func (options Options) Bytes(s []byte) int {
 			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
 				break
 			}
+		}
+
+		// Defensive, should not happen: if no progress was made,
+		// skip a byte to prevent infinite loop. Only applies if
+		// the grapheme parser misbehaves.
+		if pos == start {
+			pos++
 		}
 	}
 
