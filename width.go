@@ -2,7 +2,6 @@ package displaywidth
 
 import (
 	"unicode/utf8"
-	"unsafe"
 
 	"github.com/clipperhouse/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
@@ -34,7 +33,7 @@ func (options Options) String(s string) int {
 	pos := 0
 
 	for pos < len(s) {
-		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
+		// Try ASCII optimization
 		asciiLen := printableASCIILength(s[pos:])
 		if asciiLen > 0 {
 			width += asciiLen
@@ -42,25 +41,26 @@ func (options Options) String(s string) int {
 			continue
 		}
 
-		// Not ASCII (or < 8 bytes), use grapheme parsing
+		// Not ASCII, use grapheme parsing
 		g := graphemes.FromString(s[pos:])
+		start := pos
 
-		hitASCII := false
 		for g.Next() {
-			width += graphemeWidth(g.Value(), options)
-			absEnd := pos + g.End()
+			v := g.Value()
+			width += graphemeWidth(v, options)
+			pos += len(v)
 
-			// Quick check: if remaining might be an ASCII run, break to outer loop
-			if len(s)-absEnd >= 8 && s[absEnd] >= 0x20 && s[absEnd] <= 0x7E {
-				pos = absEnd
-				hitASCII = true
+			// Quick check: if remaining might have printable ASCII, break to outer loop
+			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
 				break
 			}
 		}
 
-		if !hitASCII {
-			// Consumed all remaining via graphemes
-			break
+		// Defensive, should not happen: if no progress was made,
+		// skip a byte to prevent infinite loop. Only applies if
+		// the grapheme parser misbehaves.
+		if pos == start {
+			pos++
 		}
 	}
 
@@ -81,33 +81,34 @@ func (options Options) Bytes(s []byte) int {
 	pos := 0
 
 	for pos < len(s) {
-		// Try ASCII optimization (need >= 8 bytes for it to be worth it)
-		asciiLen := printableASCIILengthBytes(s[pos:])
+		// Try ASCII optimization
+		asciiLen := printableASCIILength(s[pos:])
 		if asciiLen > 0 {
 			width += asciiLen
 			pos += asciiLen
 			continue
 		}
 
-		// Not ASCII (or < 8 bytes), use grapheme parsing
+		// Not ASCII, use grapheme parsing
 		g := graphemes.FromBytes(s[pos:])
+		start := pos
 
-		hitASCII := false
 		for g.Next() {
-			width += graphemeWidth(g.Value(), options)
-			absEnd := pos + g.End()
+			v := g.Value()
+			width += graphemeWidth(v, options)
+			pos += len(v)
 
-			// Quick check: if remaining might be an ASCII run, break to outer loop
-			if len(s)-absEnd >= 8 && s[absEnd] >= 0x20 && s[absEnd] <= 0x7E {
-				pos = absEnd
-				hitASCII = true
+			// Quick check: if remaining might have printable ASCII, break to outer loop
+			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
 				break
 			}
 		}
 
-		if !hitASCII {
-			// Consumed all remaining via graphemes
-			break
+		// Defensive, should not happen: if no progress was made,
+		// skip a byte to prevent infinite loop. Only applies if
+		// the grapheme parser misbehaves.
+		if pos == start {
+			pos++
 		}
 	}
 
@@ -263,90 +264,22 @@ func asciiWidth(b byte) int {
 }
 
 // printableASCIILength returns the length of consecutive printable ASCII bytes
-// starting at the beginning of s. Returns -1 if fewer than 8 consecutive
-// printable ASCII bytes are found (not worth optimizing). Uses SWAR to check
-// 8 bytes at a time.
-func printableASCIILength(s string) int {
-	if len(s) < 8 {
-		return -1
-	}
-
+// starting at the beginning of s.
+func printableASCIILength[T string | []byte](s T) int {
 	i := 0
-	for ; i+8 <= len(s); i += 8 {
-		x := *(*uint64)(unsafe.Add(unsafe.Pointer(unsafe.StringData(s)), i))
-		// Check for non-ASCII (high bit set)
-		if x&0x8080808080808080 != 0 {
+	for ; i < len(s); i++ {
+		b := s[i]
+		// Printable ASCII is 0x20-0x7E (space through tilde)
+		if b < 0x20 || b > 0x7E {
 			break
 		}
-		// Check for control chars (< 0x20): add 0x60, printable bytes overflow to set high bit
-		if (x+0x6060606060606060)&0x8080808080808080 != 0x8080808080808080 {
-			break
-		}
-		// Check for DEL (0x7F) using zero-byte detection
-		xored := x ^ 0x7F7F7F7F7F7F7F7F
-		if ((xored - 0x0101010101010101) & ^xored & 0x8080808080808080) != 0 {
-			break
-		}
-	}
-
-	// If we didn't get at least 8 bytes, not worth optimizing
-	if i == 0 {
-		return -1
 	}
 
 	// If the next byte is non-ASCII (>= 0x80), back off by 1. The grapheme
 	// parser may group the last ASCII byte with subsequent non-ASCII bytes,
 	// such as combining marks.
-	if i < len(s) && s[i] >= 0x80 {
+	if i > 0 && i < len(s) && s[i] >= 0x80 {
 		i--
-		if i < 8 {
-			return -1
-		}
-	}
-
-	return i
-}
-
-// printableASCIILengthBytes returns the length of consecutive printable ASCII bytes
-// starting at the beginning of s. Returns -1 if fewer than 8 consecutive
-// printable ASCII bytes are found (not worth optimizing). Uses SWAR to check
-// 8 bytes at a time.
-func printableASCIILengthBytes(s []byte) int {
-	if len(s) < 8 {
-		return -1
-	}
-
-	i := 0
-	for ; i+8 <= len(s); i += 8 {
-		x := *(*uint64)(unsafe.Pointer(&s[i]))
-		// Check for non-ASCII (high bit set)
-		if x&0x8080808080808080 != 0 {
-			break
-		}
-		// Check for control chars (< 0x20): add 0x60, printable bytes overflow to set high bit
-		if (x+0x6060606060606060)&0x8080808080808080 != 0x8080808080808080 {
-			break
-		}
-		// Check for DEL (0x7F) using zero-byte detection
-		xored := x ^ 0x7F7F7F7F7F7F7F7F
-		if ((xored - 0x0101010101010101) & ^xored & 0x8080808080808080) != 0 {
-			break
-		}
-	}
-
-	// If we didn't get at least 8 bytes, not worth optimizing
-	if i == 0 {
-		return -1
-	}
-
-	// If the next byte is non-ASCII (>= 0x80), back off by 1. The grapheme
-	// parser may group the last ASCII byte with subsequent non-ASCII bytes,
-	// such as combining marks.
-	if i < len(s) && s[i] >= 0x80 {
-		i--
-		if i < 8 {
-			return -1
-		}
 	}
 
 	return i
