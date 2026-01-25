@@ -71,20 +71,20 @@ func TestStringWidth(t *testing.T) {
 		{"emoji then ASCII 8 bytes", "😀12345678", defaultOptions, 2 + 8},
 		{"CJK then ASCII 16 bytes", "中1234567890abcdef", defaultOptions, 2 + 16},
 		{"ASCII-emoji-ASCII sandwich", "12345678😀abcdefgh", defaultOptions, 8 + 2 + 8},
-		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},                // < 8 bytes, no optimization
-		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2},            // < 8 bytes in middle
+		{"short ASCII then emoji", "hello😀", defaultOptions, 5 + 2},
+		{"emoji-short ASCII-emoji", "😀abc😀", defaultOptions, 2 + 3 + 2},
 		{"long mixed", "Hello World! 你好世界 12345678 emoji: 🎉🎊", defaultOptions, 42}, // 13 + 9 + 9 + 7 + 4
 
 		// ASCII with embedded control characters
-		{"ASCII with null in middle", "hello\x00world", defaultOptions, 10},   // 5 + 0 + 5
-		{"ASCII with DEL in middle", "hello\x7Fworld", defaultOptions, 10},    // 5 + 0 + 5
-		{"ASCII with multiple controls", "a\x00b\tc\nd", defaultOptions, 4},   // 1 + 0 + 1 + 0 + 1 + 0 + 1
+		{"ASCII with null in middle", "hello\x00world", defaultOptions, 10}, // 5 + 0 + 5
+		{"ASCII with DEL in middle", "hello\x7Fworld", defaultOptions, 10},  // 5 + 0 + 5
+		{"ASCII with multiple controls", "a\x00b\tc\nd", defaultOptions, 4}, // 1 + 0 + 1 + 0 + 1 + 0 + 1
 
 		// Alternating short ASCII/non-ASCII sequences
-		{"alternating ASCII-CJK", "a中b文c", defaultOptions, 7},       // 1 + 2 + 1 + 2 + 1
-		{"alternating CJK-ASCII", "中a文b字c", defaultOptions, 9},     // 2 + 1 + 2 + 1 + 2 + 1
-		{"single char alternating", "a😀b🎉c", defaultOptions, 7},     // 1 + 2 + 1 + 2 + 1
-		{"rapid alternation", "aあbいcうd", defaultOptions, 10},       // 1 + 2 + 1 + 2 + 1 + 2 + 1
+		{"alternating ASCII-CJK", "a中b文c", defaultOptions, 7},   // 1 + 2 + 1 + 2 + 1
+		{"alternating CJK-ASCII", "中a文b字c", defaultOptions, 9},  // 2 + 1 + 2 + 1 + 2 + 1
+		{"single char alternating", "a😀b🎉c", defaultOptions, 7}, // 1 + 2 + 1 + 2 + 1
+		{"rapid alternation", "aあbいcうd", defaultOptions, 10},    // 1 + 2 + 1 + 2 + 1 + 2 + 1
 	}
 
 	for _, tt := range tests {
@@ -1034,7 +1034,8 @@ func TestPrintableASCIILength(t *testing.T) {
 		expected int
 		desc     string
 	}{
-		// Any length works - returns exact count
+		// Some of these test are left over from a SWAR implementation,
+		// which cared about 8 byte boundaries.
 		{"empty string", "", 0, "Empty string has 0 printable bytes"},
 		{"single char", "a", 1, "Single printable byte"},
 		{"single space", " ", 1, "Space is printable"},
@@ -1102,7 +1103,6 @@ func TestPrintableASCIILength(t *testing.T) {
 		})
 	}
 }
-
 
 func TestPrintableASCIILengthBytes(t *testing.T) {
 	tests := []struct {
