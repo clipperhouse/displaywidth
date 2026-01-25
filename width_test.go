@@ -1034,7 +1034,7 @@ func TestPrintableASCIILength(t *testing.T) {
 		expected int
 		desc     string
 	}{
-		// Some of these test are left over from a SWAR implementation,
+		// Some of these tests are left over from a SWAR implementation,
 		// which cared about 8 byte boundaries.
 		{"empty string", "", 0, "Empty string has 0 printable bytes"},
 		{"single char", "a", 1, "Single printable byte"},
