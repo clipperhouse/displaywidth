@@ -1256,3 +1256,270 @@ func TestPrintableASCIIOptimization(t *testing.T) {
 		})
 	}
 }
+
+// TestUnicode16IndicConjunctBreak tests Unicode 16.0 Indic_Conjunct_Break property.
+// This property affects grapheme cluster breaking in Indic scripts, ensuring that
+// conjuncts (consonant clusters) are properly grouped into single grapheme clusters.
+// The Indic_Conjunct_Break property has values: Consonant, Linker, and Extend.
+//
+// Note: Indic scripts are typically width 1 (not width 2 like CJK). The key test
+// here is that grapheme clusters are formed correctly according to Indic_Conjunct_Break
+// rules, not the width value itself.
+func TestUnicode16IndicConjunctBreak(t *testing.T) {
+	tests := []struct {
+		name                   string
+		input                  string
+		expectedWidth          int
+		expectedClusters       int // Expected number of grapheme clusters
+		description            string
+		verifyClusterFormation bool // Whether to verify the cluster contains expected runes
+	}{
+		// Devanagari (Hindi, Sanskrit) - Unicode range U+0900-U+097F
+		{
+			name:                   "Devanagari conjunct क्ष",
+			input:                  "क्ष", // kṣa - क (ka) + virama + ष (ṣa)
+			expectedWidth:          1,     // Indic scripts are width 1
+			expectedClusters:       1,     // Should form single grapheme cluster
+			description:            "Devanagari conjunct formed with virama (U+094D) - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:                   "Devanagari conjunct त्र",
+			input:                  "त्र", // tra - त (ta) + virama + र (ra)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Devanagari conjunct with र (ra) as subscript - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:                   "Devanagari conjunct ज्ञ",
+			input:                  "ज्ञ", // jña - ज (ja) + virama + ञ (ña)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Devanagari conjunct ज्ञ - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:             "Devanagari word with conjuncts",
+			input:            "क्षत्रिय", // kṣatriya - contains conjunct क्ष
+			expectedWidth:    3,          // 3 grapheme clusters × 1 width each
+			expectedClusters: 3,          // क्ष, त्रि, य
+			description:      "Devanagari word with multiple conjuncts",
+		},
+		{
+			name:             "Devanagari with repha",
+			input:            "राम", // rāma - र (ra) can form repha in some contexts
+			expectedWidth:    2,     // 2 grapheme clusters × 1 width each
+			expectedClusters: 2,     // रा, म
+			description:      "Devanagari with potential repha formation",
+		},
+
+		// Bengali (Bangla) - Unicode range U+0980-U+09FF
+		{
+			name:                   "Bengali conjunct ক্ষ",
+			input:                  "ক্ষ", // kṣa - ক (ka) + virama + ষ (ṣa)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Bengali conjunct ক্ষ - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:                   "Bengali conjunct জ্ঞ",
+			input:                  "জ্ঞ", // jña - জ (ja) + virama + ঞ (ña)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Bengali conjunct জ্ঞ - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:             "Bengali word",
+			input:            "বাংলা", // bāṅlā - Bengali
+			expectedWidth:    2,       // 2 grapheme clusters × 1 width each
+			expectedClusters: 2,       // বাং, লা
+			description:      "Bengali word with conjuncts",
+		},
+
+		// Tamil - Unicode range U+0B80-U+0BFF
+		// Tamil typically uses visible viramas rather than fused conjuncts
+		// Note: Tamil may break differently - virama may form separate cluster
+		{
+			name:                   "Tamil with virama",
+			input:                  "க்ஷ", // kṣa - க (ka) + virama + ஷ (ṣa)
+			expectedWidth:          2,     // May break into 2 clusters: க், ஷ
+			expectedClusters:       2,     // Tamil virama handling may differ
+			description:            "Tamil conjunct with visible virama - may break into multiple clusters",
+			verifyClusterFormation: false,
+		},
+		{
+			name:             "Tamil word",
+			input:            "தமிழ்", // tamiḻ - Tamil
+			expectedWidth:    3,       // 3 grapheme clusters × 1 width each
+			expectedClusters: 3,       // த, மி, ழ்
+			description:      "Tamil word",
+		},
+
+		// Telugu - Unicode range U+0C00-U+0C7F
+		{
+			name:                   "Telugu conjunct క్ష",
+			input:                  "క్ష", // kṣa - క (ka) + virama + ష (ṣa)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Telugu conjunct క్ష - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:             "Telugu word",
+			input:            "తెలుగు", // telugu
+			expectedWidth:    3,        // 3 grapheme clusters × 1 width each
+			expectedClusters: 3,        // తె, లు, గు
+			description:      "Telugu word",
+		},
+
+		// Gujarati - Unicode range U+0A80-U+0AFF
+		{
+			name:                   "Gujarati conjunct ક્ષ",
+			input:                  "ક્ષ", // kṣa - ક (ka) + virama + ષ (ṣa)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Gujarati conjunct ક્ષ - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:             "Gujarati word",
+			input:            "ગુજરાતી", // gujarātī
+			expectedWidth:    4,         // 4 grapheme clusters × 1 width each
+			expectedClusters: 4,         // ગુ, જ, રા, તી
+			description:      "Gujarati word",
+		},
+
+		// Kannada - Unicode range U+0C80-U+0CFF
+		// Note: Some Kannada conjuncts may break differently depending on Indic_Conjunct_Break implementation
+		{
+			name:                   "Kannada conjunct ಕ್ಷ",
+			input:                  "ಕ್ಷ", // kṣa - ಕ (ka) + virama + ಷ (ṣa)
+			expectedWidth:          2,     // May break into 2 clusters: ಕ್, ಷ
+			expectedClusters:       2,     // Kannada virama handling may differ
+			description:            "Kannada conjunct ಕ್ಷ - may break into multiple clusters",
+			verifyClusterFormation: false,
+		},
+		{
+			name:             "Kannada word",
+			input:            "ಕನ್ನಡ", // kannada
+			expectedWidth:    4,       // 4 grapheme clusters × 1 width each
+			expectedClusters: 4,       // ಕ, ನ್, ನ, ಡ
+			description:      "Kannada word",
+		},
+
+		// Malayalam - Unicode range U+0D00-U+0D7F
+		{
+			name:                   "Malayalam conjunct ക്ഷ",
+			input:                  "ക്ഷ", // kṣa - ക (ka) + virama + ഷ (ṣa)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Malayalam conjunct ക്ഷ - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:             "Malayalam word",
+			input:            "മലയാളം", // malayāḷaṁ
+			expectedWidth:    4,        // 4 grapheme clusters × 1 width each
+			expectedClusters: 4,        // മ, ല, യാ, ളം
+			description:      "Malayalam word",
+		},
+
+		// Mixed Indic scripts
+		{
+			name:             "Mixed Indic scripts",
+			input:            "क्ष বাংলা தமிழ்", // Devanagari + Bengali + Tamil
+			expectedWidth:    8,                 // 1 + space + 2 + space + 3
+			expectedClusters: 8,                 // क्ष, space, বাং, লা, space, த, மி, ழ்
+			description:      "Mixed Indic scripts with spaces",
+		},
+
+		// Test that virama (U+094D in Devanagari) doesn't break grapheme cluster
+		{
+			name:                   "Devanagari with explicit virama",
+			input:                  "क्", // ka + virama (should be part of grapheme cluster)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Devanagari consonant with virama (no following consonant) - should be single cluster",
+			verifyClusterFormation: true,
+		},
+
+		// Test Indic script with combining marks (should still form single grapheme)
+		{
+			name:                   "Devanagari with vowel sign",
+			input:                  "का", // kā - क (ka) + ा (ā vowel sign)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Devanagari with combining vowel sign - should be single cluster",
+			verifyClusterFormation: true,
+		},
+		{
+			name:                   "Bengali with vowel sign",
+			input:                  "কা", // kā - ক (ka) + া (ā vowel sign)
+			expectedWidth:          1,
+			expectedClusters:       1,
+			description:            "Bengali with combining vowel sign - should be single cluster",
+			verifyClusterFormation: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test String width
+			got := String(tt.input)
+			if got != tt.expectedWidth {
+				t.Errorf("String(%q) = %d, want %d (%s)",
+					tt.input, got, tt.expectedWidth, tt.description)
+			}
+
+			// Test Bytes width
+			gotBytes := Bytes([]byte(tt.input))
+			if gotBytes != tt.expectedWidth {
+				t.Errorf("Bytes(%q) = %d, want %d (%s)",
+					tt.input, gotBytes, tt.expectedWidth, tt.description)
+			}
+
+			// Verify grapheme cluster formation (key test for Indic_Conjunct_Break)
+			iter := StringGraphemes(tt.input)
+			sumWidth := 0
+			clusterCount := 0
+			var clusters []string
+			for iter.Next() {
+				clusterCount++
+				width := iter.Width()
+				sumWidth += width
+				clusters = append(clusters, iter.Value())
+			}
+
+			if clusterCount != tt.expectedClusters {
+				t.Errorf("Number of grapheme clusters = %d, want %d (%s)",
+					clusterCount, tt.expectedClusters, tt.description)
+				for i, cluster := range clusters {
+					t.Logf("  Cluster %d: %q (width %d)", i+1, cluster, String(cluster))
+				}
+			}
+
+			if sumWidth != tt.expectedWidth {
+				t.Errorf("Sum of grapheme cluster widths = %d, want %d", sumWidth, tt.expectedWidth)
+			}
+
+			// For conjuncts, verify they form a single cluster (Indic_Conjunct_Break behavior)
+			if tt.verifyClusterFormation && clusterCount != 1 {
+				t.Errorf("Expected single grapheme cluster for conjunct, got %d clusters: %v",
+					clusterCount, clusters)
+			}
+
+			// Verify that the input string can be reconstructed from clusters
+			reconstructed := ""
+			iter2 := StringGraphemes(tt.input)
+			for iter2.Next() {
+				reconstructed += iter2.Value()
+			}
+			if reconstructed != tt.input {
+				t.Errorf("Reconstructed string from clusters = %q, want %q", reconstructed, tt.input)
+			}
+		})
+	}
+}
