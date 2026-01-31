@@ -951,6 +951,15 @@ func TestTruncateString(t *testing.T) {
 		{"flag sequence", "🇺🇸🇯🇵", 2, "...", defaultOptions, "..."},
 		{"ZWJ sequence", "👨‍👩‍👧", 2, "...", defaultOptions, "👨‍👩‍👧"},
 		{"ZWJ sequence truncate", "👨‍👩‍👧👨‍👩‍👧", 2, "...", defaultOptions, "..."},
+
+		// IgnoreANSI: truncate by visible width, ANSI codes not counted (same as String: truncate when content width > maxWidth)
+		{"IgnoreANSI red fits", "\x1B[31mred\x1B[0m", 6, "...", ignoreANSIOptions, "\x1B[31mred\x1B[0m"},
+		{"IgnoreANSI red truncate", "\x1B[31mred\x1B[0m", 2, "...", ignoreANSIOptions, "..."},
+		{"IgnoreANSI long text", "\x1B[32mhello world\x1B[0m", 8, "...", ignoreANSIOptions, "\x1B[32mhello..."},
+		{"IgnoreANSI leading text", "hi\x1B[32m there\x1B[0m", 7, "...", ignoreANSIOptions, "hi\x1B[32m t..."},
+		{"IgnoreANSI no truncation", "\x1B[1m\x1B[32mhi\x1B[0m", 5, "...", ignoreANSIOptions, "\x1B[1m\x1B[32mhi\x1B[0m"},
+		{"IgnoreANSI CJK", "\x1B[31m中\x1B[0m", 5, "...", ignoreANSIOptions, "\x1B[31m中\x1B[0m"},
+		{"IgnoreANSI CJK truncate", "\x1B[31m中文\x1B[0m", 3, "...", ignoreANSIOptions, "..."},
 	}
 
 	for _, tt := range tests {
@@ -1024,6 +1033,120 @@ func TestTruncateBytesDoesNotMutateInput(t *testing.T) {
 
 	if !bytes.Equal(original, originalCopy) {
 		t.Errorf("TruncateBytes mutated the input slice: got %q, want %q", original, originalCopy)
+	}
+}
+
+func TestAnsiSequenceLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+		desc     string
+	}{
+		// No sequence at start
+		{"empty", "", 0, "empty string"},
+		{"single byte", "a", 0, "no ESC at start"},
+		{"single ESC", "\x1B", 0, "incomplete, len < 2"},
+		{"ESC then end", "\x1B", 0, "incomplete"},
+		{"text before ESC", "hello\x1B[31m", 0, "ESC not at start"},
+
+		// CSI (ESC [ P...P I...I F) — length = index of final byte + 1
+		{"CSI incomplete", "\x1B[", 0, "CSI with no final byte"},
+		{"CSI empty", "\x1B[m", 3, "ESC [ m (reset)"},
+		{"CSI one param", "\x1B[0m", 4, "ESC [ 0 m"},
+		{"CSI SGR red", "\x1B[31m", 5, "ESC [ 31 m"},
+		{"CSI bold green", "\x1B[1;32m", 7, "ESC [ 1 ; 32 m"},
+		{"CSI with intermediate", "\x1B[ 0m", 5, "ESC [ space 0 m (space is intermediate)"},
+		{"CSI final at 0x40", "\x1B[@", 3, "final byte @ (0x40)"},
+		{"CSI final at 0x7E", "\x1B[~", 3, "final byte ~ (0x7E)"},
+		{"CSI invalid byte", "\x1B[\x80m", 0, "0x80 not param/intermediate/final"},
+		{"CSI then text", "\x1B[31mred", 5, "only sequence length, rest is text"},
+
+		// OSC (ESC ] ... BEL or ST)
+		{"OSC incomplete", "\x1B]", 0, "OSC with no terminator"},
+		{"OSC BEL only", "\x1B]\x07", 3, "ESC ] BEL"},
+		{"OSC title", "\x1B]0;title\x07", 10, "ESC ] 0 ; title BEL"},
+		{"OSC hyperlink", "\x1B]8;;https://x.com\x07", 19, "ESC ] 8 ; ; https://x.com BEL"},
+		{"OSC ST terminator", "\x1B]0;title\x1B\\", 11, "ESC ] 0 ; title ST"},
+		{"OSC no terminator", "\x1B]incomplete", 0, "OSC with no BEL or ST"},
+
+		// DCS, SOS, PM, APC (ESC P/X/^/_ ... ST)
+		{"DCS incomplete", "\x1BP", 0, "DCS with no ST"},
+		{"DCS minimal", "\x1BP\x1B\\", 4, "ESC P ESC \\"},
+		{"DCS with data", "\x1BPdata\x1B\\", 8, "ESC P data ESC \\"},
+		{"SOS minimal", "\x1BX\x1B\\", 4, "ESC X ESC \\"},
+		{"PM minimal", "\x1B^\x1B\\", 4, "ESC ^ ESC \\"},
+		{"APC minimal", "\x1B_\x1B\\", 4, "ESC _ ESC \\"},
+
+		// 2-character sequences (ESC + 0x40-0x5F, excluding [ ] P X ^ _)
+		{"2-char at sign", "\x1B@", 2, "ESC @ (0x40)"},
+		{"2-char D", "\x1BD", 2, "ESC D (IND)"},
+		{"2-char backslash", "\x1B\\", 2, "ESC \\ (0x5C)"},
+		{"ESC ^ incomplete PM", "\x1B^", 0, "ESC ^ starts PM sequence, incomplete without ST"},
+		{"2-char outside range", "\x1B`", 0, "ESC ` (0x60, above 0x5F)"},
+		{"2-char lowercase a", "\x1Ba", 0, "ESC a (0x61, above 0x5F)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ansiSequenceLength(tt.input)
+			if got != tt.expected {
+				t.Errorf("ansiSequenceLength(%q) = %d, want %d (%s)",
+					tt.input, got, tt.expected, tt.desc)
+				t.Logf("  len(input)=%d, bytes=% x", len(tt.input), []byte(tt.input))
+			}
+			// Exercise []byte path
+			gotBytes := ansiSequenceLength([]byte(tt.input))
+			if gotBytes != tt.expected {
+				t.Errorf("ansiSequenceLength([]byte(%q)) = %d, want %d",
+					tt.input, gotBytes, tt.expected)
+			}
+		})
+	}
+}
+
+var ignoreANSIOptions = Options{IgnoreANSI: true}
+
+func TestStringWidthIgnoreANSI(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		options  Options
+		expected int
+	}{
+		// Default options: ANSI bytes are counted (ESC=0, others=1 each)
+		{"default CSI only", "\x1B[31m", defaultOptions, 4},
+		{"default red text", "\x1B[31mred\x1B[0m", defaultOptions, 10},
+
+		// IgnoreANSI: true — only visible runes count
+		{"IgnoreANSI empty", "", ignoreANSIOptions, 0},
+		{"IgnoreANSI CSI only", "\x1B[31m", ignoreANSIOptions, 0},
+		{"IgnoreANSI red", "\x1B[31mred\x1B[0m", ignoreANSIOptions, 3},
+		{"IgnoreANSI bold green", "\x1B[1;32mbold green\x1B[0m", ignoreANSIOptions, 10},
+		{"IgnoreANSI multiple CSI", "\x1B[1m\x1B[32mhi\x1B[0m", ignoreANSIOptions, 2},
+		{"IgnoreANSI leading text", "hi\x1B[31m there\x1B[0m", ignoreANSIOptions, 8},
+		{"IgnoreANSI trailing CSI", "ok\x1B[0m", ignoreANSIOptions, 2},
+		{"IgnoreANSI OSC hyperlink", "\x1B]8;;https://x.com\x07link\x1B\\", ignoreANSIOptions, 4},
+		{"IgnoreANSI 2-char then newline", "\x1BD\n", ignoreANSIOptions, 0},
+		{"IgnoreANSI mixed with CJK", "\x1B[32m中\x1B[0m", ignoreANSIOptions, 2},
+		{"IgnoreANSI mixed with emoji", "\x1B[31m😀\x1B[0m", ignoreANSIOptions, 2},
+		{"IgnoreANSI no ANSI", "hello", ignoreANSIOptions, 5},
+		{"IgnoreANSI incomplete CSI", "a\x1B[", ignoreANSIOptions, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.options.String(tt.input)
+			if got != tt.expected {
+				t.Errorf("Options.String(%q) = %d, want %d",
+					tt.input, got, tt.expected)
+			}
+			gotBytes := tt.options.Bytes([]byte(tt.input))
+			if gotBytes != tt.expected {
+				t.Errorf("Options.Bytes([]byte(%q)) = %d, want %d",
+					tt.input, gotBytes, tt.expected)
+			}
+		})
 	}
 }
 
