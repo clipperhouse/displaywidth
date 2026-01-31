@@ -12,12 +12,20 @@ import (
 // characters are treated as width 1. When EastAsianWidth is true, ambiguous
 // East Asian characters are treated as width 2.
 type Options struct {
+	// EastAsianWidth specifies how ambiguous East Asian characters are treated.
+	// true means width 2, false (default) means width 1.
 	EastAsianWidth bool
+	// IgnoreANSI specifies whether ANSI escape codes should be ignored.
+	// true means ignore, false (default) means treat codes as any other text.
+	IgnoreANSI bool
 }
 
 // DefaultOptions is the default options for the display width
 // calculation, which is EastAsianWidth: false.
-var DefaultOptions = Options{EastAsianWidth: false}
+var DefaultOptions = Options{
+	EastAsianWidth: false,
+	IgnoreANSI:     false,
+}
 
 // String calculates the display width of a string,
 // by iterating over grapheme clusters in the string
@@ -33,6 +41,13 @@ func (options Options) String(s string) int {
 	pos := 0
 
 	for pos < len(s) {
+		if options.IgnoreANSI {
+			if n := ansiSequenceLength(s[pos:]); n > 0 {
+				pos += n
+				continue
+			}
+		}
+
 		// Try ASCII optimization
 		asciiLen := printableASCIILength(s[pos:])
 		if asciiLen > 0 {
@@ -52,6 +67,10 @@ func (options Options) String(s string) int {
 
 			// Quick check: if remaining might have printable ASCII, break to outer loop
 			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
+				break
+			}
+			// If next byte is ESC and we ignore ANSI, break so we skip the sequence at top of loop
+			if options.IgnoreANSI && pos < len(s) && s[pos] == esc {
 				break
 			}
 		}
@@ -81,6 +100,13 @@ func (options Options) Bytes(s []byte) int {
 	pos := 0
 
 	for pos < len(s) {
+		if options.IgnoreANSI {
+			if n := ansiSequenceLength(s[pos:]); n > 0 {
+				pos += n
+				continue
+			}
+		}
+
 		// Try ASCII optimization
 		asciiLen := printableASCIILength(s[pos:])
 		if asciiLen > 0 {
@@ -100,6 +126,10 @@ func (options Options) Bytes(s []byte) int {
 
 			// Quick check: if remaining might have printable ASCII, break to outer loop
 			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
+				break
+			}
+			// If next byte is ESC and we ignore ANSI, break so we skip the sequence at top of loop
+			if options.IgnoreANSI && pos < len(s) && s[pos] == esc {
 				break
 			}
 		}
@@ -158,20 +188,57 @@ const _Default property = 0
 // equal to maxWidth.
 func (options Options) TruncateString(s string, maxWidth int, tail string) string {
 	maxWidthWithoutTail := maxWidth - options.String(tail)
+	width := 0
+	pos := 0
+	var lastFitPos int
 
-	var pos, total int
-	g := graphemes.FromString(s)
-	for g.Next() {
-		gw := graphemeWidth(g.Value(), options)
-		if total+gw <= maxWidthWithoutTail {
-			pos = g.End()
+	for pos < len(s) {
+		if options.IgnoreANSI {
+			if n := ansiSequenceLength(s[pos:]); n > 0 {
+				pos += n
+				continue
+			}
 		}
-		total += gw
-		if total > maxWidth {
-			return s[:pos] + tail
+
+		asciiLen := printableASCIILength(s[pos:])
+		if asciiLen > 0 {
+			for i := 0; i < asciiLen; i++ {
+				if width+1 <= maxWidthWithoutTail {
+					lastFitPos = pos + i + 1
+				}
+				width++
+				if width > maxWidth {
+					return s[:lastFitPos] + tail
+				}
+			}
+			pos += asciiLen
+			continue
+		}
+
+		g := graphemes.FromString(s[pos:])
+		start := pos
+		for g.Next() {
+			v := g.Value()
+			gw := graphemeWidth(v, options)
+			if width+gw <= maxWidthWithoutTail && gw > 0 {
+				lastFitPos = pos + len(v)
+			}
+			width += gw
+			pos += len(v)
+			if width > maxWidth {
+				return s[:lastFitPos] + tail
+			}
+			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
+				break
+			}
+			if options.IgnoreANSI && pos < len(s) && s[pos] == esc {
+				break
+			}
+		}
+		if pos == start {
+			pos++
 		}
 	}
-	// No truncation
 	return s
 }
 
@@ -191,23 +258,63 @@ func TruncateString(s string, maxWidth int, tail string) string {
 // equal to maxWidth.
 func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte {
 	maxWidthWithoutTail := maxWidth - options.Bytes(tail)
+	width := 0
+	pos := 0
+	var lastFitPos int
 
-	var pos, total int
-	g := graphemes.FromBytes(s)
-	for g.Next() {
-		gw := graphemeWidth(g.Value(), options)
-		if total+gw <= maxWidthWithoutTail {
-			pos = g.End()
+	for pos < len(s) {
+		if options.IgnoreANSI {
+			if n := ansiSequenceLength(s[pos:]); n > 0 {
+				pos += n
+				continue
+			}
 		}
-		total += gw
-		if total > maxWidth {
-			result := make([]byte, 0, pos+len(tail))
-			result = append(result, s[:pos]...)
-			result = append(result, tail...)
-			return result
+
+		asciiLen := printableASCIILength(s[pos:])
+		if asciiLen > 0 {
+			for i := 0; i < asciiLen; i++ {
+				if width+1 <= maxWidthWithoutTail {
+					lastFitPos = pos + i + 1
+				}
+				width++
+				if width > maxWidth {
+					result := make([]byte, 0, lastFitPos+len(tail))
+					result = append(result, s[:lastFitPos]...)
+					result = append(result, tail...)
+					return result
+				}
+			}
+			pos += asciiLen
+			continue
+		}
+
+		g := graphemes.FromBytes(s[pos:])
+		start := pos
+		for g.Next() {
+			v := g.Value()
+			gw := graphemeWidth(v, options)
+			if width+gw <= maxWidthWithoutTail && gw > 0 {
+				lastFitPos = pos + len(v)
+			}
+			width += gw
+			pos += len(v)
+			if width > maxWidth {
+				result := make([]byte, 0, lastFitPos+len(tail))
+				result = append(result, s[:lastFitPos]...)
+				result = append(result, tail...)
+				return result
+			}
+			if pos < len(s) && s[pos] >= 0x20 && s[pos] <= 0x7E {
+				break
+			}
+			if options.IgnoreANSI && pos < len(s) && s[pos] == esc {
+				break
+			}
+		}
+		if pos == start {
+			pos++
 		}
 	}
-	// No truncation
 	return s
 }
 
@@ -261,6 +368,64 @@ func asciiWidth(b byte) int {
 		return 0
 	}
 	return 1
+}
+
+const esc = 0x1B
+
+// ansiSequenceLength returns the number of bytes of an ANSI escape sequence
+// at the start of s, or 0 if s does not start with a complete sequence.
+// It does not interpret the sequence; it only returns the length to skip.
+// Covers CSI (e.g. SGR color codes), OSC (e.g. hyperlinks), and 2-character
+// escape sequences per ECMA-48 / ISO 6429.
+func ansiSequenceLength[T ~string | ~[]byte](s T) int {
+	if len(s) < 2 || s[0] != esc {
+		return 0
+	}
+	switch s[1] {
+	case '[':
+		// CSI: ESC [ P...P I...I F (final byte 0x40-0x7E)
+		i := 2
+		for i < len(s) {
+			b := s[i]
+			if b >= 0x40 && b <= 0x7E {
+				return i + 1
+			}
+			if (b >= 0x30 && b <= 0x3F) || (b >= 0x20 && b <= 0x2F) {
+				i++
+				continue
+			}
+			return 0
+		}
+		return 0
+	case ']':
+		// OSC: ESC ] ... BEL (0x07) or ST (ESC \)
+		i := 2
+		for i < len(s) {
+			if s[i] == 0x07 {
+				return i + 1
+			}
+			if s[i] == esc && i+1 < len(s) && s[i+1] == '\\' {
+				return i + 2
+			}
+			i++
+		}
+		return 0
+	case 'P', 'X', '^', '_':
+		// DCS, SOS, PM, APC: ... ST (ESC \)
+		i := 2
+		for i < len(s) {
+			if s[i] == esc && i+1 < len(s) && s[i+1] == '\\' {
+				return i + 2
+			}
+			i++
+		}
+		return 0
+	default:
+		if s[1] >= 0x40 && s[1] <= 0x5F {
+			return 2
+		}
+		return 0
+	}
 }
 
 // printableASCIILength returns the length of consecutive printable ASCII bytes
