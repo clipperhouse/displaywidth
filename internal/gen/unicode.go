@@ -64,7 +64,7 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		ZeroWidthChars:       make(map[rune]bool),
 	}
 
-	const unicodeVersion = "16.0.0"
+	const unicodeVersion = "17.0.0"
 
 	// Create data directory
 	dataDir := filepath.Join("data", unicodeVersion)
