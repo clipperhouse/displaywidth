@@ -64,24 +64,24 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		ZeroWidthChars:       make(map[rune]bool),
 	}
 
+	const unicodeVersion = "16.0.0"
+
 	// Create data directory
-	dataDir := "data"
+	dataDir := filepath.Join("data", unicodeVersion)
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create data directory: %v", err)
 	}
 
-	// Download and parse EastAsianWidth.txt
 	eawFile := filepath.Join(dataDir, "EastAsianWidth.txt")
-	if err := downloadFile("https://unicode.org/Public/16.0.0/ucd/EastAsianWidth.txt", eawFile); err != nil {
+	if err := downloadFile(fmt.Sprintf("https://unicode.org/Public/%s/ucd/EastAsianWidth.txt", unicodeVersion), eawFile); err != nil {
 		return nil, fmt.Errorf("failed to download EastAsianWidth.txt: %v", err)
 	}
 	if err := parseEastAsianWidth(eawFile, data); err != nil {
 		return nil, fmt.Errorf("failed to parse EastAsianWidth.txt: %v", err)
 	}
 
-	// Download and parse emoji-data.txt (Unicode 16.0.0 / Emoji 16.0)
 	emojiFile := filepath.Join(dataDir, "emoji-data.txt")
-	if err := downloadFile("https://unicode.org/Public/16.0.0/ucd/emoji/emoji-data.txt", emojiFile); err != nil {
+	if err := downloadFile(fmt.Sprintf("https://unicode.org/Public/%s/ucd/emoji/emoji-data.txt", unicodeVersion), emojiFile); err != nil {
 		fmt.Printf("Warning: failed to download emoji-data.txt: %v\n", err)
 		fmt.Println("Continuing with basic emoji detection from Go stdlib...")
 	} else {
