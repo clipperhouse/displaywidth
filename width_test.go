@@ -884,6 +884,52 @@ func TestBytesGraphemes(t *testing.T) {
 	}
 }
 
+func TestGraphemesIgnoreControlSequences(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		options Options
+	}{
+		// IgnoreControlSequences true: ANSI sequences are one zero-width grapheme each; visible width only
+		{"IgnoreControlSequences ANSI wrapped", "\x1b[31mhello\x1b[0m", ignoreControlSequences},
+		{"IgnoreControlSequences ANSI only", "\x1b[0m", ignoreControlSequences},
+		{"IgnoreControlSequences plain text", "hi", ignoreControlSequences},
+		{"IgnoreControlSequences ANSI mid", "a\x1b[31mb\x1b[0mc", ignoreControlSequences},
+		// Default options: sum of grapheme widths must still match String/Bytes
+		{"default ANSI wrapped", "\x1b[31mhello\x1b[0m", defaultOptions},
+		{"default plain", "hello", defaultOptions},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// StringGraphemes: option must be passed through; sum of Width() matches String()
+			expected := tt.options.String(tt.input)
+			iter := tt.options.StringGraphemes(tt.input)
+			got := 0
+			for iter.Next() {
+				got += iter.Width()
+			}
+			if got != expected {
+				t.Errorf("StringGraphemes(%q) sum Width() = %d, want %d (String)",
+					tt.input, got, expected)
+			}
+
+			// BytesGraphemes: same option and outcome for []byte
+			b := []byte(tt.input)
+			expectedBytes := tt.options.Bytes(b)
+			iterBytes := tt.options.BytesGraphemes(b)
+			gotBytes := 0
+			for iterBytes.Next() {
+				gotBytes += iterBytes.Width()
+			}
+			if gotBytes != expectedBytes {
+				t.Errorf("BytesGraphemes(%q) sum Width() = %d, want %d (Bytes)",
+					b, gotBytes, expectedBytes)
+			}
+		})
+	}
+}
+
 func TestAsciiWidth(t *testing.T) {
 	tests := []struct {
 		name     string
