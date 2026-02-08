@@ -135,8 +135,10 @@ func TestAnsiEscapeSequences(t *testing.T) {
 		{"CRLF", "\r\n", ignoreControlSequences, 0},
 		{"text with CRLF", "hello\r\nworld", ignoreControlSequences, 10},
 
-		// Without IgnoreControlSequences, ESC is still zero width as a standalone byte
+		// Without IgnoreControlSequences, ESC is zero width but the rest of the sequence is visible
 		{"bare ESC default options", "\x1b", defaultOptions, 0},
+		{"SGR red default options", "\x1b[31m", defaultOptions, 4},
+		{"red hello default options", "\x1b[31mhello\x1b[0m", defaultOptions, 12},
 
 		// IgnoreControlSequences should not regress width for strings with no escape sequences
 		{"plain ASCII with option", "hello", ignoreControlSequences, 5},
