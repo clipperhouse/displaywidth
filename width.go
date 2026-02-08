@@ -166,6 +166,8 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 
 	var pos, total int
 	g := graphemes.FromString(s)
+	g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
 		if total+gw <= maxWidthWithoutTail {
@@ -199,6 +201,8 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 
 	var pos, total int
 	g := graphemes.FromBytes(s)
+	g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
 		if total+gw <= maxWidthWithoutTail {

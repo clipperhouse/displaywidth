@@ -987,6 +987,20 @@ func TestTruncateString(t *testing.T) {
 		{"complex mixed", "Go 🇺🇸🚀", 3, "...", defaultOptions, "..."},
 		{"complex mixed fits", "Go 🇺🇸🚀", 7, "...", defaultOptions, "Go 🇺🇸🚀"},
 
+		// IgnoreControlSequences (ANSI escape sequences): truncation by visible width only.
+		// Semantics: we only truncate when cumulative visible width strictly exceeds maxWidth
+		// (total > maxWidth). So if visible(s) <= maxWidth we return s unchanged. When we
+		// truncate, result = s[:pos]+tail where pos is the last grapheme end such that
+		// visible(s[:pos]) <= maxWidth - visible(tail). ANSI sequences are zero-width
+		// graphemes when IgnoreControlSequences is true.
+		{"IgnoreControlSequences plain no truncation", "hello", 5, "...", ignoreControlSequences, "hello"},
+		{"IgnoreControlSequences ANSI wrapped no truncation", "\x1b[31mhello\x1b[0m", 8, "...", ignoreControlSequences, "\x1b[31mhello\x1b[0m"},
+		{"IgnoreControlSequences ANSI wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", ignoreControlSequences, "\x1b[31mh..."},
+		{"IgnoreControlSequences ANSI in middle truncate", "hello\x1b[31mworld", 5, "...", ignoreControlSequences, "he..."},
+		{"IgnoreControlSequences CJK truncate", "\x1b[31m中文\x1b[0m", 2, "...", ignoreControlSequences, "..."},
+		{"IgnoreControlSequences CJK no truncation", "\x1b[31m中文\x1b[0m", 7, "...", ignoreControlSequences, "\x1b[31m中文\x1b[0m"},
+		{"IgnoreControlSequences CJK one wide then tail", "\x1b[31m中文xx\x1b[0m", 5, "...", ignoreControlSequences, "\x1b[31m中..."},
+
 		// East Asian Width option
 		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},
 		{"ambiguous EAW truncate", "★", 1, "...", eawOptions, "..."},
