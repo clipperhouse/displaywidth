@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0]
+
+[Compare](https://github.com/clipperhouse/displaywidth/compare/v0.9.0...v0.10.0)
+
+### Added
+- New `IgnoreControlSequences` option to treat ECMA-48/ANSI escape sequences as zero-width. (#20)
+
+### Changed
+- Removed `stringish` dependency; generic type constraints are now inline `~string | []byte`.
+- Upgraded uax29 dependency to v2.6.0 for ANSI escape sequence support in the grapheme iterator.
+
 ## [0.9.0]
 
 [Compare](https://github.com/clipperhouse/displaywidth/compare/v0.8.0...v0.9.0)
