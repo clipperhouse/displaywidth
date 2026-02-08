@@ -8,11 +8,21 @@ import (
 )
 
 // Options allows you to specify the treatment of ambiguous East Asian
-// characters. When EastAsianWidth is false (default), ambiguous East Asian
-// characters are treated as width 1. When EastAsianWidth is true, ambiguous
-// East Asian characters are treated as width 2.
+// characters and ANSI escape sequences.
 type Options struct {
-	EastAsianWidth         bool
+	// EastAsianWidth specifies whether to treat ambiguous East Asian characters
+	// as width 1 or 2. When false (default), ambiguous East Asian characters
+	// are treated as width 1. When true, they are width 2.
+	EastAsianWidth bool
+
+	// IgnoreControlSequences specifies whether to ignore ECMA-48 escape sequences
+	// when calculating the display width. When false (default), ANSI escape
+	// sequences are treated as just a series of characters. When true, they are
+	// treated as a single zero-width unit.
+	//
+	// Note that this option is about *sequences*. Individual control characters
+	// are already treated as zero-width. With this option, ANSI sequences such as
+	// "\x1b[31m" and "\x1b[0m" do not count towards the width of a string.
 	IgnoreControlSequences bool
 }
 
