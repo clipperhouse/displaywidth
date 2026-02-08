@@ -99,8 +99,10 @@ func FuzzBytesAndString(f *testing.F) {
 
 		// Test with different options combinations
 		options := []Options{
-			{EastAsianWidth: false}, // default
+			{EastAsianWidth: false},
 			{EastAsianWidth: true},
+			{IgnoreControlSequences: true},
+			{EastAsianWidth: true, IgnoreControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -188,10 +190,13 @@ func FuzzRune(f *testing.F) {
 			}
 		}
 
-		// Test with different options
+		// Test with different options (Rune is per-rune, IgnoreControlSequences
+		// doesn't affect single runes, but we include it for completeness)
 		options := []Options{
-			{EastAsianWidth: false}, // default
+			{EastAsianWidth: false},
 			{EastAsianWidth: true},
+			{IgnoreControlSequences: true},
+			{EastAsianWidth: true, IgnoreControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -308,8 +313,10 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 
 		// Test with different options
 		options := []Options{
-			{EastAsianWidth: false}, // default
+			{EastAsianWidth: false},
 			{EastAsianWidth: true},
+			{IgnoreControlSequences: true},
+			{EastAsianWidth: true, IgnoreControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -323,6 +330,137 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 			tb := option.TruncateBytes([]byte(text), 10, []byte("..."))
 			if !bytes.Equal(tb, []byte(ts)) {
 				t.Errorf("TruncateBytes() returned bytes different from TruncateString() for %q: %q != %q", text, tb, ts)
+			}
+		}
+	})
+}
+
+// FuzzControlSequences fuzzes strings containing ANSI/ECMA-48 escape sequences
+// across all option combinations (EastAsianWidth x IgnoreControlSequences).
+func FuzzControlSequences(f *testing.F) {
+	if testing.Short() {
+		f.Skip("skipping fuzz test in short mode")
+	}
+
+	// Seed with ANSI escape sequences
+	f.Add([]byte("\x1b[31m"))                                 // SGR red
+	f.Add([]byte("\x1b[0m"))                                  // SGR reset
+	f.Add([]byte("\x1b[1m"))                                  // SGR bold
+	f.Add([]byte("\x1b[38;5;196m"))                           // SGR 256-color
+	f.Add([]byte("\x1b[38;2;255;0;0m"))                       // SGR truecolor
+	f.Add([]byte("\x1b[A"))                                   // cursor up
+	f.Add([]byte("\x1b[10;20H"))                              // cursor position
+	f.Add([]byte("\x1b[2J"))                                  // erase in display
+	f.Add([]byte("\x1b[31mhello\x1b[0m"))                     // red text
+	f.Add([]byte("\x1b[1m\x1b[31mhi\x1b[0m"))                 // nested SGR
+	f.Add([]byte("hello\x1b[31mworld\x1b[0m"))                // ANSI mid-string
+	f.Add([]byte("\x1b[31m中文\x1b[0m"))                        // colored CJK
+	f.Add([]byte("\x1b[31m😀\x1b[0m"))                         // colored emoji
+	f.Add([]byte("\x1b[31m🇺🇸\x1b[0m"))                         // colored flag
+	f.Add([]byte("a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m"))     // multiple colors
+	f.Add([]byte("\x1b[31m\x1b[42m\x1b[1mbold on red\x1b[0m")) // stacked SGR
+	f.Add([]byte("\r\n"))                                     // CR+LF
+	f.Add([]byte("hello\r\nworld"))                           // text with CRLF
+	f.Add([]byte("\x1b"))                                     // bare ESC
+	f.Add([]byte("\x1b["))                                    // incomplete sequence
+	f.Add([]byte("\x1b[31"))                                  // incomplete SGR
+	f.Add([]byte(""))                                         // empty
+	f.Add([]byte("hello"))                                    // plain ASCII
+	f.Add([]byte("中文"))                                       // plain CJK
+	f.Add([]byte("😀"))                                        // plain emoji
+
+	// Seed with multi-lingual text
+	file, err := testdata.Sample()
+	if err != nil {
+		f.Fatal(err)
+	}
+	chunks := bytes.Split(file, []byte("\n"))
+	for _, chunk := range chunks {
+		f.Add(chunk)
+	}
+
+	allOptions := []Options{
+		{},
+		{EastAsianWidth: true},
+		{IgnoreControlSequences: true},
+		{EastAsianWidth: true, IgnoreControlSequences: true},
+	}
+
+	f.Fuzz(func(t *testing.T, text []byte) {
+		for _, opt := range allOptions {
+			wb := opt.Bytes(text)
+			ws := opt.String(string(text))
+
+			// Invariant: width is never negative
+			if wb < 0 {
+				t.Errorf("Bytes() with %+v returned negative width %d for %q", opt, wb, text)
+			}
+
+			// Invariant: String and Bytes agree
+			if wb != ws {
+				t.Errorf("Bytes()=%d != String()=%d with %+v for %q", wb, ws, opt, text)
+			}
+
+			// Invariant: empty input is always 0
+			if len(text) == 0 && wb != 0 {
+				t.Errorf("non-zero width %d for empty input with %+v", wb, opt)
+			}
+
+			// Invariant: sum of grapheme widths equals total width
+			gIter := opt.BytesGraphemes(text)
+			gSum := 0
+			for gIter.Next() {
+				gw := gIter.Width()
+				if gw < 0 {
+					t.Errorf("grapheme Width() < 0 with %+v for %q", opt, text)
+				}
+				gSum += gw
+			}
+			if gSum != wb {
+				t.Errorf("sum of grapheme widths %d != Bytes() %d with %+v for %q", gSum, wb, opt, text)
+			}
+
+			// Same for StringGraphemes
+			sgIter := opt.StringGraphemes(string(text))
+			sgSum := 0
+			for sgIter.Next() {
+				sgSum += sgIter.Width()
+			}
+			if sgSum != ws {
+				t.Errorf("sum of StringGraphemes widths %d != String() %d with %+v for %q", sgSum, ws, opt, text)
+			}
+
+			// Invariant: IgnoreControlSequences width <= default width
+			// (escape sequences become 0 instead of their visible char widths)
+			if opt.IgnoreControlSequences {
+				noIgnore := Options{EastAsianWidth: opt.EastAsianWidth}
+				wDefault := noIgnore.Bytes(text)
+				if wb > wDefault {
+					t.Errorf("IgnoreControlSequences width %d > default width %d with %+v for %q", wb, wDefault, opt, text)
+				}
+			}
+
+			// Invariant: truncation respects maxWidth (accounting for the tail,
+			// which is always appended and may itself exceed maxWidth)
+			tail := "..."
+			tailWidth := opt.String(tail)
+			for _, maxWidth := range []int{0, 1, 3, 5, 10, 20} {
+				ts := opt.TruncateString(string(text), maxWidth, tail)
+				tsWidth := opt.String(ts)
+				limit := maxWidth
+				if tailWidth > limit {
+					limit = tailWidth
+				}
+				if tsWidth > limit {
+					t.Errorf("TruncateString() width %d > max(maxWidth, tailWidth) %d with %+v for %q -> %q",
+						tsWidth, limit, opt, text, ts)
+				}
+
+				tb := opt.TruncateBytes(text, maxWidth, []byte(tail))
+				if !bytes.Equal(tb, []byte(ts)) {
+					t.Errorf("TruncateBytes() != TruncateString() with %+v for %q: %q != %q",
+						opt, text, tb, ts)
+				}
 			}
 		}
 	})

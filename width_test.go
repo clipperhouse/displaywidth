@@ -105,6 +105,69 @@ func TestStringWidth(t *testing.T) {
 	}
 }
 
+var ignoreControlSequences = Options{IgnoreControlSequences: true}
+
+func TestAnsiEscapeSequences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		options  Options
+		expected int
+	}{
+		// ANSI escape sequences (ECMA-48) should be zero width when parsed as single graphemes
+		{"SGR red", "\x1b[31m", ignoreControlSequences, 0},
+		{"SGR reset", "\x1b[0m", ignoreControlSequences, 0},
+		{"SGR bold", "\x1b[1m", ignoreControlSequences, 0},
+		{"SGR 256-color", "\x1b[38;5;196m", ignoreControlSequences, 0},
+		{"SGR truecolor", "\x1b[38;2;255;0;0m", ignoreControlSequences, 0},
+		{"cursor up", "\x1b[A", ignoreControlSequences, 0},
+		{"cursor position", "\x1b[10;20H", ignoreControlSequences, 0},
+		{"erase in display", "\x1b[2J", ignoreControlSequences, 0},
+
+		// ANSI escape sequences mixed with visible text
+		{"red hello", "\x1b[31mhello\x1b[0m", ignoreControlSequences, 5},
+		{"bold world", "\x1b[1mworld\x1b[0m", ignoreControlSequences, 5},
+		{"colored CJK", "\x1b[31m中文\x1b[0m", ignoreControlSequences, 4},
+		{"colored emoji", "\x1b[31m😀\x1b[0m", ignoreControlSequences, 2},
+		{"nested SGR", "\x1b[1m\x1b[31mhi\x1b[0m", ignoreControlSequences, 2},
+
+		// CR+LF as a multi-byte C0-led grapheme (zero width)
+		{"CRLF", "\r\n", ignoreControlSequences, 0},
+		{"text with CRLF", "hello\r\nworld", ignoreControlSequences, 10},
+
+		// Without IgnoreControlSequences, ESC is zero width but the rest of the sequence is visible
+		{"bare ESC default options", "\x1b", defaultOptions, 0},
+		{"SGR red default options", "\x1b[31m", defaultOptions, 4},
+		{"red hello default options", "\x1b[31mhello\x1b[0m", defaultOptions, 12},
+
+		// IgnoreControlSequences should not regress width for strings with no escape sequences
+		{"plain ASCII with option", "hello", ignoreControlSequences, 5},
+		{"plain ASCII spaces with option", "hello world", ignoreControlSequences, 11},
+		{"CJK with option", "中文", ignoreControlSequences, 4},
+		{"emoji with option", "😀", ignoreControlSequences, 2},
+		{"flag with option", "🇺🇸", ignoreControlSequences, 2},
+		{"mixed with option", "hello中文😀", ignoreControlSequences, 5 + 4 + 2},
+		{"ambiguous with option", "★", ignoreControlSequences, 1},
+		{"combining mark with option", "é", ignoreControlSequences, 1},
+		{"control chars with option", "\t\n", ignoreControlSequences, 0},
+		{"empty with option", "", ignoreControlSequences, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.options.String(tt.input)
+			if result != tt.expected {
+				t.Errorf("String(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+
+			result = tt.options.Bytes([]byte(tt.input))
+			if result != tt.expected {
+				t.Errorf("Bytes(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestRuneWidth(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -823,6 +886,52 @@ func TestBytesGraphemes(t *testing.T) {
 	}
 }
 
+func TestGraphemesIgnoreControlSequences(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		options Options
+	}{
+		// IgnoreControlSequences true: ANSI sequences are one zero-width grapheme each; visible width only
+		{"IgnoreControlSequences ANSI wrapped", "\x1b[31mhello\x1b[0m", ignoreControlSequences},
+		{"IgnoreControlSequences ANSI only", "\x1b[0m", ignoreControlSequences},
+		{"IgnoreControlSequences plain text", "hi", ignoreControlSequences},
+		{"IgnoreControlSequences ANSI mid", "a\x1b[31mb\x1b[0mc", ignoreControlSequences},
+		// Default options: sum of grapheme widths must still match String/Bytes
+		{"default ANSI wrapped", "\x1b[31mhello\x1b[0m", defaultOptions},
+		{"default plain", "hello", defaultOptions},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// StringGraphemes: option must be passed through; sum of Width() matches String()
+			expected := tt.options.String(tt.input)
+			iter := tt.options.StringGraphemes(tt.input)
+			got := 0
+			for iter.Next() {
+				got += iter.Width()
+			}
+			if got != expected {
+				t.Errorf("StringGraphemes(%q) sum Width() = %d, want %d (String)",
+					tt.input, got, expected)
+			}
+
+			// BytesGraphemes: same option and outcome for []byte
+			b := []byte(tt.input)
+			expectedBytes := tt.options.Bytes(b)
+			iterBytes := tt.options.BytesGraphemes(b)
+			gotBytes := 0
+			for iterBytes.Next() {
+				gotBytes += iterBytes.Width()
+			}
+			if gotBytes != expectedBytes {
+				t.Errorf("BytesGraphemes(%q) sum Width() = %d, want %d (Bytes)",
+					b, gotBytes, expectedBytes)
+			}
+		})
+	}
+}
+
 func TestAsciiWidth(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -925,6 +1034,20 @@ func TestTruncateString(t *testing.T) {
 		{"ASCII CJK emoji partial", "hi中😀", 4, "...", defaultOptions, "h..."},
 		{"complex mixed", "Go 🇺🇸🚀", 3, "...", defaultOptions, "..."},
 		{"complex mixed fits", "Go 🇺🇸🚀", 7, "...", defaultOptions, "Go 🇺🇸🚀"},
+
+		// IgnoreControlSequences (ANSI escape sequences): truncation by visible width only.
+		// Semantics: we only truncate when cumulative visible width strictly exceeds maxWidth
+		// (total > maxWidth). So if visible(s) <= maxWidth we return s unchanged. When we
+		// truncate, result = s[:pos]+tail where pos is the last grapheme end such that
+		// visible(s[:pos]) <= maxWidth - visible(tail). ANSI sequences are zero-width
+		// graphemes when IgnoreControlSequences is true.
+		{"IgnoreControlSequences plain no truncation", "hello", 5, "...", ignoreControlSequences, "hello"},
+		{"IgnoreControlSequences ANSI wrapped no truncation", "\x1b[31mhello\x1b[0m", 8, "...", ignoreControlSequences, "\x1b[31mhello\x1b[0m"},
+		{"IgnoreControlSequences ANSI wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", ignoreControlSequences, "\x1b[31mh..."},
+		{"IgnoreControlSequences ANSI in middle truncate", "hello\x1b[31mworld", 5, "...", ignoreControlSequences, "he..."},
+		{"IgnoreControlSequences CJK truncate", "\x1b[31m中文\x1b[0m", 2, "...", ignoreControlSequences, "..."},
+		{"IgnoreControlSequences CJK no truncation", "\x1b[31m中文\x1b[0m", 7, "...", ignoreControlSequences, "\x1b[31m中文\x1b[0m"},
+		{"IgnoreControlSequences CJK one wide then tail", "\x1b[31m中文xx\x1b[0m", 5, "...", ignoreControlSequences, "\x1b[31m中..."},
 
 		// East Asian Width option
 		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},

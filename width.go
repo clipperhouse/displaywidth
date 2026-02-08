@@ -8,16 +8,27 @@ import (
 )
 
 // Options allows you to specify the treatment of ambiguous East Asian
-// characters. When EastAsianWidth is false (default), ambiguous East Asian
-// characters are treated as width 1. When EastAsianWidth is true, ambiguous
-// East Asian characters are treated as width 2.
+// characters and ANSI escape sequences.
 type Options struct {
+	// EastAsianWidth specifies whether to treat ambiguous East Asian characters
+	// as width 1 or 2. When false (default), ambiguous East Asian characters
+	// are treated as width 1. When true, they are width 2.
 	EastAsianWidth bool
+
+	// IgnoreControlSequences specifies whether to ignore ECMA-48 escape sequences
+	// when calculating the display width. When false (default), ANSI escape
+	// sequences are treated as just a series of characters. When true, they are
+	// treated as a single zero-width unit.
+	//
+	// Note that this option is about *sequences*. Individual control characters
+	// are already treated as zero-width. With this option, ANSI sequences such as
+	// "\x1b[31m" and "\x1b[0m" do not count towards the width of a string.
+	IgnoreControlSequences bool
 }
 
 // DefaultOptions is the default options for the display width
-// calculation, which is EastAsianWidth: false.
-var DefaultOptions = Options{EastAsianWidth: false}
+// calculation, which is EastAsianWidth false and IgnoreControlSequences false.
+var DefaultOptions = Options{EastAsianWidth: false, IgnoreControlSequences: false}
 
 // String calculates the display width of a string,
 // by iterating over grapheme clusters in the string
@@ -43,6 +54,8 @@ func (options Options) String(s string) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromString(s[pos:])
+		g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 		start := pos
 
 		for g.Next() {
@@ -91,6 +104,8 @@ func (options Options) Bytes(s []byte) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromBytes(s[pos:])
+		g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 		start := pos
 
 		for g.Next() {
@@ -161,6 +176,8 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 
 	var pos, total int
 	g := graphemes.FromString(s)
+	g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
 		if total+gw <= maxWidthWithoutTail {
@@ -194,6 +211,8 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 
 	var pos, total int
 	g := graphemes.FromBytes(s)
+	g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
 		if total+gw <= maxWidthWithoutTail {
@@ -229,6 +248,11 @@ func graphemeWidth[T stringish.Interface](s T, options Options) int {
 		return 0
 	case 1:
 		return asciiWidth(s[0])
+	}
+
+	// Multi-byte grapheme clusters led by a C0 control (0x00-0x1F)
+	if s[0] <= 0x1F {
+		return 0
 	}
 
 	p, sz := lookup(s)
