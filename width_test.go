@@ -105,6 +105,67 @@ func TestStringWidth(t *testing.T) {
 	}
 }
 
+var ignoreControlSequences = Options{IgnoreControlSequences: true}
+
+func TestAnsiEscapeSequences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		options  Options
+		expected int
+	}{
+		// ANSI escape sequences (ECMA-48) should be zero width when parsed as single graphemes
+		{"SGR red", "\x1b[31m", ignoreControlSequences, 0},
+		{"SGR reset", "\x1b[0m", ignoreControlSequences, 0},
+		{"SGR bold", "\x1b[1m", ignoreControlSequences, 0},
+		{"SGR 256-color", "\x1b[38;5;196m", ignoreControlSequences, 0},
+		{"SGR truecolor", "\x1b[38;2;255;0;0m", ignoreControlSequences, 0},
+		{"cursor up", "\x1b[A", ignoreControlSequences, 0},
+		{"cursor position", "\x1b[10;20H", ignoreControlSequences, 0},
+		{"erase in display", "\x1b[2J", ignoreControlSequences, 0},
+
+		// ANSI escape sequences mixed with visible text
+		{"red hello", "\x1b[31mhello\x1b[0m", ignoreControlSequences, 5},
+		{"bold world", "\x1b[1mworld\x1b[0m", ignoreControlSequences, 5},
+		{"colored CJK", "\x1b[31m中文\x1b[0m", ignoreControlSequences, 4},
+		{"colored emoji", "\x1b[31m😀\x1b[0m", ignoreControlSequences, 2},
+		{"nested SGR", "\x1b[1m\x1b[31mhi\x1b[0m", ignoreControlSequences, 2},
+
+		// CR+LF as a multi-byte C0-led grapheme (zero width)
+		{"CRLF", "\r\n", ignoreControlSequences, 0},
+		{"text with CRLF", "hello\r\nworld", ignoreControlSequences, 10},
+
+		// Without IgnoreControlSequences, ESC is still zero width as a standalone byte
+		{"bare ESC default options", "\x1b", defaultOptions, 0},
+
+		// IgnoreControlSequences should not regress width for strings with no escape sequences
+		{"plain ASCII with option", "hello", ignoreControlSequences, 5},
+		{"plain ASCII spaces with option", "hello world", ignoreControlSequences, 11},
+		{"CJK with option", "中文", ignoreControlSequences, 4},
+		{"emoji with option", "😀", ignoreControlSequences, 2},
+		{"flag with option", "🇺🇸", ignoreControlSequences, 2},
+		{"mixed with option", "hello中文😀", ignoreControlSequences, 5 + 4 + 2},
+		{"ambiguous with option", "★", ignoreControlSequences, 1},
+		{"combining mark with option", "é", ignoreControlSequences, 1},
+		{"control chars with option", "\t\n", ignoreControlSequences, 0},
+		{"empty with option", "", ignoreControlSequences, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.options.String(tt.input)
+			if result != tt.expected {
+				t.Errorf("String(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+
+			result = tt.options.Bytes([]byte(tt.input))
+			if result != tt.expected {
+				t.Errorf("Bytes(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestRuneWidth(t *testing.T) {
 	tests := []struct {
 		name     string

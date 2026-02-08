@@ -12,12 +12,13 @@ import (
 // characters are treated as width 1. When EastAsianWidth is true, ambiguous
 // East Asian characters are treated as width 2.
 type Options struct {
-	EastAsianWidth bool
+	EastAsianWidth         bool
+	IgnoreControlSequences bool
 }
 
 // DefaultOptions is the default options for the display width
 // calculation, which is EastAsianWidth: false.
-var DefaultOptions = Options{EastAsianWidth: false}
+var DefaultOptions = Options{EastAsianWidth: false, IgnoreControlSequences: false}
 
 // String calculates the display width of a string,
 // by iterating over grapheme clusters in the string
@@ -43,6 +44,8 @@ func (options Options) String(s string) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromString(s[pos:])
+		g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 		start := pos
 
 		for g.Next() {
@@ -91,6 +94,8 @@ func (options Options) Bytes(s []byte) int {
 
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromBytes(s[pos:])
+		g.AnsiEscapeSequences = options.IgnoreControlSequences
+
 		start := pos
 
 		for g.Next() {
@@ -229,6 +234,11 @@ func graphemeWidth[T stringish.Interface](s T, options Options) int {
 		return 0
 	case 1:
 		return asciiWidth(s[0])
+	}
+
+	// Multi-byte grapheme clusters led by a C0 control (0x00-0x1F)
+	if s[0] <= 0x1F {
+		return 0
 	}
 
 	p, sz := lookup(s)
