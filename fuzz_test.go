@@ -343,31 +343,31 @@ func FuzzControlSequences(f *testing.F) {
 	}
 
 	// Seed with ANSI escape sequences
-	f.Add([]byte("\x1b[31m"))                                 // SGR red
-	f.Add([]byte("\x1b[0m"))                                  // SGR reset
-	f.Add([]byte("\x1b[1m"))                                  // SGR bold
-	f.Add([]byte("\x1b[38;5;196m"))                           // SGR 256-color
-	f.Add([]byte("\x1b[38;2;255;0;0m"))                       // SGR truecolor
-	f.Add([]byte("\x1b[A"))                                   // cursor up
-	f.Add([]byte("\x1b[10;20H"))                              // cursor position
-	f.Add([]byte("\x1b[2J"))                                  // erase in display
-	f.Add([]byte("\x1b[31mhello\x1b[0m"))                     // red text
-	f.Add([]byte("\x1b[1m\x1b[31mhi\x1b[0m"))                 // nested SGR
-	f.Add([]byte("hello\x1b[31mworld\x1b[0m"))                // ANSI mid-string
-	f.Add([]byte("\x1b[31m中文\x1b[0m"))                        // colored CJK
-	f.Add([]byte("\x1b[31m😀\x1b[0m"))                         // colored emoji
+	f.Add([]byte("\x1b[31m"))                                  // SGR red
+	f.Add([]byte("\x1b[0m"))                                   // SGR reset
+	f.Add([]byte("\x1b[1m"))                                   // SGR bold
+	f.Add([]byte("\x1b[38;5;196m"))                            // SGR 256-color
+	f.Add([]byte("\x1b[38;2;255;0;0m"))                        // SGR truecolor
+	f.Add([]byte("\x1b[A"))                                    // cursor up
+	f.Add([]byte("\x1b[10;20H"))                               // cursor position
+	f.Add([]byte("\x1b[2J"))                                   // erase in display
+	f.Add([]byte("\x1b[31mhello\x1b[0m"))                      // red text
+	f.Add([]byte("\x1b[1m\x1b[31mhi\x1b[0m"))                  // nested SGR
+	f.Add([]byte("hello\x1b[31mworld\x1b[0m"))                 // ANSI mid-string
+	f.Add([]byte("\x1b[31m中文\x1b[0m"))                         // colored CJK
+	f.Add([]byte("\x1b[31m😀\x1b[0m"))                          // colored emoji
 	f.Add([]byte("\x1b[31m🇺🇸\x1b[0m"))                         // colored flag
-	f.Add([]byte("a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m"))     // multiple colors
+	f.Add([]byte("a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m"))       // multiple colors
 	f.Add([]byte("\x1b[31m\x1b[42m\x1b[1mbold on red\x1b[0m")) // stacked SGR
-	f.Add([]byte("\r\n"))                                     // CR+LF
-	f.Add([]byte("hello\r\nworld"))                           // text with CRLF
-	f.Add([]byte("\x1b"))                                     // bare ESC
-	f.Add([]byte("\x1b["))                                    // incomplete sequence
-	f.Add([]byte("\x1b[31"))                                  // incomplete SGR
-	f.Add([]byte(""))                                         // empty
-	f.Add([]byte("hello"))                                    // plain ASCII
-	f.Add([]byte("中文"))                                       // plain CJK
-	f.Add([]byte("😀"))                                        // plain emoji
+	f.Add([]byte("\r\n"))                                      // CR+LF
+	f.Add([]byte("hello\r\nworld"))                            // text with CRLF
+	f.Add([]byte("\x1b"))                                      // bare ESC
+	f.Add([]byte("\x1b["))                                     // incomplete sequence
+	f.Add([]byte("\x1b[31"))                                   // incomplete SGR
+	f.Add([]byte(""))                                          // empty
+	f.Add([]byte("hello"))                                     // plain ASCII
+	f.Add([]byte("中文"))                                        // plain CJK
+	f.Add([]byte("😀"))                                         // plain emoji
 
 	// Seed with multi-lingual text
 	file, err := testdata.Sample()

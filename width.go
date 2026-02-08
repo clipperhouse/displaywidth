@@ -3,7 +3,6 @@ package displaywidth
 import (
 	"unicode/utf8"
 
-	"github.com/clipperhouse/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
@@ -241,7 +240,7 @@ func TruncateBytes(s []byte, maxWidth int, tail []byte) []byte {
 
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
-func graphemeWidth[T stringish.Interface](s T, options Options) int {
+func graphemeWidth[T ~string | []byte](s T, options Options) int {
 	// Optimization: no need to look up properties
 	switch len(s) {
 	case 0:
@@ -311,7 +310,7 @@ func printableASCIILength[T string | []byte](s T) int {
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
 // (EF B8 8F). It assumes len(s) >= 3.
-func isVS16[T stringish.Interface](s T) bool {
+func isVS16[T ~string | []byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 

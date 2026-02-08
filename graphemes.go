@@ -1,7 +1,6 @@
 package displaywidth
 
 import (
-	"github.com/clipperhouse/stringish"
 	"github.com/clipperhouse/uax29/v2/graphemes"
 )
 
@@ -9,7 +8,7 @@ import (
 //
 // Iterate using the Next method, and get the width of the current grapheme
 // using the Width method.
-type Graphemes[T stringish.Interface] struct {
+type Graphemes[T ~string | []byte] struct {
 	iter    *graphemes.Iterator[T]
 	options Options
 }
