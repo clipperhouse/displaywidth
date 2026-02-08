@@ -27,7 +27,7 @@ type Options struct {
 }
 
 // DefaultOptions is the default options for the display width
-// calculation, which is EastAsianWidth: false.
+// calculation, which is EastAsianWidth false and IgnoreControlSequences false.
 var DefaultOptions = Options{EastAsianWidth: false, IgnoreControlSequences: false}
 
 // String calculates the display width of a string,
