@@ -101,8 +101,8 @@ func FuzzBytesAndString(f *testing.F) {
 		options := []Options{
 			{EastAsianWidth: false},
 			{EastAsianWidth: true},
-			{IgnoreControlSequences: true},
-			{EastAsianWidth: true, IgnoreControlSequences: true},
+			{ControlSequences: true},
+			{EastAsianWidth: true, ControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -190,13 +190,13 @@ func FuzzRune(f *testing.F) {
 			}
 		}
 
-		// Test with different options (Rune is per-rune, IgnoreControlSequences
+		// Test with different options (Rune is per-rune, ControlSequences
 		// doesn't affect single runes, but we include it for completeness)
 		options := []Options{
 			{EastAsianWidth: false},
 			{EastAsianWidth: true},
-			{IgnoreControlSequences: true},
-			{EastAsianWidth: true, IgnoreControlSequences: true},
+			{ControlSequences: true},
+			{EastAsianWidth: true, ControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -315,8 +315,8 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 		options := []Options{
 			{EastAsianWidth: false},
 			{EastAsianWidth: true},
-			{IgnoreControlSequences: true},
-			{EastAsianWidth: true, IgnoreControlSequences: true},
+			{ControlSequences: true},
+			{EastAsianWidth: true, ControlSequences: true},
 		}
 
 		for _, option := range options {
@@ -336,7 +336,7 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 }
 
 // FuzzControlSequences fuzzes strings containing ANSI/ECMA-48 escape sequences
-// across all option combinations (EastAsianWidth x IgnoreControlSequences).
+// across all option combinations (EastAsianWidth x ControlSequences).
 func FuzzControlSequences(f *testing.F) {
 	if testing.Short() {
 		f.Skip("skipping fuzz test in short mode")
@@ -382,8 +382,8 @@ func FuzzControlSequences(f *testing.F) {
 	allOptions := []Options{
 		{},
 		{EastAsianWidth: true},
-		{IgnoreControlSequences: true},
-		{EastAsianWidth: true, IgnoreControlSequences: true},
+		{ControlSequences: true},
+		{EastAsianWidth: true, ControlSequences: true},
 	}
 
 	f.Fuzz(func(t *testing.T, text []byte) {
@@ -430,13 +430,13 @@ func FuzzControlSequences(f *testing.F) {
 				t.Errorf("sum of StringGraphemes widths %d != String() %d with %+v for %q", sgSum, ws, opt, text)
 			}
 
-			// Invariant: IgnoreControlSequences width <= default width
+			// Invariant: ControlSequences width <= default width
 			// (escape sequences become 0 instead of their visible char widths)
-			if opt.IgnoreControlSequences {
+			if opt.ControlSequences {
 				noIgnore := Options{EastAsianWidth: opt.EastAsianWidth}
 				wDefault := noIgnore.Bytes(text)
 				if wb > wDefault {
-					t.Errorf("IgnoreControlSequences width %d > default width %d with %+v for %q", wb, wDefault, opt, text)
+					t.Errorf("ControlSequences width %d > default width %d with %+v for %q", wb, wDefault, opt, text)
 				}
 			}
 

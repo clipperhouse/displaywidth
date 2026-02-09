@@ -66,15 +66,15 @@ Create the options you need, and then use methods on the options struct.
 ```go
 var myOptions = displaywidth.Options{
     EastAsianWidth: true,
-    IgnoreControlSequences: true,
+    ControlSequences: true,
 }
 
 width := myOptions.String("Hello, 世界!")
 ```
 
-#### IgnoreControlSequences
+#### ControlSequences
 
-`IgnoreControlSequences` specifies whether to ignore ECMA-48 escape sequences
+`ControlSequences` specifies whether to ignore ECMA-48 escape sequences
 when calculating the display width. When `false` (default), ANSI escape
 sequences are treated as just a series of characters. When `true`, they are
 treated as a single zero-width unit.

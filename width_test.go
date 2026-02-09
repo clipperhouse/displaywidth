@@ -105,7 +105,7 @@ func TestStringWidth(t *testing.T) {
 	}
 }
 
-var ignoreControlSequences = Options{IgnoreControlSequences: true}
+var controlSequences = Options{ControlSequences: true}
 
 func TestAnsiEscapeSequences(t *testing.T) {
 	tests := []struct {
@@ -115,42 +115,42 @@ func TestAnsiEscapeSequences(t *testing.T) {
 		expected int
 	}{
 		// ANSI escape sequences (ECMA-48) should be zero width when parsed as single graphemes
-		{"SGR red", "\x1b[31m", ignoreControlSequences, 0},
-		{"SGR reset", "\x1b[0m", ignoreControlSequences, 0},
-		{"SGR bold", "\x1b[1m", ignoreControlSequences, 0},
-		{"SGR 256-color", "\x1b[38;5;196m", ignoreControlSequences, 0},
-		{"SGR truecolor", "\x1b[38;2;255;0;0m", ignoreControlSequences, 0},
-		{"cursor up", "\x1b[A", ignoreControlSequences, 0},
-		{"cursor position", "\x1b[10;20H", ignoreControlSequences, 0},
-		{"erase in display", "\x1b[2J", ignoreControlSequences, 0},
+		{"SGR red", "\x1b[31m", controlSequences, 0},
+		{"SGR reset", "\x1b[0m", controlSequences, 0},
+		{"SGR bold", "\x1b[1m", controlSequences, 0},
+		{"SGR 256-color", "\x1b[38;5;196m", controlSequences, 0},
+		{"SGR truecolor", "\x1b[38;2;255;0;0m", controlSequences, 0},
+		{"cursor up", "\x1b[A", controlSequences, 0},
+		{"cursor position", "\x1b[10;20H", controlSequences, 0},
+		{"erase in display", "\x1b[2J", controlSequences, 0},
 
 		// ANSI escape sequences mixed with visible text
-		{"red hello", "\x1b[31mhello\x1b[0m", ignoreControlSequences, 5},
-		{"bold world", "\x1b[1mworld\x1b[0m", ignoreControlSequences, 5},
-		{"colored CJK", "\x1b[31m中文\x1b[0m", ignoreControlSequences, 4},
-		{"colored emoji", "\x1b[31m😀\x1b[0m", ignoreControlSequences, 2},
-		{"nested SGR", "\x1b[1m\x1b[31mhi\x1b[0m", ignoreControlSequences, 2},
+		{"red hello", "\x1b[31mhello\x1b[0m", controlSequences, 5},
+		{"bold world", "\x1b[1mworld\x1b[0m", controlSequences, 5},
+		{"colored CJK", "\x1b[31m中文\x1b[0m", controlSequences, 4},
+		{"colored emoji", "\x1b[31m😀\x1b[0m", controlSequences, 2},
+		{"nested SGR", "\x1b[1m\x1b[31mhi\x1b[0m", controlSequences, 2},
 
 		// CR+LF as a multi-byte C0-led grapheme (zero width)
-		{"CRLF", "\r\n", ignoreControlSequences, 0},
-		{"text with CRLF", "hello\r\nworld", ignoreControlSequences, 10},
+		{"CRLF", "\r\n", controlSequences, 0},
+		{"text with CRLF", "hello\r\nworld", controlSequences, 10},
 
-		// Without IgnoreControlSequences, ESC is zero width but the rest of the sequence is visible
+		// Without ControlSequences, ESC is zero width but the rest of the sequence is visible
 		{"bare ESC default options", "\x1b", defaultOptions, 0},
 		{"SGR red default options", "\x1b[31m", defaultOptions, 4},
 		{"red hello default options", "\x1b[31mhello\x1b[0m", defaultOptions, 12},
 
-		// IgnoreControlSequences should not regress width for strings with no escape sequences
-		{"plain ASCII with option", "hello", ignoreControlSequences, 5},
-		{"plain ASCII spaces with option", "hello world", ignoreControlSequences, 11},
-		{"CJK with option", "中文", ignoreControlSequences, 4},
-		{"emoji with option", "😀", ignoreControlSequences, 2},
-		{"flag with option", "🇺🇸", ignoreControlSequences, 2},
-		{"mixed with option", "hello中文😀", ignoreControlSequences, 5 + 4 + 2},
-		{"ambiguous with option", "★", ignoreControlSequences, 1},
-		{"combining mark with option", "é", ignoreControlSequences, 1},
-		{"control chars with option", "\t\n", ignoreControlSequences, 0},
-		{"empty with option", "", ignoreControlSequences, 0},
+		// ControlSequences should not regress width for strings with no escape sequences
+		{"plain ASCII with option", "hello", controlSequences, 5},
+		{"plain ASCII spaces with option", "hello world", controlSequences, 11},
+		{"CJK with option", "中文", controlSequences, 4},
+		{"emoji with option", "😀", controlSequences, 2},
+		{"flag with option", "🇺🇸", controlSequences, 2},
+		{"mixed with option", "hello中文😀", controlSequences, 5 + 4 + 2},
+		{"ambiguous with option", "★", controlSequences, 1},
+		{"combining mark with option", "é", controlSequences, 1},
+		{"control chars with option", "\t\n", controlSequences, 0},
+		{"empty with option", "", controlSequences, 0},
 	}
 
 	for _, tt := range tests {
@@ -886,17 +886,17 @@ func TestBytesGraphemes(t *testing.T) {
 	}
 }
 
-func TestGraphemesIgnoreControlSequences(t *testing.T) {
+func TestGraphemesControlSequences(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
 		options Options
 	}{
-		// IgnoreControlSequences true: ANSI sequences are one zero-width grapheme each; visible width only
-		{"IgnoreControlSequences ANSI wrapped", "\x1b[31mhello\x1b[0m", ignoreControlSequences},
-		{"IgnoreControlSequences ANSI only", "\x1b[0m", ignoreControlSequences},
-		{"IgnoreControlSequences plain text", "hi", ignoreControlSequences},
-		{"IgnoreControlSequences ANSI mid", "a\x1b[31mb\x1b[0mc", ignoreControlSequences},
+		// ControlSequences true: ANSI sequences are one zero-width grapheme each; visible width only
+		{"ControlSequences ANSI wrapped", "\x1b[31mhello\x1b[0m", controlSequences},
+		{"ControlSequences ANSI only", "\x1b[0m", controlSequences},
+		{"ControlSequences plain text", "hi", controlSequences},
+		{"ControlSequences ANSI mid", "a\x1b[31mb\x1b[0mc", controlSequences},
 		// Default options: sum of grapheme widths must still match String/Bytes
 		{"default ANSI wrapped", "\x1b[31mhello\x1b[0m", defaultOptions},
 		{"default plain", "hello", defaultOptions},
@@ -1035,19 +1035,25 @@ func TestTruncateString(t *testing.T) {
 		{"complex mixed", "Go 🇺🇸🚀", 3, "...", defaultOptions, "..."},
 		{"complex mixed fits", "Go 🇺🇸🚀", 7, "...", defaultOptions, "Go 🇺🇸🚀"},
 
-		// IgnoreControlSequences (ANSI escape sequences): truncation by visible width only.
-		// Semantics: we only truncate when cumulative visible width strictly exceeds maxWidth
-		// (total > maxWidth). So if visible(s) <= maxWidth we return s unchanged. When we
-		// truncate, result = s[:pos]+tail where pos is the last grapheme end such that
-		// visible(s[:pos]) <= maxWidth - visible(tail). ANSI sequences are zero-width
-		// graphemes when IgnoreControlSequences is true.
-		{"IgnoreControlSequences plain no truncation", "hello", 5, "...", ignoreControlSequences, "hello"},
-		{"IgnoreControlSequences ANSI wrapped no truncation", "\x1b[31mhello\x1b[0m", 8, "...", ignoreControlSequences, "\x1b[31mhello\x1b[0m"},
-		{"IgnoreControlSequences ANSI wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", ignoreControlSequences, "\x1b[31mh..."},
-		{"IgnoreControlSequences ANSI in middle truncate", "hello\x1b[31mworld", 5, "...", ignoreControlSequences, "he..."},
-		{"IgnoreControlSequences CJK truncate", "\x1b[31m中文\x1b[0m", 2, "...", ignoreControlSequences, "..."},
-		{"IgnoreControlSequences CJK no truncation", "\x1b[31m中文\x1b[0m", 7, "...", ignoreControlSequences, "\x1b[31m中文\x1b[0m"},
-		{"IgnoreControlSequences CJK one wide then tail", "\x1b[31m中文xx\x1b[0m", 5, "...", ignoreControlSequences, "\x1b[31m中..."},
+		// ControlSequences (ANSI escape sequences): truncation by visible width only.
+		// When ControlSequences is true, escape sequences that appear after the
+		// truncation point are preserved (appended after the tail). This prevents
+		// color bleed from unclosed SGR sequences in terminal output.
+		{"ControlSequences plain no truncation", "hello", 5, "...", controlSequences, "hello"},
+		{"ControlSequences ANSI wrapped no truncation", "\x1b[31mhello\x1b[0m", 8, "...", controlSequences, "\x1b[31mhello\x1b[0m"},
+		{"ControlSequences ANSI wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", controlSequences, "\x1b[31mh...\x1b[0m"},
+		{"ControlSequences ANSI in middle truncate", "hello\x1b[31mworld", 5, "...", controlSequences, "he...\x1b[31m"},
+		{"ControlSequences CJK truncate", "\x1b[31m中文\x1b[0m", 2, "...", controlSequences, "...\x1b[31m\x1b[0m"},
+		{"ControlSequences CJK no truncation", "\x1b[31m中文\x1b[0m", 7, "...", controlSequences, "\x1b[31m中文\x1b[0m"},
+		{"ControlSequences CJK one wide then tail", "\x1b[31m中文xx\x1b[0m", 5, "...", controlSequences, "\x1b[31m中...\x1b[0m"},
+		// Stacked SGR sequences: all escape sequences after cut are preserved
+		{"ControlSequences stacked SGR", "\x1b[31m\x1b[42mhello\x1b[0m", 4, "...", controlSequences, "\x1b[31m\x1b[42mh...\x1b[0m"},
+		// Escape sequence between visible chars after cut: preserved
+		{"ControlSequences mid-escape after cut", "\x1b[31mhello\x1b[42mworld\x1b[0m", 6, "...", controlSequences, "\x1b[31mhel...\x1b[42m\x1b[0m"},
+		// No escape sequences after cut: same as before
+		{"ControlSequences no trailing escape", "\x1b[31mhello", 4, "...", controlSequences, "\x1b[31mh..."},
+		// Multiple colors: all trailing escapes preserved
+		{"ControlSequences multi color", "a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m", 2, "...", controlSequences, "...\x1b[31m\x1b[32m\x1b[33m\x1b[0m"},
 
 		// East Asian Width option
 		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},
@@ -1083,26 +1089,21 @@ func TestTruncateString(t *testing.T) {
 				if got != tt.expected {
 					t.Errorf("TruncateString(%q, %d, %q) with options %v = %q, want %q",
 						tt.input, tt.maxWidth, tt.tail, tt.options, got, tt.expected)
-					// Show width information for debugging
 					inputWidth := tt.options.String(tt.input)
 					gotWidth := tt.options.String(got)
 					t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
 				}
 
-				if len(got) >= len(tt.tail) && tt.tail != "" {
-					truncatedPart := got[:len(got)-len(tt.tail)]
-					truncatedWidth := tt.options.String(truncatedPart)
-					if truncatedWidth > tt.maxWidth {
-						t.Errorf("Truncated part width (%d) exceeds maxWidth (%d)", truncatedWidth, tt.maxWidth)
-					}
-				} else if tt.tail == "" {
-					// If no tail, the result itself should fit within maxWidth
-					gotWidth := tt.options.String(got)
-					if gotWidth > tt.maxWidth {
-						t.Errorf("Result width (%d) exceeds maxWidth (%d) when tail is empty", gotWidth, tt.maxWidth)
-					}
+				// Verify visible width respects maxWidth (or tailWidth if tail is wider)
+				gotWidth := tt.options.String(got)
+				limit := tt.maxWidth
+				tailWidth := tt.options.String(tt.tail)
+				if tailWidth > limit {
+					limit = tailWidth
 				}
-
+				if gotWidth > limit {
+					t.Errorf("Result visible width (%d) exceeds max(maxWidth, tailWidth) (%d)", gotWidth, limit)
+				}
 			}
 			{
 				input := []byte(tt.input)
@@ -1112,24 +1113,20 @@ func TestTruncateString(t *testing.T) {
 				if !bytes.Equal(got, expected) {
 					t.Errorf("TruncateBytes(%q, %d, %q) with options %v = %q, want %q",
 						input, tt.maxWidth, tail, tt.options, got, expected)
-					// Show width information for debugging
 					inputWidth := tt.options.Bytes(input)
 					gotWidth := tt.options.Bytes(got)
 					t.Logf("  Input width: %d, Got width: %d, MaxWidth: %d", inputWidth, gotWidth, tt.maxWidth)
 				}
 
-				if len(got) >= len(tt.tail) && tt.tail != "" {
-					truncatedPart := got[:len(got)-len(tt.tail)]
-					truncatedWidth := tt.options.Bytes(truncatedPart)
-					if truncatedWidth > tt.maxWidth {
-						t.Errorf("Truncated part width (%d) exceeds maxWidth (%d)", truncatedWidth, tt.maxWidth)
-					}
-				} else if tt.tail == "" {
-					// If no tail, the result itself should fit within maxWidth
-					gotWidth := tt.options.Bytes(got)
-					if gotWidth > tt.maxWidth {
-						t.Errorf("Result width (%d) exceeds maxWidth (%d) when tail is empty", gotWidth, tt.maxWidth)
-					}
+				// Verify visible width respects maxWidth (or tailWidth if tail is wider)
+				gotWidth := tt.options.Bytes(got)
+				limit := tt.maxWidth
+				tailWidth := tt.options.Bytes(tail)
+				if tailWidth > limit {
+					limit = tailWidth
+				}
+				if gotWidth > limit {
+					t.Errorf("Result visible width (%d) exceeds max(maxWidth, tailWidth) (%d)", gotWidth, limit)
 				}
 			}
 		})
