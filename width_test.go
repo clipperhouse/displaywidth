@@ -1609,3 +1609,29 @@ func TestUnicode16IndicConjunctBreak(t *testing.T) {
 		})
 	}
 }
+
+func TestReproduceFuzzTruncate(t *testing.T) {
+	// Regression test: \x1bX (ESC X = SOS) is segmented as one grapheme in the
+	// full input but as two separate graphemes (\x1b + X) in the truncated
+	// result, causing the preserved escape sequence to add visible width.
+	text := "00000000000\x1bX\x18"
+	options := []Options{
+		{EastAsianWidth: false},
+		{EastAsianWidth: true},
+		{ControlSequences: true},
+		{EastAsianWidth: true, ControlSequences: true},
+	}
+
+	for _, opt := range options {
+		ts := opt.TruncateString(text, 10, "...")
+		w := opt.String(ts)
+		if w > 10 {
+			t.Errorf("TruncateString() returned string longer than maxWidth for %q with opts %+v: %q (width %d)", text, opt, ts, w)
+		}
+
+		tb := opt.TruncateBytes([]byte(text), 10, []byte("..."))
+		if !bytes.Equal(tb, []byte(ts)) {
+			t.Errorf("TruncateBytes() != TruncateString() for %q with opts %+v: %q != %q", text, opt, tb, ts)
+		}
+	}
+}

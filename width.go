@@ -15,20 +15,25 @@ type Options struct {
 	// are treated as width 1. When true, they are width 2.
 	EastAsianWidth bool
 
-	// ControlSequences specifies whether to ignore ECMA-48 escape sequences
+	// ControlSequences specifies whether to ignore 7-bit ECMA-48 escape sequences
 	// when calculating the display width. When false (default), ANSI escape
 	// sequences are treated as just a series of characters. When true, they are
 	// treated as a single zero-width unit.
-	//
-	// Note that this option is about *sequences*. Individual control characters
-	// are already treated as zero-width. With this option, ANSI sequences such as
-	// "\x1b[31m" and "\x1b[0m" do not count towards the width of a string.
 	ControlSequences bool
+	// ControlSequences8Bit specifies whether to ignore 8-bit ECMA-48 escape sequences
+	// when calculating the display width. When false (default), these are treated
+	// as just a series of characters. When true, they are treated as a single
+	// zero-width unit.
+	ControlSequences8Bit bool
 }
 
 // DefaultOptions is the default options for the display width
 // calculation, which is EastAsianWidth false and ControlSequences false.
-var DefaultOptions = Options{EastAsianWidth: false, ControlSequences: false}
+var DefaultOptions = Options{
+	EastAsianWidth:       false,
+	ControlSequences:     false,
+	ControlSequences8Bit: false,
+}
 
 // String calculates the display width of a string,
 // by iterating over grapheme clusters in the string
@@ -55,6 +60,7 @@ func (options Options) String(s string) int {
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromString(s[pos:])
 		g.AnsiEscapeSequences = options.ControlSequences
+		g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 		start := pos
 
@@ -105,6 +111,7 @@ func (options Options) Bytes(s []byte) int {
 		// Not ASCII, use grapheme parsing
 		g := graphemes.FromBytes(s[pos:])
 		g.AnsiEscapeSequences = options.ControlSequences
+		g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 		start := pos
 
@@ -182,6 +189,7 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 	var pos, total int
 	g := graphemes.FromString(s)
 	g.AnsiEscapeSequences = options.ControlSequences
+	g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
@@ -190,17 +198,23 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 		}
 		total += gw
 		if total > maxWidth {
-			if options.ControlSequences {
+			if options.ControlSequences || options.ControlSequences8Bit {
 				// Build result with trailing ANSI escape sequences preserved
 				var b strings.Builder
 				b.Grow(len(s) + len(tail)) // at most original + tail
 				b.WriteString(s[:pos])
 				b.WriteString(tail)
+
 				rem := graphemes.FromString(s[pos:])
-				rem.AnsiEscapeSequences = true
+				rem.AnsiEscapeSequences = options.ControlSequences
+				rem.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
+
 				for rem.Next() {
 					v := rem.Value()
-					if len(v) > 0 && v[0] == 0x1B {
+					// Only preserve escapes that measure as zero-width
+					// on their own; some sequences (e.g. SOS) are only
+					// valid in their original context.
+					if len(v) > 0 && isEscapeLeader(v[0], options) && options.String(v) == 0 {
 						b.WriteString(v)
 					}
 				}
@@ -238,6 +252,7 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 	var pos, total int
 	g := graphemes.FromBytes(s)
 	g.AnsiEscapeSequences = options.ControlSequences
+	g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
@@ -246,16 +261,22 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 		}
 		total += gw
 		if total > maxWidth {
-			if options.ControlSequences {
+			if options.ControlSequences || options.ControlSequences8Bit {
 				// Build result with trailing ANSI escape sequences preserved
 				result := make([]byte, 0, len(s)+len(tail)) // at most original + tail
 				result = append(result, s[:pos]...)
 				result = append(result, tail...)
+
 				rem := graphemes.FromBytes(s[pos:])
-				rem.AnsiEscapeSequences = true
+				rem.AnsiEscapeSequences = options.ControlSequences
+				rem.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
+
 				for rem.Next() {
 					v := rem.Value()
-					if len(v) > 0 && v[0] == 0x1B {
+					// Only preserve escapes that measure as zero-width
+					// on their own; some sequences (e.g. SOS) are only
+					// valid in their original context.
+					if len(v) > 0 && isEscapeLeader(v[0], options) && options.Bytes(v) == 0 {
 						result = append(result, v...)
 					}
 				}
@@ -278,6 +299,15 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 // equal to maxWidth.
 func TruncateBytes(s []byte, maxWidth int, tail []byte) []byte {
 	return DefaultOptions.TruncateBytes(s, maxWidth, tail)
+}
+
+// isEscapeLeader reports whether the byte is the leading byte of an
+// escape sequence that is active for the given options: 7-bit ESC (0x1B)
+// when ControlSequences is true, or 8-bit C1 (0x80-0x9F) when
+// ControlSequences8Bit is true.
+func isEscapeLeader(b byte, options Options) bool {
+	return (options.ControlSequences && b == 0x1B) ||
+		(options.ControlSequences8Bit && b >= 0x80 && b <= 0x9F)
 }
 
 // graphemeWidth returns the display width of a grapheme cluster.
