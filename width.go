@@ -147,11 +147,19 @@ const _Default property = 0
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
 func graphemeWidth[T ~string | []byte](s T, options Options) int {
-	// Optimization: no need to look up properties
-	switch len(s) {
-	case 0:
+	if len(s) == 0 {
 		return 0
-	case 1:
+	}
+
+	// C1 controls (0x80-0x9F) are zero-width when 8-bit control sequences
+	// are enabled. This must be checked before the single-byte optimization
+	// below, which would otherwise return width 1 for these bytes.
+	if options.ControlSequences8Bit && s[0] >= 0x80 && s[0] <= 0x9F {
+		return 0
+	}
+
+	// Optimization: single-byte graphemes need no property lookup
+	if len(s) == 1 {
 		return asciiWidth(s[0])
 	}
 

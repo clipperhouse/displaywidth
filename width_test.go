@@ -106,6 +106,8 @@ func TestStringWidth(t *testing.T) {
 }
 
 var controlSequences = Options{ControlSequences: true}
+var controlSequences8Bit = Options{ControlSequences8Bit: true}
+var controlSequencesBoth = Options{ControlSequences: true, ControlSequences8Bit: true}
 
 func TestAnsiEscapeSequences(t *testing.T) {
 	tests := []struct {
@@ -163,6 +165,174 @@ func TestAnsiEscapeSequences(t *testing.T) {
 			result = tt.options.Bytes([]byte(tt.input))
 			if result != tt.expected {
 				t.Errorf("Bytes(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestAnsiEscapeSequences8Bit(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		options  Options
+		expected int
+	}{
+		// 8-bit C1 CSI sequences should be zero width
+		{"C1 CSI red", "\x9B31m", controlSequences8Bit, 0},
+		{"C1 CSI reset", "\x9B0m", controlSequences8Bit, 0},
+		{"C1 CSI bold", "\x9B1m", controlSequences8Bit, 0},
+		{"C1 CSI multi-param", "\x9B1;2;3m", controlSequences8Bit, 0},
+		{"C1 CSI cursor up", "\x9BA", controlSequences8Bit, 0},
+
+		// 8-bit C1 OSC/DCS/SOS/APC with C1 ST terminator
+		{"C1 OSC with ST", "\x9D0;Title\x9C", controlSequences8Bit, 0},
+		{"C1 OSC with BEL", "\x9D0;Title\x07", controlSequences8Bit, 0},
+		{"C1 DCS with ST", "\x90qpayload\x9C", controlSequences8Bit, 0},
+		{"C1 SOS with ST", "\x98hello\x9C", controlSequences8Bit, 0},
+		{"C1 APC with ST", "\x9Fdata\x9C", controlSequences8Bit, 0},
+
+		// Standalone C1 controls (single byte, no body)
+		{"C1 IND", "\x84", controlSequences8Bit, 0},
+		{"C1 NEL", "\x85", controlSequences8Bit, 0},
+
+		// 8-bit sequences mixed with visible text
+		{"C1 CSI red hello", "\x9B31mhello\x9B0m", controlSequences8Bit, 5},
+		{"C1 CSI colored CJK", "\x9B31m中文\x9B0m", controlSequences8Bit, 4},
+		{"C1 CSI colored emoji", "\x9B31m😀\x9B0m", controlSequences8Bit, 2},
+		{"C1 CSI nested", "\x9B1m\x9B31mhi\x9B0m", controlSequences8Bit, 2},
+
+		// Without ControlSequences8Bit, C1 bytes have width per asciiWidth (1 for >= 0x80)
+		{"C1 CSI default options", "\x9B31m", defaultOptions, 4},
+
+		// 8-bit option should not regress plain text
+		{"plain ASCII with 8-bit option", "hello", controlSequences8Bit, 5},
+		{"CJK with 8-bit option", "中文", controlSequences8Bit, 4},
+		{"emoji with 8-bit option", "😀", controlSequences8Bit, 2},
+		{"empty with 8-bit option", "", controlSequences8Bit, 0},
+
+		// Both options enabled
+		{"both: 7-bit SGR", "\x1b[31mhello\x1b[0m", controlSequencesBoth, 5},
+		{"both: 8-bit CSI", "\x9B31mhello\x9B0m", controlSequencesBoth, 5},
+		{"both: mixed 7 and 8-bit", "\x1b[31mhello\x9B0m", controlSequencesBoth, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.options.String(tt.input)
+			if result != tt.expected {
+				t.Errorf("String(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+
+			result = tt.options.Bytes([]byte(tt.input))
+			if result != tt.expected {
+				t.Errorf("Bytes(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestAnsiEscapeSequencesIndependence verifies that the 7-bit and 8-bit options
+// are strictly independent: enabling one must NOT cause the other's sequences
+// to be treated as escape sequences.
+func TestAnsiEscapeSequencesIndependence(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		options  Options
+		expected int
+		desc     string
+	}{
+		// 7-bit only: C1 bytes must NOT be treated as escape sequences.
+		// \x9B31m is 4 visible chars (0x9B has width 1, '3' '1' 'm' each width 1)
+		{
+			name:     "7-bit on, 8-bit input C1 CSI",
+			input:    "\x9B31m",
+			options:  controlSequences,
+			expected: 4,
+			desc:     "C1 CSI should not be recognized when only 7-bit is enabled",
+		},
+		{
+			name:     "7-bit on, 8-bit input standalone C1",
+			input:    "\x84",
+			options:  controlSequences,
+			expected: 1,
+			desc:     "Standalone C1 byte should have width 1 when only 7-bit is enabled",
+		},
+		{
+			name:     "7-bit on, 8-bit input C1 with text",
+			input:    "\x9B31mhello\x9B0m",
+			options:  controlSequences,
+			expected: 4 + 5 + 3,
+			desc:     "C1 CSI sequences should contribute visible width when only 7-bit is enabled",
+		},
+
+		// 8-bit only: 7-bit ESC sequences must NOT be treated as escape sequences.
+		// \x1b[31m is: ESC (width 0) + '[' (1) + '3' (1) + '1' (1) + 'm' (1) = 4
+		{
+			name:     "8-bit on, 7-bit input SGR",
+			input:    "\x1b[31m",
+			options:  controlSequences8Bit,
+			expected: 4,
+			desc:     "7-bit SGR should not be recognized when only 8-bit is enabled",
+		},
+		{
+			name:     "8-bit on, 7-bit input SGR with text",
+			input:    "\x1b[31mhello\x1b[0m",
+			options:  controlSequences8Bit,
+			expected: 4 + 5 + 3,
+			desc:     "7-bit SGR should contribute visible width when only 8-bit is enabled",
+		},
+
+		// Both enabled: both kinds should be zero-width
+		{
+			name:     "both on, 7-bit SGR",
+			input:    "\x1b[31m",
+			options:  controlSequencesBoth,
+			expected: 0,
+			desc:     "7-bit SGR should be zero-width when both are enabled",
+		},
+		{
+			name:     "both on, 8-bit CSI",
+			input:    "\x9B31m",
+			options:  controlSequencesBoth,
+			expected: 0,
+			desc:     "C1 CSI should be zero-width when both are enabled",
+		},
+		{
+			name:     "both on, mixed sequences with text",
+			input:    "\x1b[31mhello\x9B0m",
+			options:  controlSequencesBoth,
+			expected: 5,
+			desc:     "Mixed 7-bit and 8-bit sequences should both be zero-width",
+		},
+
+		// Neither enabled: both kinds contribute visible width
+		{
+			name:     "neither, 7-bit SGR",
+			input:    "\x1b[31m",
+			options:  defaultOptions,
+			expected: 4,
+			desc:     "7-bit SGR should contribute visible width when neither is enabled",
+		},
+		{
+			name:     "neither, 8-bit CSI",
+			input:    "\x9B31m",
+			options:  defaultOptions,
+			expected: 4,
+			desc:     "C1 CSI should contribute visible width when neither is enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.options.String(tt.input)
+			if result != tt.expected {
+				t.Errorf("String(%q) = %d, want %d (%s)", tt.input, result, tt.expected, tt.desc)
+			}
+
+			result = tt.options.Bytes([]byte(tt.input))
+			if result != tt.expected {
+				t.Errorf("Bytes(%q) = %d, want %d (%s)", tt.input, result, tt.expected, tt.desc)
 			}
 		})
 	}
@@ -900,6 +1070,19 @@ func TestGraphemesControlSequences(t *testing.T) {
 		// Default options: sum of grapheme widths must still match String/Bytes
 		{"default ANSI wrapped", "\x1b[31mhello\x1b[0m", defaultOptions},
 		{"default plain", "hello", defaultOptions},
+		// 8-bit ControlSequences: C1 sequences are one zero-width grapheme each
+		{"8-bit C1 CSI wrapped", "\x9B31mhello\x9B0m", controlSequences8Bit},
+		{"8-bit C1 CSI only", "\x9B0m", controlSequences8Bit},
+		{"8-bit plain text", "hi", controlSequences8Bit},
+		{"8-bit C1 CSI mid", "a\x9B31mb\x9B0mc", controlSequences8Bit},
+		// Both options: both 7-bit and 8-bit sequences are zero-width graphemes
+		{"both: mixed", "\x1b[31mhello\x9B0m", controlSequencesBoth},
+		{"both: 7-bit only input", "\x1b[31mhi\x1b[0m", controlSequencesBoth},
+		{"both: 8-bit only input", "\x9B31mhi\x9B0m", controlSequencesBoth},
+		// Independence: 7-bit on but 8-bit input — graphemes must still sum correctly
+		{"7-bit on, 8-bit input", "\x9B31mhello\x9B0m", controlSequences},
+		// Independence: 8-bit on but 7-bit input
+		{"8-bit on, 7-bit input", "\x1b[31mhello\x1b[0m", controlSequences8Bit},
 	}
 
 	for _, tt := range tests {
@@ -1054,6 +1237,25 @@ func TestTruncateString(t *testing.T) {
 		{"ControlSequences no trailing escape", "\x1b[31mhello", 4, "...", controlSequences, "\x1b[31mh..."},
 		// Multiple colors: all trailing escapes preserved
 		{"ControlSequences multi color", "a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m", 2, "...", controlSequences, "...\x1b[31m\x1b[32m\x1b[33m\x1b[0m"},
+
+		// 8-bit ControlSequences truncation: same behavior as 7-bit but with C1 sequences
+		{"8-bit plain no truncation", "hello", 5, "...", controlSequences8Bit, "hello"},
+		{"8-bit C1 CSI wrapped no truncation", "\x9B31mhello\x9B0m", 8, "...", controlSequences8Bit, "\x9B31mhello\x9B0m"},
+		{"8-bit C1 CSI wrapped truncate", "\x9B31mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B31mh...\x9B0m"},
+		{"8-bit C1 CSI in middle truncate", "hello\x9B31mworld", 5, "...", controlSequences8Bit, "he...\x9B31m"},
+		{"8-bit C1 CSI CJK truncate", "\x9B31m中文\x9B0m", 2, "...", controlSequences8Bit, "...\x9B31m\x9B0m"},
+		{"8-bit C1 CSI no trailing escape", "\x9B31mhello", 4, "...", controlSequences8Bit, "\x9B31mh..."},
+		{"8-bit C1 stacked SGR", "\x9B31m\x9B42mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B31m\x9B42mh...\x9B0m"},
+
+		// 7-bit only must NOT preserve trailing C1 sequences.
+		// With 7-bit only, \x9B is a regular character (width 1), so the input
+		// "hello\x9B0m" has visible width 8. Trailing \x9B0m is not preserved.
+		{"7-bit only ignores trailing C1", "hello\x9B0m", 5, "...", controlSequences, "he..."},
+
+		// Both enabled: preserves both 7-bit and 8-bit trailing escapes
+		{"both: mixed trailing escapes", "\x1b[31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x1b[31mh...\x9B0m"},
+		{"both: 7-bit wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", controlSequencesBoth, "\x1b[31mh...\x1b[0m"},
+		{"both: 8-bit wrapped truncate", "\x9B31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x9B31mh...\x9B0m"},
 
 		// East Asian Width option
 		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},

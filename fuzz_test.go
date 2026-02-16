@@ -102,7 +102,10 @@ func FuzzBytesAndString(f *testing.F) {
 			{EastAsianWidth: false},
 			{EastAsianWidth: true},
 			{ControlSequences: true},
+			{ControlSequences8Bit: true},
+			{ControlSequences: true, ControlSequences8Bit: true},
 			{EastAsianWidth: true, ControlSequences: true},
+			{EastAsianWidth: true, ControlSequences8Bit: true},
 		}
 
 		for _, option := range options {
@@ -316,7 +319,10 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 			{EastAsianWidth: false},
 			{EastAsianWidth: true},
 			{ControlSequences: true},
+			{ControlSequences8Bit: true},
+			{ControlSequences: true, ControlSequences8Bit: true},
 			{EastAsianWidth: true, ControlSequences: true},
+			{EastAsianWidth: true, ControlSequences8Bit: true},
 		}
 
 		for _, option := range options {
@@ -369,6 +375,21 @@ func FuzzControlSequences(f *testing.F) {
 	f.Add([]byte("中文"))                                        // plain CJK
 	f.Add([]byte("😀"))                                         // plain emoji
 
+	// Seed with 8-bit C1 escape sequences
+	f.Add([]byte("\x9B31m"))                                   // C1 CSI red
+	f.Add([]byte("\x9B0m"))                                    // C1 CSI reset
+	f.Add([]byte("\x9B1m"))                                    // C1 CSI bold
+	f.Add([]byte("\x9B31mhello\x9B0m"))                        // C1 CSI red text
+	f.Add([]byte("\x9B1m\x9B31mhi\x9B0m"))                     // C1 nested SGR
+	f.Add([]byte("hello\x9B31mworld\x9B0m"))                   // C1 mid-string
+	f.Add([]byte("\x9B31m中文\x9B0m"))                           // C1 colored CJK
+	f.Add([]byte("\x9B31m😀\x9B0m"))                            // C1 colored emoji
+	f.Add([]byte("\x9D0;Title\x9C"))                           // C1 OSC with C1 ST
+	f.Add([]byte("\x9D0;Title\x07"))                           // C1 OSC with BEL
+	f.Add([]byte("\x90qpayload\x9C"))                          // C1 DCS with C1 ST
+	f.Add([]byte("\x84"))                                      // standalone C1
+	f.Add([]byte("\x1b[31mhello\x9B0m"))                       // mixed 7-bit and 8-bit
+
 	// Seed with multi-lingual text
 	file, err := testdata.Sample()
 	if err != nil {
@@ -383,7 +404,11 @@ func FuzzControlSequences(f *testing.F) {
 		{},
 		{EastAsianWidth: true},
 		{ControlSequences: true},
+		{ControlSequences8Bit: true},
+		{ControlSequences: true, ControlSequences8Bit: true},
 		{EastAsianWidth: true, ControlSequences: true},
+		{EastAsianWidth: true, ControlSequences8Bit: true},
+		{EastAsianWidth: true, ControlSequences: true, ControlSequences8Bit: true},
 	}
 
 	f.Fuzz(func(t *testing.T, text []byte) {
@@ -432,7 +457,7 @@ func FuzzControlSequences(f *testing.F) {
 
 			// Invariant: ControlSequences width <= default width
 			// (escape sequences become 0 instead of their visible char widths)
-			if opt.ControlSequences {
+			if opt.ControlSequences || opt.ControlSequences8Bit {
 				noIgnore := Options{EastAsianWidth: opt.EastAsianWidth}
 				wDefault := noIgnore.Bytes(text)
 				if wb > wDefault {
