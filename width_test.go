@@ -1238,24 +1238,29 @@ func TestTruncateString(t *testing.T) {
 		// Multiple colors: all trailing escapes preserved
 		{"ControlSequences multi color", "a\x1b[31mb\x1b[32mc\x1b[33md\x1b[0m", 2, "...", controlSequences, "...\x1b[31m\x1b[32m\x1b[33m\x1b[0m"},
 
-		// 8-bit ControlSequences truncation: same behavior as 7-bit but with C1 sequences
+		// 8-bit ControlSequences8Bit is ignored by truncation entirely. The
+		// grapheme parser is not told about 8-bit, so C1 sequence parameters
+		// (e.g. "31m" after \x9B) are treated as visible characters. This is
+		// intentional: 8-bit C1 bytes (0x80-0x9F) overlap with UTF-8 multi-byte
+		// encoding, making them unsafe to manipulate during truncation.
 		{"8-bit plain no truncation", "hello", 5, "...", controlSequences8Bit, "hello"},
-		{"8-bit C1 CSI wrapped no truncation", "\x9B31mhello\x9B0m", 8, "...", controlSequences8Bit, "\x9B31mhello\x9B0m"},
-		{"8-bit C1 CSI wrapped truncate", "\x9B31mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B31mh...\x9B0m"},
-		{"8-bit C1 CSI in middle truncate", "hello\x9B31mworld", 5, "...", controlSequences8Bit, "he...\x9B31m"},
-		{"8-bit C1 CSI CJK truncate", "\x9B31m中文\x9B0m", 2, "...", controlSequences8Bit, "...\x9B31m\x9B0m"},
-		{"8-bit C1 CSI no trailing escape", "\x9B31mhello", 4, "...", controlSequences8Bit, "\x9B31mh..."},
-		{"8-bit C1 stacked SGR", "\x9B31m\x9B42mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B31m\x9B42mh...\x9B0m"},
+		{"8-bit C1 CSI wrapped truncate", "\x9B31mhello\x9B0m", 8, "...", controlSequences8Bit, "\x9B31mh..."},
+		{"8-bit C1 CSI wrapped truncate narrow", "\x9B31mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B..."},
+		{"8-bit C1 CSI in middle truncate", "hello\x9B31mworld", 5, "...", controlSequences8Bit, "he..."},
+		{"8-bit C1 CSI CJK truncate", "\x9B31m中文\x9B0m", 2, "...", controlSequences8Bit, "..."},
+		{"8-bit C1 CSI no trailing escape", "\x9B31mhello", 4, "...", controlSequences8Bit, "\x9B..."},
+		{"8-bit C1 stacked SGR", "\x9B31m\x9B42mhello\x9B0m", 4, "...", controlSequences8Bit, "\x9B..."},
 
 		// 7-bit only must NOT preserve trailing C1 sequences.
 		// With 7-bit only, \x9B is a regular character (width 1), so the input
 		// "hello\x9B0m" has visible width 8. Trailing \x9B0m is not preserved.
 		{"7-bit only ignores trailing C1", "hello\x9B0m", 5, "...", controlSequences, "he..."},
 
-		// Both enabled: preserves both 7-bit and 8-bit trailing escapes
-		{"both: mixed trailing escapes", "\x1b[31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x1b[31mh...\x9B0m"},
+		// Both enabled: only 7-bit trailing escapes are preserved; 8-bit is
+		// ignored by truncation, so C1 parameters are visible characters.
+		{"both: mixed trailing escapes", "\x1b[31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x1b[31mh..."},
 		{"both: 7-bit wrapped truncate", "\x1b[31mhello\x1b[0m", 4, "...", controlSequencesBoth, "\x1b[31mh...\x1b[0m"},
-		{"both: 8-bit wrapped truncate", "\x9B31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x9B31mh...\x9B0m"},
+		{"both: 8-bit wrapped truncate", "\x9B31mhello\x9B0m", 4, "...", controlSequencesBoth, "\x9B..."},
 
 		// East Asian Width option
 		{"ambiguous EAW fits", "★", 2, "...", eawOptions, "★"},
@@ -1834,6 +1839,70 @@ func TestReproduceFuzzTruncate(t *testing.T) {
 		tb := opt.TruncateBytes([]byte(text), 10, []byte("..."))
 		if !bytes.Equal(tb, []byte(ts)) {
 			t.Errorf("TruncateBytes() != TruncateString() for %q with opts %+v: %q != %q", text, opt, tb, ts)
+		}
+	}
+}
+
+func TestTruncateIgnores8Bit(t *testing.T) {
+	// Truncation ignores ControlSequences8Bit entirely (see GoDoc).
+	// This means the truncation result, when measured with 8-bit-aware
+	// String(), may exceed maxWidth. This is the documented tradeoff:
+	// 8-bit C1 bytes (0x80-0x9F) overlap with UTF-8 multi-byte encoding,
+	// so manipulating them during truncation is unsafe.
+	//
+	// These tests verify that truncation is self-consistent: the result
+	// measured WITHOUT 8-bit should respect maxWidth.
+
+	cases := []struct {
+		name string
+		text string
+	}{
+		{
+			// Byte recombination: the grapheme parser with 8-bit groups
+			// \x9f\xcf as one escape (APC + payload). Without 8-bit, \xcf
+			// and \x90 can recombine into U+03D0 (ϐ, width 1).
+			name: "byte recombination",
+			text: "000000000000000000000\x9f\xcf\x1a\x90",
+		},
+		{
+			// SOS terminator mismatch: with 8-bit, \x9c is ST (terminates
+			// the 7-bit SOS started by \x1bX). Without 8-bit, \x9c is not
+			// recognized as ST, so SOS consumes more of the string.
+			name: "SOS terminator mismatch",
+			text: "00\x98\x1bX\x9c0000000000\x18",
+		},
+	}
+
+	options := []Options{
+		{ControlSequences8Bit: true},
+		{ControlSequences: true, ControlSequences8Bit: true},
+		{EastAsianWidth: true, ControlSequences8Bit: true},
+	}
+
+	for _, tc := range cases {
+		for _, opt := range options {
+			// Truncation ignores 8-bit, so measure with the same view
+			measureOpt := opt
+			measureOpt.ControlSequences8Bit = false
+
+			ts := opt.TruncateString(tc.text, 10, "...")
+			w := measureOpt.String(ts)
+			if w > 10 {
+				t.Errorf("%s: TruncateString() width %d > 10 (measured without 8-bit) for %q with opts %+v: %q",
+					tc.name, w, tc.text, opt, ts)
+			}
+
+			tb := opt.TruncateBytes([]byte(tc.text), 10, []byte("..."))
+			bw := measureOpt.Bytes(tb)
+			if bw > 10 {
+				t.Errorf("%s: TruncateBytes() width %d > 10 (measured without 8-bit) for %q with opts %+v: %q",
+					tc.name, bw, tc.text, opt, tb)
+			}
+
+			if !bytes.Equal(tb, []byte(ts)) {
+				t.Errorf("%s: TruncateBytes() != TruncateString() for %q with opts %+v: %q != %q",
+					tc.name, tc.text, opt, tb, ts)
+			}
 		}
 	}
 }

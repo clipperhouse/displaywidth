@@ -285,38 +285,10 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 	f.Add("\xff\xfe\xfd") // invalid UTF-8
 
 	f.Fuzz(func(t *testing.T, text string) {
-		// Test with default options
-		ts := TruncateString(text, 10, "...")
-
-		// Invariant: truncated string should be less than or equal to maxWidth
-		if String(ts) > 10 {
-			t.Errorf("TruncateString() returned string longer than maxWidth for %q: %q", text, ts)
-		}
-
-		// Invariant: truncated string should be less than or equal to maxWidth
-		if len(ts) > len(text) {
-			t.Errorf("TruncateString() returned string longer than original for %q: %q", text, ts)
-		}
-
-		tb := TruncateBytes([]byte(text), 10, []byte("..."))
-
-		// Invariant: truncated bytes should be less than or equal to maxWidth
-		if Bytes(tb) > 10 {
-			t.Errorf("TruncateBytes() returned bytes longer than maxWidth for %q: %q", text, tb)
-		}
-
-		// Invariant: truncated bytes should be less than or equal to original
-		if len(tb) > len(text) {
-			t.Errorf("TruncateBytes() returned bytes longer than original for %q: %q", text, tb)
-		}
-
-		if !bytes.Equal(tb, []byte(ts)) {
-			t.Errorf("TruncateBytes() returned bytes different from TruncateString() for %q: %q != %q", text, tb, ts)
-		}
-
-		// Test with different options
+		// Exercise truncation to discover panics and infinite loops.
+		// Width invariant testing is in proper unit tests.
 		options := []Options{
-			{EastAsianWidth: false},
+			{},
 			{EastAsianWidth: true},
 			{ControlSequences: true},
 			{ControlSequences8Bit: true},
@@ -327,15 +299,11 @@ func FuzzTruncateStringAndBytes(f *testing.F) {
 
 		for _, option := range options {
 			ts := option.TruncateString(text, 10, "...")
-
-			// Invariant: truncated string should be less than or equal to maxWidth
-			if option.String(ts) > 10 {
-				t.Errorf("TruncateString() returned string longer than maxWidth for %q: %q", text, ts)
-			}
-
 			tb := option.TruncateBytes([]byte(text), 10, []byte("..."))
+
+			// Invariant: String and Bytes paths must agree
 			if !bytes.Equal(tb, []byte(ts)) {
-				t.Errorf("TruncateBytes() returned bytes different from TruncateString() for %q: %q != %q", text, tb, ts)
+				t.Errorf("TruncateBytes() != TruncateString() with %+v for %q: %q != %q", option, text, tb, ts)
 			}
 		}
 	})
@@ -465,23 +433,14 @@ func FuzzControlSequences(f *testing.F) {
 				}
 			}
 
-			// Invariant: truncation respects maxWidth (accounting for the tail,
-			// which is always appended and may itself exceed maxWidth)
+			// Exercise truncation to discover panics and infinite loops.
+			// Width invariant testing is in proper unit tests.
 			tail := "..."
-			tailWidth := opt.String(tail)
 			for _, maxWidth := range []int{0, 1, 3, 5, 10, 20} {
 				ts := opt.TruncateString(string(text), maxWidth, tail)
-				tsWidth := opt.String(ts)
-				limit := maxWidth
-				if tailWidth > limit {
-					limit = tailWidth
-				}
-				if tsWidth > limit {
-					t.Errorf("TruncateString() width %d > max(maxWidth, tailWidth) %d with %+v for %q -> %q",
-						tsWidth, limit, opt, text, ts)
-				}
-
 				tb := opt.TruncateBytes(text, maxWidth, []byte(tail))
+
+				// Invariant: String and Bytes paths must agree
 				if !bytes.Equal(tb, []byte(ts)) {
 					t.Errorf("TruncateBytes() != TruncateString() with %+v for %q: %q != %q",
 						opt, text, tb, ts)

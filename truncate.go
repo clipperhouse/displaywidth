@@ -12,17 +12,25 @@ import (
 // It ensures the visible width, including the width of the tail, is less than or
 // equal to maxWidth.
 //
-// When [Options.ControlSequences] is true, ANSI escape sequences that appear
-// after the truncation point are preserved in the output. This ensures that
-// escape sequences such as SGR resets are not lost, preventing color bleed
-// in terminal output.
+// When [Options.ControlSequences] is true, 7-bit ANSI escape sequences that
+// appear after the truncation point are preserved in the output. This ensures
+// that escape sequences such as SGR resets are not lost, preventing color
+// bleed in terminal output.
+//
+// [Options.ControlSequences8Bit] is ignored by truncation. 8-bit C1 byte values
+// (0x80-0x9F) overlap with UTF-8 multi-byte encoding, so manipulating them
+// during truncation can shift byte boundaries and form unintended visible
+// characters. Use [Options.String] or [Options.Bytes] for 8-bit-aware width
+// measurement.
 func (options Options) TruncateString(s string, maxWidth int, tail string) string {
+	// We deliberately ignore ControlSequences8Bit for truncation, see above.
+	options.ControlSequences8Bit = false
+
 	maxWidthWithoutTail := maxWidth - options.String(tail)
 
 	var pos, total int
 	g := graphemes.FromString(s)
 	g.AnsiEscapeSequences = options.ControlSequences
-	g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
@@ -31,8 +39,8 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 		}
 		total += gw
 		if total > maxWidth {
-			if options.ControlSequences || options.ControlSequences8Bit {
-				// Build result with trailing ANSI escape sequences preserved
+			if options.ControlSequences {
+				// Build result with trailing 7-bit ANSI escape sequences preserved
 				var b strings.Builder
 				b.Grow(len(s) + len(tail)) // at most original + tail
 				b.WriteString(s[:pos])
@@ -40,14 +48,13 @@ func (options Options) TruncateString(s string, maxWidth int, tail string) strin
 
 				rem := graphemes.FromString(s[pos:])
 				rem.AnsiEscapeSequences = options.ControlSequences
-				rem.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 				for rem.Next() {
 					v := rem.Value()
-					// Only preserve escapes that measure as zero-width
-					// on their own; some sequences (e.g. SOS) are only
-					// valid in their original context.
-					if len(v) > 0 && isEscapeLeader(v[0], options) && options.String(v) == 0 {
+					// Only preserve 7-bit escapes (ESC = 0x1B) that measure
+					// as zero-width on their own; some sequences (e.g. SOS)
+					// are only valid in their original context.
+					if len(v) > 0 && v[0] == 0x1B && options.String(v) == 0 {
 						b.WriteString(v)
 					}
 				}
@@ -75,17 +82,25 @@ func TruncateString(s string, maxWidth int, tail string) string {
 // It ensures the visible width, including the width of the tail, is less than or
 // equal to maxWidth.
 //
-// When [Options.ControlSequences] is true, ANSI escape sequences that appear
-// after the truncation point are preserved in the output. This ensures that
-// escape sequences such as SGR resets are not lost, preventing color bleed
-// in terminal output.
+// When [Options.ControlSequences] is true, 7-bit ANSI escape sequences that
+// appear after the truncation point are preserved in the output. This ensures
+// that escape sequences such as SGR resets are not lost, preventing color
+// bleed in terminal output.
+//
+// [Options.ControlSequences8Bit] is ignored by truncation. 8-bit C1 byte values
+// (0x80-0x9F) overlap with UTF-8 multi-byte encoding, so manipulating them
+// during truncation can shift byte boundaries and form unintended visible
+// characters. Use [Options.String] or [Options.Bytes] for 8-bit-aware width
+// measurement.
 func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte {
+	// We deliberately ignore ControlSequences8Bit for truncation, see above.
+	options.ControlSequences8Bit = false
+
 	maxWidthWithoutTail := maxWidth - options.Bytes(tail)
 
 	var pos, total int
 	g := graphemes.FromBytes(s)
 	g.AnsiEscapeSequences = options.ControlSequences
-	g.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 	for g.Next() {
 		gw := graphemeWidth(g.Value(), options)
@@ -94,22 +109,21 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 		}
 		total += gw
 		if total > maxWidth {
-			if options.ControlSequences || options.ControlSequences8Bit {
-				// Build result with trailing ANSI escape sequences preserved
+			if options.ControlSequences {
+				// Build result with trailing 7-bit ANSI escape sequences preserved
 				result := make([]byte, 0, len(s)+len(tail)) // at most original + tail
 				result = append(result, s[:pos]...)
 				result = append(result, tail...)
 
 				rem := graphemes.FromBytes(s[pos:])
 				rem.AnsiEscapeSequences = options.ControlSequences
-				rem.AnsiEscapeSequences8Bit = options.ControlSequences8Bit
 
 				for rem.Next() {
 					v := rem.Value()
-					// Only preserve escapes that measure as zero-width
-					// on their own; some sequences (e.g. SOS) are only
-					// valid in their original context.
-					if len(v) > 0 && isEscapeLeader(v[0], options) && options.Bytes(v) == 0 {
+					// Only preserve 7-bit escapes (ESC = 0x1B) that measure
+					// as zero-width on their own; some sequences (e.g. SOS)
+					// are only valid in their original context.
+					if len(v) > 0 && v[0] == 0x1B && options.Bytes(v) == 0 {
 						result = append(result, v...)
 					}
 				}
@@ -132,13 +146,4 @@ func (options Options) TruncateBytes(s []byte, maxWidth int, tail []byte) []byte
 // equal to maxWidth.
 func TruncateBytes(s []byte, maxWidth int, tail []byte) []byte {
 	return DefaultOptions.TruncateBytes(s, maxWidth, tail)
-}
-
-// isEscapeLeader reports whether the byte is the leading byte of an
-// escape sequence that is active for the given options: 7-bit ESC (0x1B)
-// when ControlSequences is true, or 8-bit C1 (0x80-0x9F) when
-// ControlSequences8Bit is true.
-func isEscapeLeader(b byte, options Options) bool {
-	return (options.ControlSequences && b == 0x1B) ||
-		(options.ControlSequences8Bit && b >= 0x80 && b <= 0x9F)
 }
