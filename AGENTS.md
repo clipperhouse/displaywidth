@@ -38,7 +38,7 @@ Identify breaking changes, especially API changes.
 
 Ensure good test coverage. Look for performance changes, especially performance regressions, by running benchmarks against the previous release.
 
-Ensure that the documentation in READMEs and GoDocs, complete, correct and consistent.
+Ensure that the documentation in READMEs and GoDocs are complete, correct and consistent.
 
 ## Comparisons to go-runewidth
 
