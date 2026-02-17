@@ -79,6 +79,16 @@ when calculating the display width. When `false` (default), ANSI escape
 sequences are treated as just a series of characters. When `true`, they are
 treated as a single zero-width unit.
 
+#### ControlSequences8Bit
+
+`ControlSequences8Bit` specifies whether to ignore 8-bit ECMA-48 escape sequences
+when calculating the display width. When `false` (default), these are treated
+as just a series of characters. When `true`, they are treated as a single
+zero-width unit.
+
+Note: this option is ignored by the `Truncate` methods, as the concatenation
+can lead to unintended UTF-8 semantics.
+
 #### EastAsianWidth
 
 `EastAsianWidth` defines how
