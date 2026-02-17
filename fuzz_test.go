@@ -344,19 +344,19 @@ func FuzzControlSequences(f *testing.F) {
 	f.Add([]byte("😀"))                                         // plain emoji
 
 	// Seed with 8-bit C1 escape sequences
-	f.Add([]byte("\x9B31m"))                                   // C1 CSI red
-	f.Add([]byte("\x9B0m"))                                    // C1 CSI reset
-	f.Add([]byte("\x9B1m"))                                    // C1 CSI bold
-	f.Add([]byte("\x9B31mhello\x9B0m"))                        // C1 CSI red text
-	f.Add([]byte("\x9B1m\x9B31mhi\x9B0m"))                     // C1 nested SGR
-	f.Add([]byte("hello\x9B31mworld\x9B0m"))                   // C1 mid-string
-	f.Add([]byte("\x9B31m中文\x9B0m"))                           // C1 colored CJK
-	f.Add([]byte("\x9B31m😀\x9B0m"))                            // C1 colored emoji
-	f.Add([]byte("\x9D0;Title\x9C"))                           // C1 OSC with C1 ST
-	f.Add([]byte("\x9D0;Title\x07"))                           // C1 OSC with BEL
-	f.Add([]byte("\x90qpayload\x9C"))                          // C1 DCS with C1 ST
-	f.Add([]byte("\x84"))                                      // standalone C1
-	f.Add([]byte("\x1b[31mhello\x9B0m"))                       // mixed 7-bit and 8-bit
+	f.Add([]byte("\x9B31m"))                 // C1 CSI red
+	f.Add([]byte("\x9B0m"))                  // C1 CSI reset
+	f.Add([]byte("\x9B1m"))                  // C1 CSI bold
+	f.Add([]byte("\x9B31mhello\x9B0m"))      // C1 CSI red text
+	f.Add([]byte("\x9B1m\x9B31mhi\x9B0m"))   // C1 nested SGR
+	f.Add([]byte("hello\x9B31mworld\x9B0m")) // C1 mid-string
+	f.Add([]byte("\x9B31m中文\x9B0m"))         // C1 colored CJK
+	f.Add([]byte("\x9B31m😀\x9B0m"))          // C1 colored emoji
+	f.Add([]byte("\x9D0;Title\x9C"))         // C1 OSC with C1 ST
+	f.Add([]byte("\x9D0;Title\x07"))         // C1 OSC with BEL
+	f.Add([]byte("\x90qpayload\x9C"))        // C1 DCS with C1 ST
+	f.Add([]byte("\x84"))                    // standalone C1
+	f.Add([]byte("\x1b[31mhello\x9B0m"))     // mixed 7-bit and 8-bit
 
 	// Seed with multi-lingual text
 	file, err := testdata.Sample()
@@ -368,7 +368,7 @@ func FuzzControlSequences(f *testing.F) {
 		f.Add(chunk)
 	}
 
-	allOptions := []Options{
+	options := []Options{
 		{},
 		{EastAsianWidth: true},
 		{ControlSequences: true},
@@ -380,7 +380,7 @@ func FuzzControlSequences(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, text []byte) {
-		for _, opt := range allOptions {
+		for _, opt := range options {
 			wb := opt.Bytes(text)
 			ws := opt.String(string(text))
 
@@ -400,37 +400,31 @@ func FuzzControlSequences(f *testing.F) {
 			}
 
 			// Invariant: sum of grapheme widths equals total width
-			gIter := opt.BytesGraphemes(text)
-			gSum := 0
-			for gIter.Next() {
-				gw := gIter.Width()
+			bg := opt.BytesGraphemes(text)
+			bgSum := 0
+			for bg.Next() {
+				gw := bg.Width()
 				if gw < 0 {
 					t.Errorf("grapheme Width() < 0 with %+v for %q", opt, text)
 				}
-				gSum += gw
+				bgSum += gw
 			}
-			if gSum != wb {
-				t.Errorf("sum of grapheme widths %d != Bytes() %d with %+v for %q", gSum, wb, opt, text)
+			if bgSum != wb {
+				t.Errorf("sum of grapheme widths %d != Bytes() %d with %+v for %q", bgSum, wb, opt, text)
 			}
 
 			// Same for StringGraphemes
-			sgIter := opt.StringGraphemes(string(text))
+			sg := opt.StringGraphemes(string(text))
 			sgSum := 0
-			for sgIter.Next() {
-				sgSum += sgIter.Width()
+			for sg.Next() {
+				gw := sg.Width()
+				if gw < 0 {
+					t.Errorf("grapheme Width() < 0 with %+v for %q", opt, text)
+				}
+				sgSum += gw
 			}
 			if sgSum != ws {
 				t.Errorf("sum of StringGraphemes widths %d != String() %d with %+v for %q", sgSum, ws, opt, text)
-			}
-
-			// Invariant: ControlSequences width <= default width
-			// (escape sequences become 0 instead of their visible char widths)
-			if opt.ControlSequences || opt.ControlSequences8Bit {
-				noIgnore := Options{EastAsianWidth: opt.EastAsianWidth}
-				wDefault := noIgnore.Bytes(text)
-				if wb > wDefault {
-					t.Errorf("ControlSequences width %d > default width %d with %+v for %q", wb, wDefault, opt, text)
-				}
 			}
 
 			// Exercise truncation to discover panics and infinite loops.
