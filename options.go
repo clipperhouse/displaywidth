@@ -21,7 +21,8 @@ type Options struct {
 }
 
 // DefaultOptions is the default options for the display width
-// calculation, which is EastAsianWidth false and ControlSequences false.
+// calculation, which is EastAsianWidth false, ControlSequences false, and
+// ControlSequences8Bit false.
 var DefaultOptions = Options{
 	EastAsianWidth:       false,
 	ControlSequences:     false,
