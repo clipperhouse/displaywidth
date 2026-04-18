@@ -72,8 +72,8 @@ func TestLibraryBehaviorComparison(t *testing.T) {
 			expected: map[string]int{
 				"displaywidth_default":   14, // 2 per emoji (properly handles Unicode 16.0)
 				"displaywidth_options{}": 14,
-				"go-runewidth_default":   7, // go-runewidth may not fully support Unicode 16.0 yet (treats as width 1)
-				"uniseg_default":         7, // uniseg may not fully support Unicode 16.0 yet (treats as width 1)
+				"go-runewidth_default":   14, // go-runewidth may not fully support Unicode 16.0 yet (treats as width 1)
+				"uniseg_default":         7,  // uniseg may not fully support Unicode 16.0 yet (treats as width 1)
 			},
 		},
 

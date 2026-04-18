@@ -3,8 +3,8 @@ module github.com/clipperhouse/displaywidth/comparison
 go 1.18
 
 require (
-	github.com/clipperhouse/displaywidth v0.10.0
-	github.com/mattn/go-runewidth v0.0.19
+	github.com/clipperhouse/displaywidth v0.11.0
+	github.com/mattn/go-runewidth v0.0.23
 	github.com/rivo/uniseg v0.4.7
 )
 
