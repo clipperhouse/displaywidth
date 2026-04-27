@@ -171,15 +171,33 @@ func graphemeWidth[T ~string | []byte](s T, options Options) int {
 	p, sz := lookup(s)
 	prop := property(p)
 
-	// Variation Selector 16 (VS16) requests emoji presentation
-	if prop != _Wide && sz > 0 && len(s) >= sz+3 {
-		vs := s[sz : sz+3]
-		if isVS16(vs) {
-			prop = _Wide
+	// Check remaining bytes in the grapheme cluster for modifiers that
+	// indicate emoji presentation (width 2).
+	//
+	// VS16 (U+FE0F) requests emoji presentation per Unicode TR51.
+	// Emoji modifiers (U+1F3FB–U+1F3FF, skin tones) form an
+	// emoji_modifier_sequence per UTS#51 ED-13, which is always
+	// rendered in emoji presentation.
+	//
+	// We scan the full cluster because these modifiers may not be
+	// immediately adjacent to the base character (e.g., in ZWJ
+	// sequences like ⛹🏻‍♂️ where VS16 is at the end).
+	if prop != _Wide && sz > 0 && len(s) > sz {
+		for i := sz; i < len(s); i++ {
+			// VS16: U+FE0F, UTF-8 is EF B8 8F
+			if i+2 < len(s) && s[i] == 0xEF && s[i+1] == 0xB8 && s[i+2] == 0x8F {
+				prop = _Wide
+				break
+			}
+			// Emoji modifier (skin tone): U+1F3FB–U+1F3FF
+			// UTF-8 is F0 9F 8F BB through F0 9F 8F BF
+			if i+3 < len(s) && s[i] == 0xF0 && s[i+1] == 0x9F && s[i+2] == 0x8F && s[i+3] >= 0xBB && s[i+3] <= 0xBF {
+				prop = _Wide
+				break
+			}
 		}
-		// VS15 (0x8E) requests text presentation but does not affect width,
-		// in my reading of Unicode TR51. Falls through to return the base
-		// character's property.
+		// VS15 (U+FE0E) requests text presentation but does not affect
+		// width, in my reading of Unicode TR51.
 	}
 
 	if options.EastAsianWidth && prop == _East_Asian_Ambiguous {

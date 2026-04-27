@@ -60,6 +60,26 @@ func TestStringWidth(t *testing.T) {
 		{"keycap 1️⃣", "1️⃣", defaultOptions, 2},        // Keycap sequence: 1 + VS16 + U+20E3 (always width 2)
 		{"keycap #️⃣", "#️⃣", defaultOptions, 2},        // Keycap sequence: # + VS16 + U+20E3 (always width 2)
 
+		// Bug fix: VS16 not adjacent to first rune in ZWJ + skin-tone + gender sequences.
+		// VS16 appears at the end, many bytes after the first rune.
+		{"⛹🏻‍♂️ bouncing ball m tone1", "\u26F9\U0001F3FB\u200D\u2642\uFE0F", defaultOptions, 2},
+		{"🕵🏻‍♂️ detective m tone1", "\U0001F575\U0001F3FB\u200D\u2642\uFE0F", defaultOptions, 2},
+		{"🏌🏻‍♀️ golfing f tone1", "\U0001F3CC\U0001F3FB\u200D\u2640\uFE0F", defaultOptions, 2},
+		{"🏋🏿‍♂️ weights m tone5", "\U0001F3CB\U0001F3FF\u200D\u2642\uFE0F", defaultOptions, 2},
+		{"⛹🏾‍♀️ bouncing ball f tone4", "\u26F9\U0001F3FE\u200D\u2640\uFE0F", defaultOptions, 2},
+		{"🕵🏿‍♀️ detective f tone5", "\U0001F575\U0001F3FF\u200D\u2640\uFE0F", defaultOptions, 2},
+
+		// Bug fix: skin-tone modifier on text-default Extended_Pictographic base.
+		// These form emoji_modifier_sequences (UTS#51 ED-13) and should be width 2.
+		{"🕵🏻 detective skin", "\U0001F575\U0001F3FB", defaultOptions, 2},
+		{"☝🏽 point up skin", "\u261D\U0001F3FD", defaultOptions, 2},
+		{"✌🏾 victory skin", "\u270C\U0001F3FE", defaultOptions, 2},
+		{"✍🏿 writing hand skin", "\u270D\U0001F3FF", defaultOptions, 2},
+		{"🖐🏻 hand splayed skin", "\U0001F590\U0001F3FB", defaultOptions, 2},
+		{"⛹🏼 bouncing ball skin", "\u26F9\U0001F3FC", defaultOptions, 2},
+		{"🏌🏽 golfing skin", "\U0001F3CC\U0001F3FD", defaultOptions, 2},
+		{"🏋🏾 weights skin", "\U0001F3CB\U0001F3FE", defaultOptions, 2},
+
 		// Flags (regional indicator pairs form a single grapheme, always width 2 per TR51)
 		{"flag US", "🇺🇸", defaultOptions, 2},
 		{"flag JP", "🇯🇵", defaultOptions, 2},
