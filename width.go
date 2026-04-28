@@ -168,6 +168,13 @@ func graphemeWidth[T ~string | []byte](s T, options Options) int {
 		return 0
 	}
 
+	// External (probed) widths override the spec tables. Skipped for
+	// ASCII because external maps are intended for emoji/CJK clusters,
+	// not single bytes.
+	if w, ok := externalLookup(s); ok {
+		return w
+	}
+
 	p, sz := lookup(s)
 	prop := property(p)
 
