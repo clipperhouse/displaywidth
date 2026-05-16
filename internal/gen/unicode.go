@@ -18,6 +18,7 @@ type UnicodeData struct {
 	EastAsianWidth       map[rune]string // From EastAsianWidth.txt
 	ExtendedPictographic map[rune]bool   // From emoji-data.txt (Extended_Pictographic property)
 	EmojiPresentation    map[rune]bool   // From emoji-data.txt (Emoji_Presentation property)
+	VS16Eligible         map[rune]bool   // From emoji-variation-sequences.txt (base chars with valid FE0F sequence)
 	RegionalIndicator    map[rune]bool   // From emoji-data.txt (Regional Indicator symbols, range 1F1E6..1F1FF)
 	ControlChars         map[rune]bool   // From Go stdlib
 	CombiningMarks       map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
@@ -39,17 +40,20 @@ var PropertyDefinitions = []PropertyDefinition{
 	{"Zero_Width", "Always 0 width, includes combining marks, control characters, non-printable, etc"},
 	{"Wide", "Always 2 wide (East Asian Wide F/W, Emoji, Regional Indicator)"},
 	{"East_Asian_Ambiguous", "Width depends on EastAsianWidth option"},
+	{"VS16_Eligible", "Default width 1, but FE0F (VS16) requests emoji presentation (width 2)"},
 }
 
 // these constants are used to build the property bitmap, internally.
 // the external properties are above. Keep them in the same order!
 const (
 	// ZWSP, ZWJ, ZWNJ, etc.
-	zero_Width property = iota + 1
+	zero_Width property = 1 << iota
 	// F, W (East Asian Wide), Emoji, Regional Indicator
 	wide
 	// A (East Asian Ambiguous)
 	east_Asian_Ambiguous
+	// Valid base for emoji variation sequence with VS16 (FE0F)
+	vs16_Eligible
 )
 
 // ParseUnicodeData downloads and parses all required Unicode data files
@@ -58,6 +62,7 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		EastAsianWidth:       make(map[rune]string),
 		ExtendedPictographic: make(map[rune]bool),
 		EmojiPresentation:    make(map[rune]bool),
+		VS16Eligible:         make(map[rune]bool),
 		RegionalIndicator:    make(map[rune]bool),
 		ControlChars:         make(map[rune]bool),
 		CombiningMarks:       make(map[rune]bool),
@@ -88,6 +93,17 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		if err := parseEmojiData(emojiFile, data); err != nil {
 			fmt.Printf("Warning: failed to parse emoji-data.txt: %v\n", err)
 			fmt.Println("Continuing with basic emoji detection from Go stdlib...")
+		}
+	}
+
+	variationFile := filepath.Join(dataDir, "emoji-variation-sequences.txt")
+	if err := downloadFile(fmt.Sprintf("https://unicode.org/Public/%s/ucd/emoji/emoji-variation-sequences.txt", unicodeVersion), variationFile); err != nil {
+		fmt.Printf("Warning: failed to download emoji-variation-sequences.txt: %v\n", err)
+		fmt.Println("Continuing without VS16 eligibility data...")
+	} else {
+		if err := parseEmojiVariationSequences(variationFile, data); err != nil {
+			fmt.Printf("Warning: failed to parse emoji-variation-sequences.txt: %v\n", err)
+			fmt.Println("Continuing without VS16 eligibility data...")
 		}
 	}
 
@@ -277,6 +293,52 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 	return scanner.Err()
 }
 
+// parseEmojiVariationSequences parses emoji-variation-sequences.txt and marks
+// bases that have a valid emoji presentation sequence (base + FE0F).
+func parseEmojiVariationSequences(filename string, data *UnicodeData) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.Split(line, ";")
+		if len(parts) < 2 {
+			continue
+		}
+
+		seq := strings.TrimSpace(parts[0])
+		fields := strings.Fields(seq)
+		if len(fields) != 2 {
+			continue
+		}
+
+		base, err := strconv.ParseInt(fields[0], 16, 32)
+		if err != nil {
+			continue
+		}
+		vs, err := strconv.ParseInt(fields[1], 16, 32)
+		if err != nil {
+			continue
+		}
+
+		if rune(vs) != 0xFE0F {
+			continue
+		}
+
+		data.VS16Eligible[rune(base)] = true
+	}
+
+	return scanner.Err()
+}
+
 // extractStdlibData extracts character properties from Go's unicode package
 func extractStdlibData(data *UnicodeData) {
 	// Extract control characters
@@ -327,6 +389,8 @@ func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool)
 }
 
 func buildPropertyBitmap(r rune, data *UnicodeData) property {
+	var props property
+
 	if data.CombiningMarks[r] {
 		return zero_Width
 	}
@@ -345,23 +409,27 @@ func buildPropertyBitmap(r rune, data *UnicodeData) property {
 
 	// Check for Regional Indicator before emoji
 	if data.RegionalIndicator[r] {
-		return wide
+		props |= wide
 	}
 
 	if data.ExtendedPictographic[r] && data.EmojiPresentation[r] {
-		return wide
+		props |= wide
+	}
+
+	if data.VS16Eligible[r] {
+		props |= vs16_Eligible
 	}
 
 	if eaw, exists := data.EastAsianWidth[r]; exists {
 		switch eaw {
 		case "F", "W":
-			return wide
+			props |= wide
 		case "A":
-			return east_Asian_Ambiguous
+			props |= east_Asian_Ambiguous
 			// H (Halfwidth), Na (Narrow), and N (Neutral) are not stored
 			// as they all result in width 1 (default behavior)
 		}
 	}
 
-	return 0
+	return props
 }

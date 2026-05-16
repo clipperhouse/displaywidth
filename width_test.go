@@ -864,8 +864,9 @@ func TestTR51Conformance(t *testing.T) {
 		}
 	})
 
-	t.Run("C3: VS16 forces emoji presentation", func(t *testing.T) {
-		// VS16 (U+FE0F) should force emoji presentation (width 2) even for text-presentation characters
+	t.Run("C3: VS16 forces emoji presentation for valid bases", func(t *testing.T) {
+		// VS16 (U+FE0F) should force emoji presentation (width 2)
+		// for characters that have valid emoji variation sequences.
 		textWithVS16 := []string{
 			"\u2721\uFE0F", // ✡️ star of David with VS16
 			"\u2692\uFE0F", // ⚒️ hammer and pick with VS16
@@ -876,7 +877,46 @@ func TestTR51Conformance(t *testing.T) {
 		for _, s := range textWithVS16 {
 			got := String(s)
 			if got != 2 {
-				t.Errorf("String(%q) with VS16 = %d, want 2 (VS16 should force emoji presentation)", s, got)
+				t.Errorf("String(%q) with VS16 = %d, want 2 (valid VS16 sequence should force emoji presentation)", s, got)
+			}
+		}
+	})
+
+	t.Run("C4: VS16 is ignored for invalid bases", func(t *testing.T) {
+		invalidVS16 := []struct {
+			base string
+			with string
+		}{
+			{"a", "a\uFE0F"},
+			{"ⓜ", "ⓜ\uFE0F"},
+		}
+
+		for _, tc := range invalidVS16 {
+			baseWidth := String(tc.base)
+			withVS16Width := String(tc.with)
+			if withVS16Width != baseWidth {
+				t.Errorf("String(%q) with VS16 = %d, want %d (invalid VS16 sequence should be ignored)", tc.with, withVS16Width, baseWidth)
+			}
+		}
+	})
+
+	t.Run("C5: later VS16 in ZWJ sequences still yields emoji width", func(t *testing.T) {
+		// These sequences place FE0F later in the grapheme cluster (not
+		// immediately after the first code point). They are valid RGI ZWJ
+		// sequences and should still have width 2.
+		tests := []struct {
+			sequence string
+			desc     string
+		}{
+			{"\u26F9\U0001F3FB\u200D\u2642\uFE0F", "man bouncing ball: light skin tone (⛹🏻‍♂️)"},
+			{"\U0001F3CB\U0001F3FD\u200D\u2640\uFE0F", "woman lifting weights: medium skin tone (🏋🏽‍♀️)"},
+			{"\U0001F575\U0001F3FF\u200D\u2642\uFE0F", "man detective: dark skin tone (🕵🏿‍♂️)"},
+		}
+
+		for _, tt := range tests {
+			got := String(tt.sequence)
+			if got != 2 {
+				t.Errorf("String(%q) = %d, want 2 (%s)", tt.sequence, got, tt.desc)
 			}
 		}
 	})

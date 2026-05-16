@@ -171,26 +171,26 @@ func graphemeWidth[T ~string | []byte](s T, options Options) int {
 	p, sz := lookup(s)
 	prop := property(p)
 
-	// Variation Selector 16 (VS16) requests emoji presentation
-	if prop != _Wide && sz > 0 && len(s) >= sz+3 {
-		vs := s[sz : sz+3]
-		if isVS16(vs) {
-			prop = _Wide
-		}
-		// VS15 (0x8E) requests text presentation but does not affect width,
-		// in my reading of Unicode TR51. Falls through to return the base
-		// character's property.
+	if is(prop, _Zero_Width) {
+		return 0
 	}
 
-	if options.EastAsianWidth && prop == _East_Asian_Ambiguous {
-		prop = _Wide
+	if is(prop, _Wide) {
+		return 2
 	}
 
-	if prop > upperBound {
-		prop = _Default
+	// Variation Selector 16 (VS16) requests emoji presentation only for
+	// bases that have a valid emoji variation sequence (encoded as
+	// _VS16_Eligible in generated trie data).
+	if is(prop, _VS16_Eligible) && sz > 0 && len(s) >= sz+3 && isVS16(s[sz:sz+3]) {
+		return 2
 	}
 
-	return propertyWidths[prop]
+	if options.EastAsianWidth && is(prop, _East_Asian_Ambiguous) {
+		return 2
+	}
+
+	return 1
 }
 
 func asciiWidth(b byte) int {
@@ -228,12 +228,6 @@ func isVS16[T ~string | []byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
-// propertyWidths is a jump table of sorts, instead of a switch
-var propertyWidths = [4]int{
-	_Default:              1,
-	_Zero_Width:           0,
-	_Wide:                 2,
-	_East_Asian_Ambiguous: 1,
+func is(props, flag property) bool {
+	return props&flag != 0
 }
-
-const upperBound = property(len(propertyWidths) - 1)
