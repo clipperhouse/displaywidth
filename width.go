@@ -185,6 +185,9 @@ func graphemeWidth[T ~string | []byte](s T, options Options) int {
 	if is(prop, _VS16_Eligible) && sz > 0 && len(s) >= sz+3 && isVS16(s[sz:sz+3]) {
 		return 2
 	}
+	if hasEligibleVS16Pair(s, sz+1) {
+		return 2
+	}
 
 	if options.EastAsianWidth && is(prop, _East_Asian_Ambiguous) {
 		return 2
@@ -226,6 +229,44 @@ func printableASCIILength[T string | []byte](s T) int {
 // (EF B8 8F). It assumes len(s) >= 3.
 func isVS16[T ~string | []byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
+}
+
+// hasEligibleVS16Pair returns true if the grapheme contains any local
+// <base, FE0F> pair where the base has _VS16_Eligible in trie data.
+// It operates on UTF-8 bytes directly (no rune decoding).
+func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
+	if len(s) < 6 { // shortest useful pattern is 1-byte base + FE0F (3 bytes), plus context
+		return false
+	}
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i+2 < len(s); i++ {
+		if !isVS16(s[i:]) {
+			continue
+		}
+		if i == 0 {
+			continue
+		}
+
+		// Walk back to the start byte of the rune immediately before FE0F.
+		j := i - 1
+		for j > 0 && (s[j]&0xC0) == 0x80 {
+			j--
+		}
+
+		p, rsz := lookup(s[j:])
+		if rsz == 0 || j+rsz != i {
+			// Not an immediate local pair (or invalid UTF-8 boundary).
+			continue
+		}
+		if is(property(p), _VS16_Eligible) {
+			return true
+		}
+		// Skip FE0F bytes; next potential pair starts after them.
+		i += 2
+	}
+	return false
 }
 
 func is(props, flag property) bool {
