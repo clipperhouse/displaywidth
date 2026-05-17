@@ -1572,6 +1572,27 @@ func TestPrintableASCIILengthBytes(t *testing.T) {
 	}
 }
 
+func TestNamedStringAndByteTypes(t *testing.T) {
+	type namedString string
+	type namedBytes []byte
+
+	s := namedString("abc\x80")
+	if got := printableASCIILength(s); got != 2 {
+		t.Errorf("printableASCIILength(namedString) = %d, want 2", got)
+	}
+	if got := indexByte(s, 'b'); got != 1 {
+		t.Errorf("indexByte(namedString, 'b') = %d, want 1", got)
+	}
+
+	b := namedBytes{0xFF, 0x00, 'a', 'b'}
+	if got := printableASCIILength(b); got != 0 {
+		t.Errorf("printableASCIILength(namedBytes) = %d, want 0", got)
+	}
+	if got := indexByte(b, 0x00); got != 1 {
+		t.Errorf("indexByte(namedBytes, 0x00) = %d, want 1", got)
+	}
+}
+
 // TestPrintableASCIIOptimization verifies that the partial ASCII optimization
 // in String() and Bytes() works correctly for printable ASCII content.
 func TestPrintableASCIIOptimization(t *testing.T) {

@@ -67,7 +67,7 @@ func WriteTrieGo(trie *triegen.Trie, outputPath string) error {
 	b = bytes.ReplaceAll(b, []byte(typeDefSig), []byte(noTypeDef))
 
 	lookupSig := `(t *` + typename + `) lookup(s []byte)`
-	genericLookupSig := `lookup[T ~string | []byte](s T)`
+	genericLookupSig := `lookup[T ~string | ~[]byte](s T)`
 	b = bytes.ReplaceAll(b, []byte(lookupSig), []byte(genericLookupSig))
 
 	lookupValueSig := `(t *` + typename + `) lookupValue`

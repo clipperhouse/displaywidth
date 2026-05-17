@@ -146,7 +146,7 @@ func (options Options) Rune(r rune) int {
 
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
-func graphemeWidth[T ~string | []byte](s T, options Options) int {
+func graphemeWidth[T ~string | ~[]byte](s T, options Options) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -205,7 +205,7 @@ func asciiWidth(b byte) int {
 
 // printableASCIILength returns the length of consecutive printable ASCII bytes
 // starting at the beginning of s.
-func printableASCIILength[T string | []byte](s T) int {
+func printableASCIILength[T ~string | ~[]byte](s T) int {
 	i := 0
 	for ; i < len(s); i++ {
 		b := s[i]
@@ -227,7 +227,7 @@ func printableASCIILength[T string | []byte](s T) int {
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
 // (EF B8 8F). It assumes len(s) >= 3.
-func isVS16[T ~string | []byte](s T) bool {
+func isVS16[T ~string | ~[]byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
@@ -236,7 +236,7 @@ func isVS16[T ~string | []byte](s T) bool {
 // data. It uses IndexByte to skip directly to each 0xEF candidate and
 // only loops past candidates that aren't FE0F (e.g. FE0E, fullwidth
 // forms) or whose preceding rune is not eligible.
-func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
+func hasEligibleVS16Pair[T ~string | ~[]byte](s T, start int) bool {
 	if start < 0 {
 		start = 0
 	}
@@ -271,14 +271,15 @@ func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
 	return false
 }
 
-func indexByte[T ~string | []byte](s T, b byte) int {
+func indexByte[T ~string | ~[]byte](s T, b byte) int {
 	switch v := any(s).(type) {
 	case string:
 		return strings.IndexByte(v, b)
 	case []byte:
 		return bytes.IndexByte(v, b)
 	}
-	return -1
+	// Handles named string types (underlying type string).
+	return strings.IndexByte(string(s), b)
 }
 
 func is(props, flag property) bool {
