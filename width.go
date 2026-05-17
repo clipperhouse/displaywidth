@@ -1,6 +1,8 @@
 package displaywidth
 
 import (
+	"bytes"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/uax29/v2/graphemes"
@@ -231,42 +233,54 @@ func isVS16[T ~string | []byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
-// hasEligibleVS16Pair returns true if the grapheme contains any local
-// <base, FE0F> pair where the base has _VS16_Eligible in trie data.
-// It operates on UTF-8 bytes directly (no rune decoding).
+// hasEligibleVS16Pair returns true if the byte range starting at start
+// contains a base+FE0F pair where the base has _VS16_Eligible in trie
+// data. It uses IndexByte to skip directly to each 0xEF candidate and
+// only loops past candidates that aren't FE0F (e.g. FE0E, fullwidth
+// forms) or whose preceding rune is not eligible.
 func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
-	if len(s) < 4 { // shortest useful pattern is 1-byte base + FE0F (3 bytes)
-		return false
-	}
 	if start < 0 {
 		start = 0
 	}
-	for i := start; i+2 < len(s); i++ {
-		if !isVS16(s[i:]) {
-			continue
+	// 4 = minimum 1-byte base + 3-byte FE0F.
+	if len(s) < 4 {
+		return false
+	}
+	for start+2 < len(s) {
+		idx := indexByteG(s[start:], 0xEF)
+		if idx < 0 {
+			return false
 		}
-		if i == 0 {
+		i := start + idx
+		if i+2 >= len(s) {
+			return false
+		}
+		if !isVS16(s[i:]) || i == 0 {
+			start = i + 1
 			continue
 		}
 
-		// Walk back to the start byte of the rune immediately before FE0F.
 		j := i - 1
 		for j > 0 && (s[j]&0xC0) == 0x80 {
 			j--
 		}
-
 		p, rsz := lookup(s[j:])
-		if rsz == 0 || j+rsz != i {
-			// Not an immediate local pair (or invalid UTF-8 boundary).
-			continue
-		}
-		if is(property(p), _VS16_Eligible) {
+		if rsz > 0 && j+rsz == i && is(property(p), _VS16_Eligible) {
 			return true
 		}
-		// Skip FE0F bytes; next potential pair starts after them.
-		i += 2
+		start = i + 3
 	}
 	return false
+}
+
+func indexByteG[T ~string | []byte](s T, b byte) int {
+	switch v := any(s).(type) {
+	case string:
+		return strings.IndexByte(v, b)
+	case []byte:
+		return bytes.IndexByte(v, b)
+	}
+	return -1
 }
 
 func is(props, flag property) bool {

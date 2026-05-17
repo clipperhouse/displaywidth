@@ -921,6 +921,29 @@ func TestTR51Conformance(t *testing.T) {
 		}
 	})
 
+	t.Run("C6: non-FE0F 0xEF before a valid FE0F pair", func(t *testing.T) {
+		// 0xEF is the UTF-8 lead byte for U+F000..U+FFFF, so many runes
+		// other than FE0F start with it (FE0E, fullwidth forms, etc.).
+		// VS16 detection must keep looking past such candidates rather
+		// than stop at the first 0xEF byte. These are all single
+		// grapheme clusters with a valid <eligible-base, FE0F> pair
+		// later in the cluster, preceded by a non-FE0F 0xEF rune.
+		tests := []struct {
+			sequence string
+			desc     string
+		}{
+			{"\u26F9\u0301\uFE0E\u200D\u2660\uFE0F", "FE0E before the real FE0F (extend + ZWJ + spade)"},
+			{"\u26F9\uFE20\u200D\u2660\uFE0F", "FE20 (combining half mark) before the real FE0F"},
+		}
+
+		for _, tt := range tests {
+			got := String(tt.sequence)
+			if got != 2 {
+				t.Errorf("String(%q) = %d, want 2 (%s)", tt.sequence, got, tt.desc)
+			}
+		}
+	})
+
 	t.Run("ED-16: ZWJ Sequences treated as single grapheme", func(t *testing.T) {
 		// ZWJ sequences should be treated as a single grapheme cluster by the grapheme tokenizer
 		// and should have width 2 (since they display as a single emoji image)
