@@ -454,13 +454,13 @@ func FuzzHasEligibleVS16Pair(f *testing.F) {
 	seeds := []string{
 		"",
 		"a",
-		"a\uFE0F",                                // invalid VS16 base
-		"✡\uFE0F",                                // valid immediate VS16 pair
-		"👩‍❤️‍👨",                                  // later VS16 in ZWJ sequence
-		"\u26F9\U0001F3FB\u200D\u2642\uFE0F",     // later VS16 in skin-tone+gender sequence
-		"\u26F9\u0301\uFE0E\u200D\u2660\uFE0F",   // non-FE0F 0xEF (FE0E) before the real FE0F
-		"\u26F9\uFE20\u200D\u2660\uFE0F",         // non-FE0F 0xEF (FE20) before the real FE0F
-		"\xff\xfe\xfd",                           // invalid UTF-8
+		"a\uFE0F",                              // invalid VS16 base
+		"✡\uFE0F",                              // valid immediate VS16 pair
+		"👩‍❤️‍👨",                               // later VS16 in ZWJ sequence
+		"\u26F9\U0001F3FB\u200D\u2642\uFE0F",   // later VS16 in skin-tone+gender sequence
+		"\u26F9\u0301\uFE0E\u200D\u2660\uFE0F", // non-FE0F 0xEF (FE0E) before the real FE0F
+		"\u26F9\uFE20\u200D\u2660\uFE0F",       // non-FE0F 0xEF (FE20) before the real FE0F
+		"\xff\xfe\xfd",                         // invalid UTF-8
 	}
 	for _, s := range seeds {
 		f.Add([]byte(s), uint16(0))
@@ -506,7 +506,7 @@ func hasEligibleVS16PairReference(b []byte, start int) bool {
 
 		if i >= start && r == '\uFE0F' && prevStart >= 0 {
 			p, rsz := lookup(b[prevStart:])
-			if rsz > 0 && prevStart+rsz == i && is(property(p), _VS16_Eligible) {
+			if rsz > 0 && prevStart+rsz == i && property(p).is(_VS16_Eligible) {
 				return true
 			}
 		}

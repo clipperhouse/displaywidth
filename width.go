@@ -171,25 +171,22 @@ func graphemeWidth[T ~string | ~[]byte](s T, options Options) int {
 	p, sz := lookup(s)
 	prop := property(p)
 
-	if is(prop, _Zero_Width) {
+	if prop.is(_Zero_Width) {
 		return 0
 	}
 
-	if is(prop, _Wide) {
+	if prop.is(_Wide) {
 		return 2
 	}
 
-	// Variation Selector 16 (VS16) requests emoji presentation only for
-	// bases that have a valid emoji variation sequence (encoded as
-	// _VS16_Eligible in generated trie data).
-	if is(prop, _VS16_Eligible) && sz > 0 && len(s) >= sz+3 && isVS16(s[sz:sz+3]) {
+	if options.EastAsianWidth && prop.is(_East_Asian_Ambiguous) {
+		return 2
+	}
+
+	if prop.is(_VS16_Eligible) && sz > 0 && len(s) >= sz+3 && isVS16(s[sz:sz+3]) {
 		return 2
 	}
 	if hasEligibleVS16Pair(s, sz+1) {
-		return 2
-	}
-
-	if options.EastAsianWidth && is(prop, _East_Asian_Ambiguous) {
 		return 2
 	}
 
@@ -263,7 +260,7 @@ func hasEligibleVS16Pair[T ~string | ~[]byte](s T, start int) bool {
 			j--
 		}
 		p, rsz := lookup(s[j:])
-		if rsz > 0 && j+rsz == i && is(property(p), _VS16_Eligible) {
+		if rsz > 0 && j+rsz == i && property(p).is(_VS16_Eligible) {
 			return true
 		}
 		start = i + 3
@@ -282,6 +279,6 @@ func indexByte[T ~string | ~[]byte](s T, b byte) int {
 	return strings.IndexByte(string(s), b)
 }
 
-func is(props, flag property) bool {
+func (props property) is(flag property) bool {
 	return props&flag != 0
 }
