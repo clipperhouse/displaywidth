@@ -235,7 +235,7 @@ func isVS16[T ~string | []byte](s T) bool {
 // <base, FE0F> pair where the base has _VS16_Eligible in trie data.
 // It operates on UTF-8 bytes directly (no rune decoding).
 func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
-	if len(s) < 6 { // shortest useful pattern is 1-byte base + FE0F (3 bytes), plus context
+	if len(s) < 4 { // shortest useful pattern is 1-byte base + FE0F (3 bytes)
 		return false
 	}
 	if start < 0 {
