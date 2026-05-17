@@ -98,13 +98,10 @@ func ParseUnicodeData() (*UnicodeData, error) {
 
 	variationFile := filepath.Join(dataDir, "emoji-variation-sequences.txt")
 	if err := downloadFile(fmt.Sprintf("https://unicode.org/Public/%s/ucd/emoji/emoji-variation-sequences.txt", unicodeVersion), variationFile); err != nil {
-		fmt.Printf("Warning: failed to download emoji-variation-sequences.txt: %v\n", err)
-		fmt.Println("Continuing without VS16 eligibility data...")
-	} else {
-		if err := parseEmojiVariationSequences(variationFile, data); err != nil {
-			fmt.Printf("Warning: failed to parse emoji-variation-sequences.txt: %v\n", err)
-			fmt.Println("Continuing without VS16 eligibility data...")
-		}
+		return nil, fmt.Errorf("failed to download emoji-variation-sequences.txt: %v", err)
+	}
+	if err := parseEmojiVariationSequences(variationFile, data); err != nil {
+		return nil, fmt.Errorf("failed to parse emoji-variation-sequences.txt: %v", err)
 	}
 
 	extractStdlibData(data)
@@ -295,6 +292,12 @@ func parseEmojiData(filename string, data *UnicodeData) error {
 
 // parseEmojiVariationSequences parses emoji-variation-sequences.txt and marks
 // bases that have a valid emoji presentation sequence (base + FE0F).
+//
+// Any non-blank, non-comment line that does not match the expected
+// "<base> <vs> ; <style> ; <comment>" grammar is treated as a fatal
+// error: the upstream UCD format is stable, so a deviation indicates a
+// corrupted or unexpected file and we must not silently emit a trie
+// missing VS16-eligibility data.
 func parseEmojiVariationSequences(filename string, data *UnicodeData) error {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -303,7 +306,9 @@ func parseEmojiVariationSequences(filename string, data *UnicodeData) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -311,24 +316,26 @@ func parseEmojiVariationSequences(filename string, data *UnicodeData) error {
 
 		parts := strings.Split(line, ";")
 		if len(parts) < 2 {
-			continue
+			return fmt.Errorf("%s:%d: expected at least two ';'-separated fields, got %q", filename, lineNum, line)
 		}
 
 		seq := strings.TrimSpace(parts[0])
 		fields := strings.Fields(seq)
 		if len(fields) != 2 {
-			continue
+			return fmt.Errorf("%s:%d: expected '<base> <vs>' in first field, got %q", filename, lineNum, seq)
 		}
 
 		base, err := strconv.ParseInt(fields[0], 16, 32)
 		if err != nil {
-			continue
+			return fmt.Errorf("%s:%d: invalid base codepoint %q: %w", filename, lineNum, fields[0], err)
 		}
 		vs, err := strconv.ParseInt(fields[1], 16, 32)
 		if err != nil {
-			continue
+			return fmt.Errorf("%s:%d: invalid variation selector codepoint %q: %w", filename, lineNum, fields[1], err)
 		}
 
+		// VS15 (FE0E) entries are valid data we intentionally ignore;
+		// only VS16 (FE0F) bases affect width.
 		if rune(vs) != 0xFE0F {
 			continue
 		}
