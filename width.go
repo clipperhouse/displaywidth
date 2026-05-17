@@ -144,8 +144,6 @@ func (options Options) Rune(r rune) int {
 	return graphemeWidth(buf[:n], options)
 }
 
-const _Default property = 0
-
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
 func graphemeWidth[T ~string | []byte](s T, options Options) int {
@@ -247,7 +245,7 @@ func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
 		return false
 	}
 	for start+2 < len(s) {
-		idx := indexByteG(s[start:], 0xEF)
+		idx := indexByte(s[start:], 0xEF)
 		if idx < 0 {
 			return false
 		}
@@ -273,7 +271,7 @@ func hasEligibleVS16Pair[T ~string | []byte](s T, start int) bool {
 	return false
 }
 
-func indexByteG[T ~string | []byte](s T, b byte) int {
+func indexByte[T ~string | []byte](s T, b byte) int {
 	switch v := any(s).(type) {
 	case string:
 		return strings.IndexByte(v, b)
