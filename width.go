@@ -1,6 +1,8 @@
 package displaywidth
 
 import (
+	"bytes"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/uax29/v2/graphemes"
@@ -142,11 +144,9 @@ func (options Options) Rune(r rune) int {
 	return graphemeWidth(buf[:n], options)
 }
 
-const _Default property = 0
-
 // graphemeWidth returns the display width of a grapheme cluster.
 // The passed string must be a single grapheme cluster.
-func graphemeWidth[T ~string | []byte](s T, options Options) int {
+func graphemeWidth[T ~string | ~[]byte](s T, options Options) int {
 	if len(s) == 0 {
 		return 0
 	}
@@ -171,26 +171,26 @@ func graphemeWidth[T ~string | []byte](s T, options Options) int {
 	p, sz := lookup(s)
 	prop := property(p)
 
-	// Variation Selector 16 (VS16) requests emoji presentation
-	if prop != _Wide && sz > 0 && len(s) >= sz+3 {
-		vs := s[sz : sz+3]
-		if isVS16(vs) {
-			prop = _Wide
-		}
-		// VS15 (0x8E) requests text presentation but does not affect width,
-		// in my reading of Unicode TR51. Falls through to return the base
-		// character's property.
+	if prop.is(_Zero_Width) {
+		return 0
 	}
 
-	if options.EastAsianWidth && prop == _East_Asian_Ambiguous {
-		prop = _Wide
+	if prop.is(_Wide) {
+		return 2
 	}
 
-	if prop > upperBound {
-		prop = _Default
+	if options.EastAsianWidth && prop.is(_East_Asian_Ambiguous) {
+		return 2
 	}
 
-	return propertyWidths[prop]
+	if prop.is(_VS16_Eligible) && sz > 0 && len(s) >= sz+3 && isVS16(s[sz:sz+3]) {
+		return 2
+	}
+	if hasEligibleVS16Pair(s, sz+1) {
+		return 2
+	}
+
+	return 1
 }
 
 func asciiWidth(b byte) int {
@@ -202,7 +202,7 @@ func asciiWidth(b byte) int {
 
 // printableASCIILength returns the length of consecutive printable ASCII bytes
 // starting at the beginning of s.
-func printableASCIILength[T string | []byte](s T) int {
+func printableASCIILength[T ~string | ~[]byte](s T) int {
 	i := 0
 	for ; i < len(s); i++ {
 		b := s[i]
@@ -224,16 +224,61 @@ func printableASCIILength[T string | []byte](s T) int {
 
 // isVS16 checks if the slice matches VS16 (U+FE0F) UTF-8 encoding
 // (EF B8 8F). It assumes len(s) >= 3.
-func isVS16[T ~string | []byte](s T) bool {
+func isVS16[T ~string | ~[]byte](s T) bool {
 	return s[0] == 0xEF && s[1] == 0xB8 && s[2] == 0x8F
 }
 
-// propertyWidths is a jump table of sorts, instead of a switch
-var propertyWidths = [4]int{
-	_Default:              1,
-	_Zero_Width:           0,
-	_Wide:                 2,
-	_East_Asian_Ambiguous: 1,
+// hasEligibleVS16Pair returns true if the byte range starting at start
+// contains a base+FE0F pair where the base has _VS16_Eligible in trie
+// data. It uses IndexByte to skip directly to each 0xEF candidate and
+// only loops past candidates that aren't FE0F (e.g. FE0E, fullwidth
+// forms) or whose preceding rune is not eligible.
+func hasEligibleVS16Pair[T ~string | ~[]byte](s T, start int) bool {
+	if start < 0 {
+		start = 0
+	}
+	// 4 = minimum 1-byte base + 3-byte FE0F.
+	if len(s) < 4 {
+		return false
+	}
+	for start+2 < len(s) {
+		idx := indexByte(s[start:], 0xEF)
+		if idx < 0 {
+			return false
+		}
+		i := start + idx
+		if i+2 >= len(s) {
+			return false
+		}
+		if !isVS16(s[i:]) || i == 0 {
+			start = i + 1
+			continue
+		}
+
+		j := i - 1
+		for j > 0 && (s[j]&0xC0) == 0x80 {
+			j--
+		}
+		p, rsz := lookup(s[j:])
+		if rsz > 0 && j+rsz == i && property(p).is(_VS16_Eligible) {
+			return true
+		}
+		start = i + 3
+	}
+	return false
 }
 
-const upperBound = property(len(propertyWidths) - 1)
+func indexByte[T ~string | ~[]byte](s T, b byte) int {
+	switch v := any(s).(type) {
+	case string:
+		return strings.IndexByte(v, b)
+	case []byte:
+		return bytes.IndexByte(v, b)
+	}
+	// Handles named string types (underlying type string).
+	return strings.IndexByte(string(s), b)
+}
+
+func (props property) is(flag property) bool {
+	return props&flag != 0
+}

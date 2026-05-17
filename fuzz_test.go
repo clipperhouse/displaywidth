@@ -443,3 +443,77 @@ func FuzzControlSequences(f *testing.F) {
 		}
 	})
 }
+
+// FuzzHasEligibleVS16Pair fuzzes byte-level VS16 detection against
+// a slower UTF-8-decoding reference implementation.
+func FuzzHasEligibleVS16Pair(f *testing.F) {
+	if testing.Short() {
+		f.Skip("skipping fuzz test in short mode")
+	}
+
+	seeds := []string{
+		"",
+		"a",
+		"a\uFE0F",                              // invalid VS16 base
+		"✡\uFE0F",                              // valid immediate VS16 pair
+		"👩‍❤️‍👨",                               // later VS16 in ZWJ sequence
+		"\u26F9\U0001F3FB\u200D\u2642\uFE0F",   // later VS16 in skin-tone+gender sequence
+		"\u26F9\u0301\uFE0E\u200D\u2660\uFE0F", // non-FE0F 0xEF (FE0E) before the real FE0F
+		"\u26F9\uFE20\u200D\u2660\uFE0F",       // non-FE0F 0xEF (FE20) before the real FE0F
+		"\xff\xfe\xfd",                         // invalid UTF-8
+	}
+	for _, s := range seeds {
+		f.Add([]byte(s), uint16(0))
+		f.Add([]byte(s), uint16(1))
+		f.Add([]byte(s), uint16(7))
+	}
+
+	f.Fuzz(func(t *testing.T, text []byte, startSeed uint16) {
+		// Exercise a range that includes in-bounds and out-of-bounds starts.
+		start := int(startSeed)
+		if len(text) > 0 {
+			start %= (len(text) + 3)
+		}
+
+		gotBytes := hasEligibleVS16Pair(text, start)
+		gotString := hasEligibleVS16Pair(string(text), start)
+		if gotBytes != gotString {
+			t.Errorf("hasEligibleVS16Pair bytes/string mismatch for %q start=%d: %v != %v", text, start, gotBytes, gotString)
+		}
+
+		want := hasEligibleVS16PairReference(text, start)
+		if gotBytes != want {
+			t.Errorf("hasEligibleVS16Pair(%q, start=%d) = %v, want %v", text, start, gotBytes, want)
+		}
+	})
+}
+
+func hasEligibleVS16PairReference(b []byte, start int) bool {
+	if len(b) == 0 || start >= len(b) {
+		return false
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	i := 0
+	prevStart := -1
+	for i < len(b) {
+		r, sz := utf8.DecodeRune(b[i:])
+		if sz <= 0 {
+			break
+		}
+
+		if i >= start && r == '\uFE0F' && prevStart >= 0 {
+			p, rsz := lookup(b[prevStart:])
+			if rsz > 0 && prevStart+rsz == i && property(p).is(_VS16_Eligible) {
+				return true
+			}
+		}
+
+		prevStart = i
+		i += sz
+	}
+
+	return false
+}

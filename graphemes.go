@@ -8,7 +8,7 @@ import (
 //
 // Iterate using the Next method, and get the width of the current grapheme
 // using the Width method.
-type Graphemes[T ~string | []byte] struct {
+type Graphemes[T ~string | ~[]byte] struct {
 	iter    *graphemes.Iterator[T]
 	options Options
 }
