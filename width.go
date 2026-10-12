@@ -190,7 +190,20 @@ func graphemeWidth[T ~string | ~[]byte](s T, options Options) int {
 		return 2
 	}
 
+	// U+0E33 (SARA AM) is one grapheme with the preceding consonant, and it
+	// includes a spacing SARA AA. The cluster takes two terminal cells.
+	// A SARA AM with no preceding base stays one cell.
+	if len(s) > 3 && endsWithSaraAm(s) {
+		return 2
+	}
+
 	return 1
+}
+
+// endsWithSaraAm reports whether s ends with U+0E33 (UTF-8 E0 B8 B3).
+func endsWithSaraAm[T ~string | ~[]byte](s T) bool {
+	n := len(s)
+	return n >= 3 && s[n-3] == 0xE0 && s[n-2] == 0xB8 && s[n-1] == 0xB3
 }
 
 func asciiWidth(b byte) int {

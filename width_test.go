@@ -109,6 +109,29 @@ var controlSequences = Options{ControlSequences: true}
 var controlSequences8Bit = Options{ControlSequences8Bit: true}
 var controlSequencesBoth = Options{ControlSequences: true, ControlSequences8Bit: true}
 
+func TestThaiSaraAmIsTwoCells(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{"นำ", 2},
+		{"น้ำ", 2},
+		{"คำ", 2},
+		{"ค้ำ", 2},
+		{"นำนำ", 4},
+		{"ำ", 1},
+		{"น", 1},
+	}
+	for _, tt := range tests {
+		if got := String(tt.input); got != tt.expected {
+			t.Errorf("String(%q) = %d, want %d", tt.input, got, tt.expected)
+		}
+	}
+	if got := Rune('\u0E33'); got != 1 {
+		t.Errorf("Rune(SARA AM) = %d, want 1", got)
+	}
+}
+
 func TestAnsiEscapeSequences(t *testing.T) {
 	tests := []struct {
 		name     string
