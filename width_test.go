@@ -132,6 +132,26 @@ func TestThaiSaraAmIsTwoCells(t *testing.T) {
 	}
 }
 
+func TestLaoVowelSignAmIsTwoCells(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{"ກຳ", 2},
+		{"ກຳກຳ", 4},
+		{"ຳ", 1},
+		{"ກ", 1},
+	}
+	for _, tt := range tests {
+		if got := String(tt.input); got != tt.expected {
+			t.Errorf("String(%q) = %d, want %d", tt.input, got, tt.expected)
+		}
+	}
+	if got := Rune('\u0EB3'); got != 1 {
+		t.Errorf("Rune(LAO VOWEL SIGN AM) = %d, want 1", got)
+	}
+}
+
 func TestAnsiEscapeSequences(t *testing.T) {
 	tests := []struct {
 		name     string
