@@ -190,7 +190,25 @@ func graphemeWidth[T ~string | ~[]byte](s T, options Options) int {
 		return 2
 	}
 
+	// U+0E33 (SARA AM) and U+0EB3 (LAO VOWEL SIGN AM) are one grapheme
+	// with the preceding consonant, and each includes a spacing vowel.
+	// The cluster takes two terminal cells. Either mark with no
+	// preceding base stays one cell.
+	if len(s) > 3 && endsWithSpacingAm(s) {
+		return 2
+	}
+
 	return 1
+}
+
+// endsWithSpacingAm reports whether s ends with U+0E33 (E0 B8 B3)
+// or U+0EB3 (E0 BA B3).
+func endsWithSpacingAm[T ~string | ~[]byte](s T) bool {
+	n := len(s)
+	if n < 3 || s[n-3] != 0xE0 || s[n-1] != 0xB3 {
+		return false
+	}
+	return s[n-2] == 0xB8 || s[n-2] == 0xBA
 }
 
 func asciiWidth(b byte) int {
