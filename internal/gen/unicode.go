@@ -20,8 +20,8 @@ type UnicodeData struct {
 	EmojiPresentation    map[rune]bool   // From emoji-data.txt (Emoji_Presentation property)
 	VS16Eligible         map[rune]bool   // From emoji-variation-sequences.txt (base chars with valid FE0F sequence)
 	RegionalIndicator    map[rune]bool   // From emoji-data.txt (Regional Indicator symbols, range 1F1E6..1F1FF)
-	ControlChars         map[rune]bool   // From Go stdlib
-	CombiningMarks       map[rune]bool   // From Go stdlib (Mn, Me only - Mc excluded for proper width)
+	ControlChars         map[rune]bool   // C1 controls
+	CombiningMarks       map[rune]bool   // From DerivedGeneralCategory.txt (Mn, Me only; Mc excluded)
 	ZeroWidthChars       map[rune]bool   // Special zero-width characters
 }
 
@@ -104,7 +104,15 @@ func ParseUnicodeData() (*UnicodeData, error) {
 		return nil, fmt.Errorf("failed to parse emoji-variation-sequences.txt: %v", err)
 	}
 
-	extractStdlibData(data)
+	categoryFile := filepath.Join(dataDir, "DerivedGeneralCategory.txt")
+	if err := downloadFile(fmt.Sprintf("https://unicode.org/Public/%s/ucd/extracted/DerivedGeneralCategory.txt", unicodeVersion), categoryFile); err != nil {
+		return nil, fmt.Errorf("failed to download DerivedGeneralCategory.txt: %v", err)
+	}
+	if err := parseGeneralCategories(categoryFile, data); err != nil {
+		return nil, err
+	}
+
+	addSpecialCharacters(data)
 
 	return data, nil
 }
@@ -346,8 +354,54 @@ func parseEmojiVariationSequences(filename string, data *UnicodeData) error {
 	return scanner.Err()
 }
 
-// extractStdlibData extracts character properties from Go's unicode package
-func extractStdlibData(data *UnicodeData) {
+// parseGeneralCategories uses the same Unicode version as the other data files,
+// rather than the version of the Go compiler running the generator.
+func parseGeneralCategories(filename string, data *UnicodeData) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(strings.SplitN(scanner.Text(), "#", 2)[0])
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, ";")
+		if len(parts) != 2 {
+			return fmt.Errorf("%s:%d: expected range and category", filename, lineNum)
+		}
+		var target map[rune]bool
+		switch strings.TrimSpace(parts[1]) {
+		case "Mn", "Me":
+			target = data.CombiningMarks
+		case "Cf", "Zl", "Zp":
+			target = data.ZeroWidthChars
+		default:
+			// Mc spacing marks deliberately retain the default width.
+			continue
+		}
+		bounds := strings.Split(strings.TrimSpace(parts[0]), "..")
+		if len(bounds) > 2 {
+			return fmt.Errorf("%s:%d: invalid code point range", filename, lineNum)
+		}
+		start, err1 := strconv.ParseInt(bounds[0], 16, 32)
+		end, err2 := strconv.ParseInt(bounds[len(bounds)-1], 16, 32)
+		if err1 != nil || err2 != nil || start < 0 || end > unicode.MaxRune || start > end {
+			return fmt.Errorf("%s:%d: invalid code point range", filename, lineNum)
+		}
+		for r := rune(start); r <= rune(end); r++ {
+			target[r] = true
+		}
+	}
+	return scanner.Err()
+}
+
+func addSpecialCharacters(data *UnicodeData) {
 	// Extract control characters
 	// Skip 0x00-0x1F and 0x7F as they're handled by the fast path in width.go
 	// Only add C1 controls (0x80-0x9F) which are multi-byte in UTF-8
@@ -355,44 +409,9 @@ func extractStdlibData(data *UnicodeData) {
 		data.ControlChars[r] = true // C1 controls
 	}
 
-	// Extract combining marks using range tables for efficiency
-	// Mn: Nonspacing_Mark, Me: Enclosing_Mark
-	// Note: Mc (Spacing Mark) characters are excluded so they get default width 1
-	extractRunesFromRangeTable(unicode.Mn, data.CombiningMarks)
-	extractRunesFromRangeTable(unicode.Me, data.CombiningMarks)
-
-	// Cf (Other, format) is the official Unicode category for format characters
-	// which are generally invisible and have zero width.
-	extractRunesFromRangeTable(unicode.Cf, data.ZeroWidthChars)
-
-	// Zl (Other, line separator) is the official Unicode category for line separator characters
-	// which are generally invisible and have zero width.
-	extractRunesFromRangeTable(unicode.Zl, data.ZeroWidthChars)
-
-	// Zp (Other, paragraph separator) is the official Unicode category for paragraph separator characters
-	// which are generally invisible and have zero width.
-	extractRunesFromRangeTable(unicode.Zp, data.ZeroWidthChars)
-
 	// Noncharacters (U+nFFFE and U+nFFFF)
 	data.ZeroWidthChars[0xFFFE] = true
 	data.ZeroWidthChars[0xFFFF] = true
-}
-
-// extractRunesFromRangeTable efficiently extracts all runes from a Unicode range table
-func extractRunesFromRangeTable(table *unicode.RangeTable, target map[rune]bool) {
-	// Iterate over 16-bit ranges
-	for _, r16 := range table.R16 {
-		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
-			target[r] = true
-		}
-	}
-
-	// Iterate over 32-bit ranges
-	for _, r32 := range table.R32 {
-		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
-			target[r] = true
-		}
-	}
 }
 
 func buildPropertyBitmap(r rune, data *UnicodeData) property {
